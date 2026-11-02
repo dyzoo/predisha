@@ -1,0 +1,442 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+  preferences     UserPreference?
+  savedFixtures   SavedFixture[]
+  subscription    Subscription?
+  auditLogs       AdminAuditLog[]  @relation("ActorLogs")
+  predictionSlips PredictionSlip[]
+  freePreview     UserFreePreview?
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model UserPreference {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  timezone        String   @default("UTC")
+  locale          String   @default("en")
+  favoriteSports  String[] @default([])
+  favoriteLeagues String[] @default([])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Sports domain
+model Sport {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  competitions Competition[]
+}
+
+model Competition {
+  id         String   @id @default(cuid())
+  providerId String?
+  name       String
+  country    String?
+  season     String?
+  sportId    String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sport    Sport     @relation(fields: [sportId], references: [id])
+  fixtures Fixture[]
+
+  @@index([providerId])
+}
+
+model Team {
+  id         String   @id @default(cuid())
+  providerId String?
+  name       String
+  shortName  String   @default("")
+  color      String   @default("#9CA3AF")
+  logoUrl    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  homeFixtures Fixture[] @relation("HomeTeam")
+  awayFixtures Fixture[] @relation("AwayTeam")
+
+  @@index([providerId])
+}
+
+model Fixture {
+  id            String        @id @default(cuid())
+  providerId    String?       @unique
+  competitionId String
+  homeTeamId    String
+  awayTeamId    String
+  kickoffUtc    DateTime
+  status        FixtureStatus @default(SCHEDULED)
+  homeScore     Int?
+  awayScore     Int?
+  lastSyncedAt  DateTime      @default(now())
+  sourceProvider String?      @default("unknown")
+  sourceFilePath String?
+  sourceRevision String?
+  retrievedAt    DateTime?
+  sourceUpdatedAt DateTime?
+  importedAt     DateTime?
+  parserVersion  String?
+  dataQualityStatus String? @default("PENDING")
+  isEligibleForTraining Boolean @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  competition Competition     @relation(fields: [competitionId], references: [id])
+  homeTeam    Team            @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam    Team            @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  predictions Prediction[]
+  savedBy     SavedFixture[]
+  teamStats   TeamMatchStat[]
+
+  @@index([kickoffUtc])
+  @@index([status])
+}
+
+enum FixtureStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+  ABANDONED
+}
+
+model TeamMatchStat {
+  id        String   @id @default(cuid())
+  fixtureId String
+  teamId    String
+  key       String
+  value     String
+  source    String?
+  asOf      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  fixture Fixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+
+  @@index([fixtureId])
+}
+
+// Predictions
+model ModelVersion {
+  id        String   @id @default(cuid())
+  name      String
+  version   String
+  config    Json
+  active    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  predictions Prediction[]
+}
+
+model Prediction {
+  id               String           @id @default(cuid())
+  fixtureId        String
+  market           String
+  modelVersionId   String
+  generatedAt      DateTime         @default(now())
+  inputDataAsOf    DateTime
+  status           PredictionStatus @default(DRAFT)
+  dataQualityFlags String[]         @default([])
+  structuredFacts  Json
+  explanation      String?          @db.Text
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  fixture      Fixture               @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  modelVersion ModelVersion          @relation(fields: [modelVersionId], references: [id])
+  outcomes     PredictionOutcome[]
+  evaluation   PredictionEvaluation?
+
+  @@index([fixtureId, status])
+}
+
+enum PredictionStatus {
+  DRAFT
+  PUBLISHED
+  STALE
+  INVALIDATED
+  EVALUATED
+}
+
+model PredictionOutcome {
+  id           String @id @default(cuid())
+  predictionId String
+  outcomeKey   String
+  probability  Float
+
+  prediction Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  @@index([predictionId])
+}
+
+model PredictionEvaluation {
+  id            String   @id @default(cuid())
+  predictionId  String   @unique
+  actualOutcome String
+  brierScore    Float?
+  logLoss       Float?
+  evaluatedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  prediction Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+}
+
+// Saved user prediction slips. The selections keep a snapshot of the model
+// output at build time so later data changes cannot rewrite history.
+model PredictionSlip {
+  id                  String     @id @default(cuid())
+  userId              String
+  stake               Float
+  currency            String     @default("USD")
+  risk                String
+  odds                Float?
+  oddsSource          String     @default("model-implied")
+  impliedCombinedOdds Float
+  combinedProbability Float
+  potentialReturn     Float
+  netProfit           Float
+  modelVersion        String?
+  dataAsOf            DateTime?
+  generatedAt         DateTime   @default(now())
+  demo                Boolean    @default(false)
+  limited             Boolean    @default(false)
+  status              SlipStatus @default(PENDING)
+  brierScore          Float?
+  settledAt           DateTime?
+  createdAt           DateTime   @default(now())
+
+  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selections  PredictionSlipSelection[]
+  freePreview UserFreePreview?
+
+  @@index([userId, generatedAt])
+  @@index([status])
+}
+
+enum SlipStatus {
+  PENDING
+  WON
+  LOST
+  VOID
+}
+
+model PredictionSlipSelection {
+  id              String   @id @default(cuid())
+  slipId          String
+  fixtureId       String
+  competition     String
+  homeName        String
+  awayName        String
+  kickoffUtc      DateTime
+  outcomeKey      String
+  probability     Float
+  impliedOdds     Float
+  homeProbability Float
+  drawProbability Float
+  awayProbability Float
+  actualOutcome   String?
+  correct         Boolean?
+  brierScore      Float?
+
+  slip PredictionSlip @relation(fields: [slipId], references: [id], onDelete: Cascade)
+
+  @@index([slipId])
+  @@index([fixtureId])
+}
+
+model UserFreePreview {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  claimedAt DateTime @default(now())
+  slipId    String?  @unique
+
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slip PredictionSlip? @relation(fields: [slipId], references: [id], onDelete: SetNull)
+}
+
+// User interactions
+model SavedFixture {
+  id        String   @id @default(cuid())
+  userId    String
+  fixtureId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fixture Fixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fixtureId])
+}
+
+// Billing
+model SubscriptionPlan {
+  id              String       @id @default(cuid())
+  name            String
+  interval        PlanInterval
+  amountMinor     Int
+  currency        String       @default("USD")
+  features        Json
+  providerPriceId String?
+  active          Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  subscriptions Subscription[]
+}
+
+enum PlanInterval {
+  WEEKLY
+  MONTHLY
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  userId                 String             @unique
+  planId                 String
+  providerSubscriptionId String?            @unique
+  providerCustomerId     String?
+  status                 SubscriptionStatus @default(INACTIVE)
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan          SubscriptionPlan @relation(fields: [planId], references: [id])
+  billingEvents BillingEvent[]
+
+  @@index([status])
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+model BillingEvent {
+  id              String    @id @default(cuid())
+  subscriptionId  String?
+  providerEventId String    @unique
+  type            String
+  processed       Boolean   @default(false)
+  processingState String?
+  safeMetadata    Json?
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime?
+
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+}
+
+model OutboundProviderLink {
+  id         String   @id @default(cuid())
+  url        String
+  label      String
+  disclosure String
+  available  Boolean  @default(false)
+  approved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AdminAuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  target    String?
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  actor User? @relation("ActorLogs", fields: [actorId], references: [id])
+}
+
+model SyncJob {
+  id         String     @id @default(cuid())
+  type       String
+  status     SyncStatus @default(PENDING)
+  startedAt  DateTime?
+  finishedAt DateTime?
+  error      String?    @db.Text
+  metadata   Json?
+  createdAt  DateTime   @default(now())
+}
+
+enum SyncStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}

@@ -1,36 +1,127 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Predisha — AI Sports Predictions Platform
 
-## Getting Started
+An international sports analytics subscription platform. Predisha does **not** accept bets, hold
+betting funds, or operate as a bookmaker. A high model probability is never a guaranteed result.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 App Router, React 19, strict TypeScript, Tailwind CSS v4
+- PostgreSQL + Prisma 6
+- Custom database-backed sessions (bcrypt password hashing, httpOnly cookie)
+- Provider abstraction for sports data and future billing integration
+- Elo + Poisson 1X2 prediction engine with leakage-safe features and evaluation metrics
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Set at least `DATABASE_URL` and a long random `AUTH_SECRET` in `.env.local`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run db:generate
+npm run db:push
+npm run db:seed
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open `http://localhost:3000`. With `SPORTS_DATA_PROVIDER=demo` (the default outside production),
+the app shows clearly labelled fictional fixtures and illustrative probabilities. Demo data is never
+presented as real forecasting.
 
-## Learn More
+### Create an admin
 
-To learn more about Next.js, take a look at the following resources:
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (12+ characters) before `npm run db:seed`. The seed script
+also creates subscription plans only when billing amounts and provider IDs are configured. Nothing
+is hardcoded and no fake payment succeeds.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Development test accounts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Outside production, `npm run db:seed` also creates verified test accounts with varied access. The
+shared password defaults to `PredishaTest123!` and can be changed with `SEED_USER_PASSWORD`. Set
+`SEED_DEMO_USERS=false` to skip them.
 
-## Deploy on Vercel
+| Email | Access |
+| --- | --- |
+| `admin@predisha.test` | Admin role (full access) |
+| `premium@predisha.test` | Active monthly subscription |
+| `trial@predisha.test` | Trialing weekly subscription |
+| `free@predisha.test` | Free account, preview unused |
+| `preview@predisha.test` | Free account, preview already used |
+| `pastdue@predisha.test` | Past-due subscription |
+| `canceled@predisha.test` | Canceled subscription |
+| `unpaid@predisha.test` | Unpaid subscription |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+These accounts skip email verification for local testing only. Never enable demo seeding in
+production with a shared password.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build and server |
+| `npm run lint` | ESLint |
+| `npm test` | Vitest unit tests |
+| `npm run db:generate` | Generate Prisma client |
+| `npm run db:push` | Push schema to the configured database |
+| `npm run db:migrate` | Create/apply development migrations |
+| `npm run db:seed` | Seed admin, demo accounts (outside production) and configured plans |
+
+## API
+
+Public, read-only:
+
+- `GET /api/sports`, `/api/competitions`, `/api/fixtures`, `/api/fixtures/:id`
+- `GET /api/fixtures/:id/analysis`
+- `GET /api/predictions` (free previews are limited outside demo mode)
+- `GET /api/results`, `/api/plans`
+
+Account:
+
+- `POST /api/auth/sign-up`, `/api/auth/sign-in`, `/api/auth/sign-out`
+- `GET /api/me`
+- `GET|POST /api/saved-fixtures`, `DELETE /api/saved-fixtures/:fixtureId`
+- `POST /api/predictions/build` (persists the slip for signed-in users)
+- `GET /api/predictions/history` (own slips only)
+- `GET|POST /api/free-preview/claim` (one preview per free account)
+
+Admin:
+
+- `POST /api/admin/sync`
+- `PATCH /api/admin/users/:userId` (role and subscription access, audit-logged)
+
+## Prediction slips and history
+
+Signed-in builds are stored in `PredictionSlip` and `PredictionSlipSelection` with the exact
+probabilities, model version, and kickoff timestamp used at build time. They appear at `/history`
+and are available from `GET /api/predictions/history`.
+
+- A free account gets **one** saved preview. Demo mode is unlimited and clearly labelled; premium and
+  admin accounts are unlimited.
+- Settlement uses the fixture's final score: a wrong selection makes the slip `LOST` immediately,
+  unresolved fixtures keep it `PENDING`, and postponed/cancelled fixtures make it `VOID`.
+- Brier scores are stored per selection and averaged per slip. Later data changes do not rewrite a
+  saved slip.
+- The public `/results` metrics are recomputed from the stored dataset and are separate from saved
+  user slips.
+
+## Safety and limitations
+
+- Live sports data and live billing are disabled until credentials and provider approval exist.
+  Missing inputs produce an honest unavailable state; the app never fabricates results.
+- Password reset email is not configured. The reset page states this rather than faking delivery.
+- Demo fixtures are fictional and labelled in the UI and API metadata.
+- Authentication rate limiting is in-memory and should be replaced with a shared store before
+  horizontal scaling.
+- `src/components/auth-shell.tsx` calls JSON auth endpoints with same-origin checks. Sessions are
+  stored in the `Session` table and validated server-side on every request.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Prediction Methodology](docs/PREDICTION_METHODOLOGY.md)
+- [Billing and Entitlements](docs/BILLING_AND_ENTITLEMENTS.md)
+- [Operations](docs/OPERATIONS.md)
