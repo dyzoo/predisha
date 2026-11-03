@@ -346,6 +346,9 @@ model SubscriptionPlan {
   features        Json
   providerPriceId String?
   active          Boolean      @default(true)
+  dailyLimit      Int?         @default(1)
+  weeklyLimit     Int?         @default(5)
+  monthlyLimit    Int?         @default(10)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
