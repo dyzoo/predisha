@@ -77,22 +77,6 @@ function wait(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-function shareText(result: BuilderResult): string {
-  const lines = [
-    'Predisha AI prediction slip',
-    `Selections: ${result.selections.length}`,
-    `Model confidence: ${percent(result.combinedProbability)}`,
-    '',
-    ...result.selections.map(
-      (selection, index) =>
-        `${index + 1}. ${selection.homeName} vs ${selection.awayName} — ${selection.market}: ${selection.outcomeLabel} (${percent(selection.probability)})`,
-    ),
-    '',
-    'Estimated analysis only. Not betting advice. The platform does not place bets.',
-  ]
-  return lines.join('\n')
-}
-
 export function BetBuilder({
   premium,
   currency,
@@ -110,9 +94,7 @@ export function BetBuilder({
   const [result, setResult] = useState<BuilderResult | null>(null)
   const [receipt, setReceipt] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const [expandedSelectionId, setExpandedSelectionId] = useState<string | null>(null)
-  const [showShareMenu, setShowShareMenu] = useState(false)
   const stageTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -179,7 +161,6 @@ export function BetBuilder({
     setError(null)
     setResult(null)
     setReceipt(null)
-    setCopied(false)
     stopStageTimer()
     const startedAt = Date.now()
     stageTimer.current = setInterval(() => {
@@ -230,44 +211,6 @@ export function BetBuilder({
     link.href = receipt
     link.download = `predisha-bet-slip-${result.generatedAt.slice(0, 10)}.png`
     link.click()
-  }
-
-  async function handleShare() {
-    if (!result) return
-    const text = shareText(result)
-    try {
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        if (receipt) {
-          const blob = await (await fetch(receipt)).blob()
-          const file = new File(
-            [blob],
-            `predisha-bet-slip-${result.generatedAt.slice(0, 10)}.png`,
-            { type: 'image/png' },
-          )
-          if (navigator.canShare?.({ files: [file] })) {
-            await navigator.share({
-              title: 'Predisha AI prediction slip',
-              text,
-              files: [file],
-            })
-            return
-          }
-        }
-        await navigator.share({ title: 'Predisha AI prediction slip', text })
-        return
-      }
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // The share sheet was dismissed or the clipboard was blocked.
-      try {
-        const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`
-        window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
-      } catch {
-        // Fallback silent
-      }
-    }
   }
 
   return (
@@ -661,35 +604,35 @@ export function BetBuilder({
                 </button>
                 <button
                   type="button"
-                  onClick={handleShare}
+                  onClick={async () => {
+                    if (!receipt || !result) return
+                    try {
+                      const blob = await (await fetch(receipt)).blob()
+                      const file = new File(
+                        [blob],
+                        `predisha-bet-slip-${result.generatedAt.slice(0, 10)}.png`,
+                        { type: 'image/png' },
+                      )
+                      if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare?.({ files: [file] })) {
+                        await navigator.share({
+                          title: 'Predisha AI prediction slip',
+                          files: [file],
+                        })
+                      } else if (navigator.canShare?.({ files: [file] })) {
+                        await navigator.share({ files: [file] })
+                      } else {
+                        // Fallback: open image in new tab
+                        window.open(receipt, '_blank', 'noopener,noreferrer')
+                      }
+                    } catch {
+                      window.open(receipt, '_blank', 'noopener,noreferrer')
+                    }
+                  }}
                   className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:border-white/20 hover:bg-elevated-surface"
                 >
-                  {copied ? <Check className="h-4 w-4 text-accent" /> : <Share2 className="h-4 w-4" />}
-                  {copied ? 'Copied' : 'Share slip'}
+                  <Share2 className="h-4 w-4" />
+                  Share image
                 </button>
-                {result ? (
-                  <div className="relative inline-block">
-                    <button
-                      type="button"
-                      onClick={() => setShowShareMenu(!showShareMenu)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:border-white/20 hover:bg-elevated-surface"
-                      aria-label="Share via apps"
-                    >
-                      <Share2 className="h-4 w-4" />
-                      Share via apps
-                    </button>
-                    {showShareMenu ? (
-                      <div className="absolute left-0 top-full mt-2 z-50 w-56 rounded-xl border border-border bg-surface/95 shadow-xl backdrop-blur-md p-2">
-                        <a href={`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText(result))}`} target="_blank" rel="noopener noreferrer" className="block rounded-lg px-3 py-2 text-xs font-semibold text-main-text hover:bg-elevated-surface transition-colors">WhatsApp</a>
-                        <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText(result))}`} target="_blank" rel="noopener noreferrer" className="block rounded-lg px-3 py-2 text-xs font-semibold text-main-text hover:bg-elevated-surface transition-colors">Twitter / X</a>
-                        <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`} target="_blank" rel="noopener noreferrer" className="block rounded-lg px-3 py-2 text-xs font-semibold text-main-text hover:bg-elevated-surface transition-colors">Facebook</a>
-                        <a href={`https://t.me/share/url?url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}&text=${encodeURIComponent(shareText(result))}`} target="_blank" rel="noopener noreferrer" className="block rounded-lg px-3 py-2 text-xs font-semibold text-main-text hover:bg-elevated-surface transition-colors">Telegram</a>
-                        <a href={`mailto:?subject=Predisha%20AI%20Prediction%20Slip&body=${encodeURIComponent(shareText(result))}`} className="block rounded-lg px-3 py-2 text-xs font-semibold text-main-text hover:bg-elevated-surface transition-colors">Email</a>
-                        <button type="button" onClick={() => { navigator.clipboard.writeText(shareText(result)).then(() => setCopied(true)); setTimeout(() => setCopied(false), 2000); setShowShareMenu(false); }} className="w-full text-left rounded-lg px-3 py-2 text-xs font-semibold text-main-text hover:bg-elevated-surface transition-colors">Copy link</button>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
 
               {result.slipId ? (
