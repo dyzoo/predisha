@@ -207,7 +207,7 @@ const MARKET_LABELS: Record<MarketKey, string> = {
   HOME: 'Home win',
   DRAW: 'Draw',
   AWAY: 'Away win',
-  DC_HOME_DRAW: 'Home or draw',
+  DC_HOME_DRAW: 'Double Chance',
   DC_DRAW_AWAY: 'Draw or away',
   DC_HOME_AWAY: 'Home or away',
   OVER_1_5: 'Over 1.5 goals',
