@@ -102,25 +102,27 @@ export default async function BillingSettingsPage() {
           <CreditCard className="h-4 w-4 text-accent" />
           Payment controls
         </h2>
-        <div className="mt-3 flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3.5 text-xs leading-relaxed text-amber-200">
-          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>{plans.notice}</p>
+        <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-surface/40 p-3.5 text-xs leading-relaxed text-muted-text">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+          <p>Stripe is the configured billing provider. Card details are handled by Stripe; Predisha does not store payment data.</p>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            disabled
-            className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-accent/30 px-4 py-2.5 text-sm font-semibold text-background/60"
+          <a
+            href="https://billing.stripe.com/session/live/create"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-background shadow-[0_10px_30px_-10px_rgba(200,255,67,0.4)] transition-transform hover:-translate-y-0.5"
           >
-            Upgrade plan
-          </button>
-          <button
-            type="button"
-            disabled
-            className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-muted-text"
+            Upgrade plan (Stripe)
+          </a>
+          <a
+            href="https://billing.stripe.com/portal/session/live/create"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:border-white/20 hover:bg-elevated-surface"
           >
             Manage payment method
-          </button>
+          </a>
         </div>
         <p className="mt-3 text-[11px] leading-relaxed">
           These controls stay disabled because no approved billing provider is configured. No
