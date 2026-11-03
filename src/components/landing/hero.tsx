@@ -40,8 +40,8 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
       }
 
   return (
-    <section className="relative overflow-hidden">
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+    <section className="relative overflow-hidden bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1577223625816-7546f13df25d?q=80&w=2070&auto=format&fit=crop)' }}>
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-background/80 via-background/60 to-background">
         <div className="absolute -top-32 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-accent/10 blur-[130px]" />
         <div className="absolute -right-24 top-24 h-[360px] w-[360px] rounded-full bg-[#5B8CFF]/10 blur-[110px]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_72%)]" />
@@ -61,7 +61,7 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
           <motion.h1
             {...fadeUp}
             transition={{ duration: 0.55, delay: 0.06, ease: 'easeOut' }}
-            className="mt-5 max-w-2xl font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
+            className="mt-5 max-w-2xl font-chivo text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
           >
             Read the match
             <br />
