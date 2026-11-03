@@ -127,7 +127,7 @@ function layoutSelection(
   const rightWidth = 220
   const leftWidth = RIGHT - textLeft - rightWidth - 24
   const name = `${selection.homeName} vs ${selection.awayName}`
-  const subtitle = `${selection.competition} · ${selection.market}`
+  const subtitle = `${selection.competition} · ${selection.kickoffLabel ?? ''} · ${selection.market}`
   const probability = percent(selection.probability)
 
   const nameLines = measureLines(ctx, name, leftWidth, 25, 600)
