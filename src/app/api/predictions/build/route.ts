@@ -50,6 +50,20 @@ export async function POST(request: Request) {
   }
 
   const premium = canViewPremium(viewer)
+  let slipLimits = { daily: 1, weekly: 5, monthly: 10 }
+  if (premium) {
+    const sub = await prisma.subscription.findUnique({
+      where: { userId: viewer.userId! },
+      include: { plan: true },
+    })
+    if (sub && sub.status === 'ACTIVE' && sub.plan) {
+      slipLimits = {
+        daily: sub.plan.dailyLimit ?? 1,
+        weekly: sub.plan.weeklyLimit ?? 5,
+        monthly: sub.plan.monthlyLimit ?? 10,
+      }
+    }
+  }
   const freePreviewState =
     viewer.userId && !premium && !dataset.isDemo
       ? await getFreePreviewState(viewer.userId)
