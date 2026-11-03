@@ -22,6 +22,7 @@ const buildSchema = z.object({
   odds: z.number().finite().min(1).max(1_000_000).nullable().optional(),
   currency: z.string().trim().regex(/^[A-Za-z]{3}$/).optional(),
   timeRange: z.enum(['day', 'week', 'month']).optional().default('week'),
+  fixtureIds: z.array(z.string().trim().min(1)).optional().default([]),
 })
 
 export async function POST(request: Request) {
@@ -98,11 +99,15 @@ export async function POST(request: Request) {
     toDate.setHours(23, 59, 59, 999)
   }
 
+  const selectedFixtureIds = new Set(parsed.data.fixtureIds ?? [])
   const maxSelections = premium || dataset.isDemo ? 20 : 5
-  const filteredAnalyses = analyses.filter(a => {
+  let filteredAnalyses = analyses.filter(a => {
     const kickoff = a.fixture.kickoffUtc.getTime()
     return kickoff >= fromDate.getTime() && kickoff <= toDate.getTime()
   })
+  if (selectedFixtureIds.size > 0) {
+    filteredAnalyses = filteredAnalyses.filter(a => selectedFixtureIds.has(a.fixture.id))
+  }
   const result = buildPredictionSlip(
     filteredAnalyses.map(analysis => toMatchView(analysis)),
     {
