@@ -42,7 +42,8 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
   return (
     <section className="relative overflow-hidden bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2070&auto=format&fit=crop)' }}>
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-background/95 via-background/90 to-background/98">
-        <div className="absolute inset-0 bg-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0e1a]/70 via-[#0a0e1a]/50 to-[#0a0e1a]/80" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-accent/15 via-transparent to-[#5B8CFF]/15 mix-blend-overlay" />
         <div className="absolute -top-32 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-accent/10 blur-[130px]" />
         <div className="absolute -right-24 top-24 h-[360px] w-[360px] rounded-full bg-[#5B8CFF]/10 blur-[110px]" />
       </div>
