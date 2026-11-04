@@ -37,6 +37,8 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+button, a { cursor: pointer; }
+
 ::selection {
   background-color: var(--accent);
   color: var(--background);

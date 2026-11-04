@@ -85,7 +85,7 @@ export default async function Home() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                   <Link
-                    href="/dashboard"
+                    href="/"
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background/40 px-6 py-3.5 text-sm font-semibold transition-colors hover:bg-background/70"
                   >
                     Go to dashboard
