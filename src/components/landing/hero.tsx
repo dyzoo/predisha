@@ -77,7 +77,7 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
             className="mt-5 max-w-xl text-base leading-relaxed text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] sm:text-lg"
           >
             Statistically grounded match probabilities, explained with the data behind them. Track
-            fixtures, follow the model, and see the record honestly — no hype, no guaranteed wins.
+            fixtures, follow the model, and see the record honestly - no hype, no guaranteed wins.
           </motion.p>
 
           <motion.div
