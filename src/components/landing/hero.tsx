@@ -40,12 +40,11 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
       }
 
   return (
-    <section className="relative overflow-hidden bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=2070&auto=format&fit=crop)' }}>
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-background/90 via-background/85 to-background/95">
-        <div className="absolute inset-0 bg-black/50" />
+    <section className="relative overflow-hidden bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2070&auto=format&fit=crop)' }}>
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-background/95 via-background/90 to-background/98">
+        <div className="absolute inset-0 bg-black/70" />
         <div className="absolute -top-32 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-accent/10 blur-[130px]" />
         <div className="absolute -right-24 top-24 h-[360px] w-[360px] rounded-full bg-[#5B8CFF]/10 blur-[110px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_72%)]" />
       </div>
 
       <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:px-8 lg:pb-28 lg:pt-24">
@@ -62,7 +61,7 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
           <motion.h1
             {...fadeUp}
             transition={{ duration: 0.55, delay: 0.06, ease: 'easeOut' }}
-            className="mt-5 max-w-2xl font-chivo text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
+            className="mt-5 max-w-2xl font-chivo text-4xl font-black leading-[1.05] tracking-tight text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] sm:text-5xl lg:text-6xl"
           >
             Read the match
             <br />
@@ -74,7 +73,7 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
           <motion.p
             {...fadeUp}
             transition={{ duration: 0.55, delay: 0.12, ease: 'easeOut' }}
-            className="mt-5 max-w-xl text-base leading-relaxed text-muted-text sm:text-lg"
+            className="mt-5 max-w-xl text-base leading-relaxed text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] sm:text-lg"
           >
             Statistically grounded match probabilities, explained with the data behind them. Track
             fixtures, follow the model, and see the record honestly — no hype, no guaranteed wins.
