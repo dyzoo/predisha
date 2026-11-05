@@ -1,5 +1,6 @@
 import { connection } from 'next/server'
 import { apiError, json } from '@/lib/api'
+import { getBillingProvider } from '@/lib/billing/provider'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 import { prisma } from '@/lib/prisma'
 
@@ -10,6 +11,8 @@ export async function GET() {
   }
   const viewer = await getViewer()
   if (!viewer.userId) return apiError('Sign in to view your subscription.', 401)
+
+  const provider = getBillingProvider()
 
   try {
     const subscription = await prisma.subscription.findUnique({
@@ -34,7 +37,8 @@ export async function GET() {
       data: subscription,
       meta: {
         entitlement: viewer.entitlement,
-        billingEnabled: process.env.BILLING_LIVE_ENABLED === 'true',
+        billingEnabled: provider.name !== 'disabled',
+        provider: provider.name,
       },
     })
   } catch {

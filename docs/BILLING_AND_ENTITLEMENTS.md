@@ -1,10 +1,17 @@
 # Billing and Entitlements
 
-- Live billing disabled by default
-- Stripe/other providers only enabled after explicit approval
-- Hosted checkout, webhook signature verification
+- Live billing provider: HarakaPay (USSD push) behind the `BillingProvider` abstraction
+- Live billing requires `BILLING_LIVE_ENABLED=true` and `BILLING_PROVIDER=harakapay`; checkout stays disabled while the provider is not configured
+- USSD push checkout, webhook events confirmed against the provider status API
 - Entitlements enforced server-side
 - No card data stored
+
+## HarakaPay integration
+
+- Checkout starts a USSD push through `POST https://harakapay.net/api/v1/collect` with the customer phone, the amount in TZS and the `X-API-Key` header.
+- The returned HarakaPay order id is recorded on the billing event ledger (`BillingEvent.providerEventId`) together with the buyer context captured at checkout.
+- `POST /api/webhooks/harakapay` applies the reported status idempotently; completed payments grant the premium subscription and failed payments mark it unpaid. HarakaPay does not sign its callbacks, so unsigned events are confirmed through `GET /api/v1/status/{order_id}` before being trusted. If `HARAKAPAY_WEBHOOK_SECRET` is set, the raw body HMAC-SHA256 signature is required instead.
+- The provider abstraction (`src/lib/billing/provider.ts`) maps HarakaPay orders to the internal subscription model. The app never handles raw card data.
 
 ## Free preview
 

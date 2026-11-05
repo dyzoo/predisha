@@ -1,6 +1,14 @@
-import { apiError } from '@/lib/api'
+import { z } from 'zod'
+import { apiError, json } from '@/lib/api'
 import { isSameOrigin } from '@/lib/auth/origin'
+import { clientKey, rateLimit } from '@/lib/auth/rate-limit'
+import { getBillingProvider } from '@/lib/billing/provider'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
+
+const checkoutSchema = z.object({
+  planId: z.enum(['weekly', 'monthly']),
+  phone: z.string().trim().regex(/^\+?[0-9]{7,15}$/, 'Enter a valid phone number.'),
+})
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return apiError('Invalid origin.', 403)
@@ -10,8 +18,35 @@ export async function POST(request: Request) {
   const viewer = await getViewer()
   if (!viewer.userId) return apiError('Sign in before starting checkout.', 401)
 
-  return apiError(
-    'Checkout is not open. Live billing stays disabled until the payment provider approves the business model, entity and target markets.',
-    503,
-  )
+  const limit = rateLimit(clientKey(request, 'billing-checkout'), 5, 60_000)
+  if (!limit.ok) {
+    return apiError('Too many checkout attempts. Try again shortly.', 429, {
+      retryAfterSeconds: limit.retryAfterSeconds,
+    })
+  }
+
+  const body = await request.json().catch(() => null)
+  const parsed = checkoutSchema.safeParse(body)
+  if (!parsed.success) {
+    return apiError('Enter a valid plan and phone number.', 422, {
+      issues: parsed.error.issues.map(issue => issue.message),
+    })
+  }
+
+  const provider = getBillingProvider()
+  if (provider.name === 'disabled') {
+    return apiError(
+      'Checkout is not open. Live billing stays disabled until the payment provider approves the business model, entity and target markets.',
+      503,
+    )
+  }
+
+  const checkout = await provider.createCheckoutSession(viewer.userId, parsed.data.planId, {
+    phone: parsed.data.phone,
+  })
+  if (!checkout) {
+    return apiError('Checkout could not be started. The billing provider is not ready yet.', 503)
+  }
+
+  return json({ data: checkout })
 }

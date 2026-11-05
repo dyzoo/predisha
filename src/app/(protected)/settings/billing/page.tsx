@@ -2,12 +2,14 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
-import { ArrowRight, CircleAlert, CreditCard, ShieldCheck } from 'lucide-react'
+import { ArrowRight, CreditCard, ShieldCheck } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
 import { SettingsNav } from '@/components/settings/settings-nav'
 import { SettingsLocked } from '@/components/settings/settings-locked'
+import { HarakaPayCheckout } from '@/components/billing/harakapay-checkout'
+import { getBillingProvider, isBillingEnabled } from '@/lib/billing/provider'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
-import { getPublicPlans } from '@/lib/billing/plans'
+import { getPublicPlans, type PublicPlan } from '@/lib/billing/plans'
 import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
@@ -50,6 +52,10 @@ export default async function BillingSettingsPage() {
         currency: subscription.plan.currency,
       }).format(subscription.plan.amountMinor / 100)
     : null
+
+  const provider = getBillingProvider().name
+  const billingEnabled = isBillingEnabled()
+  const availablePlans: PublicPlan[] = plans.plans.filter(item => item.available)
 
   return (
     <PageShell
@@ -102,32 +108,52 @@ export default async function BillingSettingsPage() {
           <CreditCard className="h-4 w-4 text-accent" />
           Payment controls
         </h2>
-        <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-surface/40 p-3.5 text-xs leading-relaxed text-muted-text">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-          <p>Stripe is the configured billing provider. Card details are handled by Stripe; Predisha does not store payment data.</p>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <a
-            href="https://billing.stripe.com/session/live/create"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-background shadow-[0_10px_30px_-10px_rgba(200,255,67,0.4)] transition-transform hover:-translate-y-0.5"
-          >
-            Upgrade plan (Stripe)
-          </a>
-          <a
-            href="https://billing.stripe.com/portal/session/live/create"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:border-white/20 hover:bg-elevated-surface"
-          >
-            Manage payment method
-          </a>
-        </div>
-        <p className="mt-3 text-[11px] leading-relaxed">
-          These controls stay disabled because no approved billing provider is configured. No
-          checkout or portal request is simulated.
-        </p>
+        {provider === 'harakapay' && billingEnabled ? (
+          <>
+            <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-surface/40 p-3.5 text-xs leading-relaxed text-muted-text">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+              <p>
+                HarakaPay collects premium subscriptions through a USSD push to the phone number you
+                provide. Approve the payment on your handset; Predisha does not store or handle card
+                details.
+              </p>
+            </div>
+            {availablePlans.length > 0 ? (
+              <HarakaPayCheckout plans={availablePlans} />
+            ) : (
+              <p className="mt-3 text-xs leading-relaxed">
+                No subscription plans are published yet. Check back once pricing is configured.
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled
+                className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-muted-text"
+              >
+                Manage payment method
+              </button>
+            </div>
+            <p className="mt-3 text-[11px] leading-relaxed">
+              The HarakaPay USSD flow does not expose a hosted portal, so payment methods are managed
+              in the HarakaPay app.
+            </p>
+          </>
+        ) : (
+          <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-surface/40 p-3.5 text-xs leading-relaxed text-muted-text">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+            <p>
+              Subscriptions are not open yet. Checkout stays disabled until the payment provider
+              approves the business model, entity and target markets.
+            </p>
+          </div>
+        )}
+        {provider === 'harakapay' && billingEnabled ? (
+          <p className="mt-3 text-[11px] leading-relaxed">
+            Live billing is enabled for the HarakaPay provider. USSD payments settle directly with the
+            network and provider.
+          </p>
+        ) : null}
         <Link
           href="/pricing"
           className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline"

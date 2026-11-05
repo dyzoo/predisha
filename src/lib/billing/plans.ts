@@ -1,3 +1,5 @@
+import { isBillingEnabled } from '@/lib/billing/provider'
+
 export type PlanInterval = 'WEEKLY' | 'MONTHLY'
 
 export interface PublicPlan {
@@ -30,8 +32,7 @@ function readAmount(value: string | undefined): number | null {
  */
 export function getPublicPlans(): PublicPlanResponse {
   const provider = process.env.BILLING_PROVIDER ?? 'disabled'
-  const billingEnabled =
-    process.env.BILLING_LIVE_ENABLED === 'true' && provider !== 'disabled'
+  const billingEnabled = isBillingEnabled()
   const currency = (process.env.BILLING_CURRENCY ?? 'USD').toUpperCase()
 
   const plans: PublicPlan[] = [
@@ -67,7 +68,7 @@ export function getPublicPlans(): PublicPlanResponse {
     billingEnabled,
     provider,
     notice: billingEnabled
-      ? 'Billing is enabled. Checkout is hosted by the approved payment provider.'
+      ? 'Billing is enabled. Checkout is processed by the approved payment provider.'
       : 'Subscriptions are not open yet. Live billing stays disabled until the payment provider approves the business model, entity and target markets.',
     plans,
   }

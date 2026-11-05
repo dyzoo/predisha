@@ -109,13 +109,23 @@ export async function PricingPreview() {
                     </li>
                   ))}
                 </ul>
-                <button
-                  type="button"
-                  disabled
-                  className="mt-auto cursor-not-allowed rounded-xl bg-accent/20 px-5 py-3 text-sm font-semibold text-accent/60"
-                >
-                  {plan.available ? 'Checkout unavailable' : 'Subscriptions coming soon'}
-                </button>
+                {plan.available ? (
+                  <Link
+                    href="/settings/billing"
+                    className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
+                  >
+                    Upgrade with HarakaPay
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="mt-auto cursor-not-allowed rounded-xl bg-accent/20 px-5 py-3 text-sm font-semibold text-accent/60"
+                  >
+                    Subscriptions coming soon
+                  </button>
+                )}
               </div>
             </Reveal>
           ))}
