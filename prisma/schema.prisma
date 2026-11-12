@@ -26,6 +26,13 @@ model User {
   auditLogs       AdminAuditLog[]  @relation("ActorLogs")
   predictionSlips PredictionSlip[]
   freePreview     UserFreePreview?
+
+  betWallet       BetWallet?
+  betTransactions BetTransaction[]
+  betTickets      BetTicket[]
+  betPromoClaims  BetPromoClaim[]
+  betGameRounds   BetGameRound[]
+  betAviatorBets  BetAviatorBet[]
 }
 
 enum Role {
@@ -127,27 +134,27 @@ model Team {
 }
 
 model Fixture {
-  id            String        @id @default(cuid())
-  providerId    String?       @unique
-  competitionId String
-  homeTeamId    String
-  awayTeamId    String
-  kickoffUtc    DateTime
-  status        FixtureStatus @default(SCHEDULED)
-  homeScore     Int?
-  awayScore     Int?
-  lastSyncedAt  DateTime      @default(now())
-  sourceProvider String?      @default("unknown")
-  sourceFilePath String?
-  sourceRevision String?
-  retrievedAt    DateTime?
-  sourceUpdatedAt DateTime?
-  importedAt     DateTime?
-  parserVersion  String?
-  dataQualityStatus String? @default("PENDING")
-  isEligibleForTraining Boolean @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id                    String        @id @default(cuid())
+  providerId            String?       @unique
+  competitionId         String
+  homeTeamId            String
+  awayTeamId            String
+  kickoffUtc            DateTime
+  status                FixtureStatus @default(SCHEDULED)
+  homeScore             Int?
+  awayScore             Int?
+  lastSyncedAt          DateTime      @default(now())
+  sourceProvider        String?       @default("unknown")
+  sourceFilePath        String?
+  sourceRevision        String?
+  retrievedAt           DateTime?
+  sourceUpdatedAt       DateTime?
+  importedAt            DateTime?
+  parserVersion         String?
+  dataQualityStatus     String?       @default("PENDING")
+  isEligibleForTraining Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   competition Competition     @relation(fields: [competitionId], references: [id])
   homeTeam    Team            @relation("HomeTeam", fields: [homeTeamId], references: [id])
@@ -442,4 +449,157 @@ enum SyncStatus {
   RUNNING
   SUCCEEDED
   FAILED
+}
+
+// Sandbox betting module. Every balance is play money; no payment provider is
+// involved and no real-money settlement is possible.
+model BetWallet {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  balanceMinor Int      @default(0)
+  currency     String   @default("TZS")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions BetTransaction[]
+}
+
+model BetTransaction {
+  id                String             @id @default(cuid())
+  userId            String
+  walletId          String
+  type              BetTransactionType
+  amountMinor       Int
+  balanceAfterMinor Int
+  reference         String?            @unique
+  note              String?
+  metadata          Json?
+  createdAt         DateTime           @default(now())
+
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet BetWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([walletId])
+}
+
+enum BetTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  BET_STAKE
+  BET_WIN
+  BET_CASHOUT
+  PROMO_BONUS
+  GAME_STAKE
+  GAME_WIN
+  ADJUSTMENT
+}
+
+model BetTicket {
+  id                   String          @id @default(cuid())
+  userId               String
+  code                 String          @unique
+  stakeMinor           Int
+  totalOdds            Float
+  potentialReturnMinor Int
+  status               BetTicketStatus @default(OPEN)
+  payoutMinor          Int             @default(0)
+  cashoutMinor         Int?
+  selectionCount       Int
+  selections           Json
+  placedAt             DateTime        @default(now())
+  settledAt            DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, placedAt])
+  @@index([status])
+}
+
+enum BetTicketStatus {
+  OPEN
+  WON
+  LOST
+  VOID
+  CASHED_OUT
+}
+
+model BetShareCode {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  selections Json
+  createdBy  String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model BetPromoClaim {
+  id         String   @id @default(cuid())
+  userId     String
+  promoId    String
+  bonusMinor Int
+  claimedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, promoId])
+}
+
+model BetGameRound {
+  id          String        @id @default(cuid())
+  userId      String
+  game        BetGameType
+  stakeMinor  Int
+  payoutMinor Int           @default(0)
+  status      BetGameStatus @default(OPEN)
+  detail      Json
+  createdAt   DateTime      @default(now())
+  settledAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+enum BetGameType {
+  MINES
+  DICE
+  ROULETTE
+  SLOTS
+}
+
+enum BetGameStatus {
+  OPEN
+  WON
+  LOST
+}
+
+model BetAviatorBet {
+  id          String              @id @default(cuid())
+  userId      String
+  roundId     String
+  slot        Int
+  stakeMinor  Int
+  autoCashout Float?
+  cashedOutAt Float?
+  payoutMinor Int                 @default(0)
+  status      BetAviatorBetStatus @default(ACTIVE)
+  createdAt   DateTime            @default(now())
+  settledAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roundId, slot])
+  @@index([roundId])
+}
+
+enum BetAviatorBetStatus {
+  ACTIVE
+  CASHED_OUT
+  LOST
 }

@@ -20,3 +20,13 @@
 
 Pure settlement rules live in `src/lib/predictions/history-settlement.ts`; database reads and writes
 live in `src/lib/predictions/history.ts`.
+
+## Sandbox betting workspace (`/bet`)
+
+- Isolated from subscriptions: `BetWallet` holds play money only, and no payment provider is called.
+- `src/lib/bet/*` owns odds generation, catalog filtering, wallet ledger entries, ticket placement,
+  settlement, promos, share codes and arcade games.
+- `/api/bet/*` handlers require an authenticated session, same-origin mutations and rate limits.
+- Odds are model-implied (`BOOK_MARGIN = 0.06`) and frozen at placement; stale prices are rejected
+  instead of silently accepted.
+- Security headers for `/bet` and `/api/bet` are configured in `next.config.ts`.

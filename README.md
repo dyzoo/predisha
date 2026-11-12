@@ -108,6 +108,23 @@ and are available from `GET /api/predictions/history`.
 - The public `/results` metrics are recomputed from the stored dataset and are separate from saved
   user slips.
 
+## Sandbox betting workspace (`/bet`)
+
+A self-contained, play-money sportsbook cloned from paribet.co.tz and hardened:
+
+- No payment collection. Deposits and withdrawals are sandbox ledger entries; the app never asks
+  for a mobile-money PIN and never calls an external withdrawal service.
+- Server-owned sessions, wallets and rate limits; all mutations require the signed-in cookie and a
+  same-origin request.
+- Odds are derived from the Predisha model with a 6% margin and labelled as simulated, never as live
+  market prices.
+- Fixtures come from the same provider feed as the analysis product; arcade games use server-side
+  randomness.
+- Pages: `/bet`, `/bet/sports`, `/bet/live`, `/bet/bets`, `/bet/games` (Aviator, Mines, Dice,
+  Roulette, Slots), `/bet/promo`, `/bet/account`, `/bet/deposit`, `/bet/withdraw`, `/bet/share/[code]`.
+- Models: `BetWallet`, `BetTransaction`, `BetTicket`, `BetShareCode`, `BetPromoClaim`, `BetGameRound`,
+  `BetAviatorBet`. Apply them with `npm run db:push` or `npm run db:migrate`.
+
 ## Safety and limitations
 
 - Live sports data and live billing are disabled until credentials and provider approval exist.

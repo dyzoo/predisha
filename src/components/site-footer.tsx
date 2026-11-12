@@ -5,6 +5,7 @@ import { SiteFooterAccount } from '@/components/site-footer-account'
 const productLinks = [
   { href: '/matches', label: 'Matches' },
   { href: '/predictions', label: 'Predictions' },
+  { href: '/bet', label: 'Bet sandbox' },
   { href: '/results', label: 'Results' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/methodology', label: 'Methodology' },
