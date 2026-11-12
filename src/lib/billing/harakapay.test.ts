@@ -1,6 +1,11 @@
 import { createHmac } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { toTzsAmount, verifyHarakaPayWebhook, verifyHarakaPayWebhookSignature } from './harakapay'
+import {
+  confirmHarakaPayOrder,
+  toTzsAmount,
+  verifyHarakaPayWebhook,
+  verifyHarakaPayWebhookSignature,
+} from './harakapay'
 
 describe('harakapay helpers', () => {
   afterEach(() => {
@@ -53,6 +58,37 @@ describe('harakapay helpers', () => {
     const rawBody = JSON.stringify({ order_id: 'HP1', status: 'completed' })
 
     await expect(verifyHarakaPayWebhook(rawBody, 'deadbeef')).resolves.toBeNull()
+  })
+
+  it('confirms unsigned webhooks through the status API even when a secret is configured', async () => {
+    vi.stubEnv('HARAKAPAY_API_KEY', 'hpk_test')
+    vi.stubEnv('HARAKAPAY_WEBHOOK_SECRET', 'whsec_test')
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, payment: { status: 'completed', amount: 5000 } }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const rawBody = JSON.stringify({ order_id: 'HP2', status: 'completed' })
+
+    const event = await verifyHarakaPayWebhook(rawBody, null)
+
+    expect(event).toMatchObject({ orderId: 'HP2', status: 'completed', amountMinor: 5000 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('exposes the authoritative order status for manual confirmation', async () => {
+    vi.stubEnv('HARAKAPAY_API_KEY', 'hpk_test')
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, payment: { status: 'failed', amount: 7000 } }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const event = await confirmHarakaPayOrder('HP3')
+
+    expect(event).toMatchObject({ orderId: 'HP3', status: 'failed', amountMinor: 7000 })
   })
 
   it('confirms unsigned webhooks through the status API', async () => {

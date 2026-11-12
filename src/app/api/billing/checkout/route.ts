@@ -7,7 +7,11 @@ import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 
 const checkoutSchema = z.object({
   planId: z.enum(['weekly', 'monthly']),
-  phone: z.string().trim().regex(/^\+?[0-9]{7,15}$/, 'Enter a valid phone number.'),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9]{7,15}$/, 'Enter a valid phone number.')
+    .optional(),
 })
 
 export async function POST(request: Request) {
@@ -41,8 +45,14 @@ export async function POST(request: Request) {
     )
   }
 
+  if (provider.name === 'harakapay' && !parsed.data.phone) {
+    return apiError('Enter a valid phone number to receive the USSD push.', 422, {
+      fields: { phone: 'Enter a valid phone number.' },
+    })
+  }
+
   const checkout = await provider.createCheckoutSession(viewer.userId, parsed.data.planId, {
-    phone: parsed.data.phone,
+    phone: parsed.data.phone ?? null,
   })
   if (!checkout) {
     return apiError('Checkout could not be started. The billing provider is not ready yet.', 503)

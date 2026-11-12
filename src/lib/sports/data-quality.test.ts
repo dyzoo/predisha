@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { evaluateFixtureQuality } from '@/lib/sports/data-quality'
+import { evaluateFixtureQuality } from './data-quality'
 
 describe('Regression: prediction integrity and data quality', () => {
   it('rejects predictions with missing source', () => {

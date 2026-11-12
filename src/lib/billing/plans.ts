@@ -68,7 +68,9 @@ export function getPublicPlans(): PublicPlanResponse {
     billingEnabled,
     provider,
     notice: billingEnabled
-      ? 'Billing is enabled. Checkout is processed by the approved payment provider.'
+      ? provider === 'manual'
+        ? 'Test billing is enabled. Plan activation does not take a real payment.'
+        : 'Billing is enabled. Checkout is processed by the approved payment provider.'
       : 'Subscriptions are not open yet. Live billing stays disabled until the payment provider approves the business model, entity and target markets.',
     plans,
   }

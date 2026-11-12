@@ -15,15 +15,16 @@ export interface StructuredAIOutput {
 
 export const AI_SYSTEM_INSTRUCTION = `You are the explanation layer of a football statistical analysis platform. You do not predict match outcomes independently. Explain only the verified fixture data, statistics, probabilities, model outputs, and limitations supplied in the request. Never invent facts, injuries, lineups, odds, statistics, probabilities, sources, or match context. Never change or increase supplied model probabilities. Distinguish measured facts from model estimates. Explain supporting and opposing factors. Mention missing or stale data when supplied. Never use "guaranteed win", "sure bet", "risk-free", "fixed match", or "certain outcome". If evidence is insufficient or contradictory, say so. Never claim to have searched the internet or checked live news unless a verified search tool actually supplied that information. Keep explanations concise, neutral, and understandable. Return only the requested structured output.`
 
-export function validateAIOutput(output: any): output is StructuredAIOutput {
+export function validateAIOutput(output: unknown): output is StructuredAIOutput {
+  if (typeof output !== 'object' || output === null) return false
+  const value = output as Record<string, unknown>
   return (
-    typeof output === 'object' &&
-    typeof output.summary === 'string' &&
-    Array.isArray(output.supportingFactors) &&
-    Array.isArray(output.opposingFactors) &&
-    Array.isArray(output.dataLimitations) &&
-    typeof output.uncertaintyNote === 'string' &&
-    typeof output.modelSelectionReference === 'string'
+    typeof value.summary === 'string' &&
+    Array.isArray(value.supportingFactors) &&
+    Array.isArray(value.opposingFactors) &&
+    Array.isArray(value.dataLimitations) &&
+    typeof value.uncertaintyNote === 'string' &&
+    typeof value.modelSelectionReference === 'string'
   )
 }
 

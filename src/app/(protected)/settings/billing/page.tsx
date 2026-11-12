@@ -6,7 +6,7 @@ import { ArrowRight, CreditCard, ShieldCheck } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
 import { SettingsNav } from '@/components/settings/settings-nav'
 import { SettingsLocked } from '@/components/settings/settings-locked'
-import { HarakaPayCheckout } from '@/components/billing/harakapay-checkout'
+import { PlanCheckout } from '@/components/billing/plan-checkout'
 import { getBillingProvider, isBillingEnabled } from '@/lib/billing/provider'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 import { getPublicPlans, type PublicPlan } from '@/lib/billing/plans'
@@ -108,36 +108,40 @@ export default async function BillingSettingsPage() {
           <CreditCard className="h-4 w-4 text-accent" />
           Payment controls
         </h2>
-        {provider === 'harakapay' && billingEnabled ? (
+        {billingEnabled && provider !== 'disabled' ? (
           <>
             <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-surface/40 p-3.5 text-xs leading-relaxed text-muted-text">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
               <p>
-                HarakaPay collects premium subscriptions through a USSD push to the phone number you
-                provide. Approve the payment on your handset; Predisha does not store or handle card
-                details.
+                {provider === 'harakapay'
+                  ? 'HarakaPay collects premium subscriptions through a USSD push to the phone number you provide. Approve the payment on your handset; Predisha does not store or handle card details.'
+                  : 'Test billing is enabled on this deployment. Activating a plan grants premium immediately without taking a real payment.'}
               </p>
             </div>
             {availablePlans.length > 0 ? (
-              <HarakaPayCheckout plans={availablePlans} />
+              <PlanCheckout plans={availablePlans} provider={provider} />
             ) : (
               <p className="mt-3 text-xs leading-relaxed">
                 No subscription plans are published yet. Check back once pricing is configured.
               </p>
             )}
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                disabled
-                className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-muted-text"
-              >
-                Manage payment method
-              </button>
-            </div>
-            <p className="mt-3 text-[11px] leading-relaxed">
-              The HarakaPay USSD flow does not expose a hosted portal, so payment methods are managed
-              in the HarakaPay app.
-            </p>
+            {provider === 'harakapay' ? (
+              <>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-muted-text"
+                  >
+                    Manage payment method
+                  </button>
+                </div>
+                <p className="mt-3 text-[11px] leading-relaxed">
+                  The HarakaPay USSD flow does not expose a hosted portal, so payment methods are
+                  managed in the HarakaPay app.
+                </p>
+              </>
+            ) : null}
           </>
         ) : (
           <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-surface/40 p-3.5 text-xs leading-relaxed text-muted-text">
@@ -148,7 +152,7 @@ export default async function BillingSettingsPage() {
             </p>
           </div>
         )}
-        {provider === 'harakapay' && billingEnabled ? (
+        {billingEnabled && provider === 'harakapay' ? (
           <p className="mt-3 text-[11px] leading-relaxed">
             Live billing is enabled for the HarakaPay provider. USSD payments settle directly with the
             network and provider.

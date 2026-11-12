@@ -25,7 +25,7 @@ function formatPrice(plan: PublicPlan): string {
 }
 
 export async function PricingPreview() {
-  const { plans, billingEnabled, notice } = getPublicPlans()
+  const { plans, billingEnabled, notice, provider } = getPublicPlans()
   const viewer = await getViewer()
   const signedIn = Boolean(viewer.userId)
 
@@ -114,7 +114,7 @@ export async function PricingPreview() {
                     href="/settings/billing"
                     className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
                   >
-                    Upgrade with HarakaPay
+                    {provider === 'manual' ? 'Activate test plan' : 'Upgrade with HarakaPay'}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : (

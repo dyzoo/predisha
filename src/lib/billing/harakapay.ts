@@ -235,14 +235,21 @@ export async function verifyHarakaPayWebhook(
   const claimedStatus = typeof payload.status === 'string' ? payload.status : null
   const claimedAmount = typeof payload.amount === 'number' ? payload.amount : null
 
-  if (webhookSecret()) {
+  const signed = Boolean(signature?.trim()) && Boolean(webhookSecret())
+  if (signed) {
     if (!verifyHarakaPayWebhookSignature(rawBody, signature)) return null
     return buildWebhookEvent(orderId, claimedStatus, claimedAmount)
   }
 
   // HarakaPay does not sign its callbacks, so confirm the claimed status with
   // the status API before trusting an unsigned webhook.
-  const confirmed = await getHarakaPayOrderStatus(orderId)
-  if (!confirmed.success) return null
-  return buildWebhookEvent(orderId, confirmed.status ?? claimedStatus, confirmed.amount ?? claimedAmount)
+  return confirmHarakaPayOrder(orderId)
+}
+
+export async function confirmHarakaPayOrder(
+  orderId: string,
+): Promise<HarakaPayWebhookEvent | null> {
+  const status = await getHarakaPayOrderStatus(orderId)
+  if (!status.success) return null
+  return buildWebhookEvent(orderId, status.status, status.amount)
 }

@@ -87,8 +87,8 @@ export async function POST(request: Request) {
 
   const timeRange = parsed.data.timeRange ?? 'week'
   const now = new Date()
-  let fromDate = new Date(now)
-  let toDate = new Date(now)
+  const fromDate = new Date(now)
+  const toDate = new Date(now)
   if (timeRange === 'day') {
     toDate.setHours(23, 59, 59, 999)
   } else if (timeRange === 'week') {

@@ -19,20 +19,43 @@ export interface NormalizedFixture {
   isEligibleForTraining?: boolean
 }
 
-export function normalizeFixture(raw: any, parserVersion: string): NormalizedFixture {
+interface RawOpenFootballFixture {
+  providerId?: string
+  competitionId?: string
+  homeTeamId?: string
+  awayTeamId?: string
+  kickoffUtc?: string | number | Date
+  status?: string
+  homeScore?: number
+  awayScore?: number
+  sourceProvider?: string
+  sourceRecordId?: string
+  sourceFilePath?: string
+  sourceRevision?: string
+  retrievedAt?: string | number | Date
+  sourceUpdatedAt?: string | number | Date
+}
+
+export function normalizeFixture(
+  raw: RawOpenFootballFixture,
+  parserVersion: string,
+): NormalizedFixture {
   return {
-    providerId: raw.providerId ?? null,
+    providerId: raw.providerId ?? undefined,
     competitionId: raw.competitionId ?? 'unknown',
     homeTeamId: raw.homeTeamId ?? 'unknown',
     awayTeamId: raw.awayTeamId ?? 'unknown',
-    kickoffUtc: new Date(raw.kickoffUtc ?? Date.now()),
+    kickoffUtc:
+      raw.kickoffUtc instanceof Date
+        ? raw.kickoffUtc
+        : new Date(raw.kickoffUtc ?? Date.now()),
     status: raw.status ?? 'SCHEDULED',
-    homeScore: raw.homeScore ?? null,
-    awayScore: raw.awayScore ?? null,
+    homeScore: raw.homeScore ?? undefined,
+    awayScore: raw.awayScore ?? undefined,
     sourceProvider: raw.sourceProvider ?? 'openfootball',
-    sourceRecordId: raw.sourceRecordId ?? null,
-    sourceFilePath: raw.sourceFilePath ?? null,
-    sourceRevision: raw.sourceRevision ?? null,
+    sourceRecordId: raw.sourceRecordId ?? undefined,
+    sourceFilePath: raw.sourceFilePath ?? undefined,
+    sourceRevision: raw.sourceRevision ?? undefined,
     retrievedAt: raw.retrievedAt ? new Date(raw.retrievedAt) : undefined,
     sourceUpdatedAt: raw.sourceUpdatedAt ? new Date(raw.sourceUpdatedAt) : undefined,
     importedAt: new Date(),
