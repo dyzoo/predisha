@@ -3,6 +3,7 @@ import { resolveDemoTicket } from '@/lib/bet/bets'
 import { handleBetError } from '@/lib/bet/errors'
 import { guardMutation, requireViewer } from '@/lib/bet/security'
 import { getWalletView } from '@/lib/bet/wallet'
+import { getBetMode } from '@/lib/bet/mode'
 
 export async function POST(
   request: Request,
@@ -16,8 +17,8 @@ export async function POST(
     return json({
       ticket,
       wallet: await getWalletView(viewer.userId),
-      sandbox: true,
-      note: 'Demo fixtures were resolved with the sandbox resolver.',
+      mode: await getBetMode(),
+      note: 'Demo fixtures were resolved with the demo resolver.',
     })
   } catch (error) {
     return handleBetError(error)

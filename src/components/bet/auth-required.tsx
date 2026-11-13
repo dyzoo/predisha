@@ -1,14 +1,19 @@
+'use client'
+
 import Link from 'next/link'
 import { LockKeyhole } from 'lucide-react'
+import type { BetMode } from '@/lib/bet/mode-copy'
 
 export function AuthRequired({
   title,
   description,
   nextPath,
+  mode = 'LIVE',
 }: {
   title: string
   description: string
   nextPath: string
+  mode?: BetMode
 }) {
   const next = encodeURIComponent(nextPath)
 
@@ -34,7 +39,7 @@ export function AuthRequired({
         </Link>
       </div>
       <p className="mt-4 text-[11px] text-muted-text">
-        Your PredishaBet wallet is sandbox play money and is separate from any real payment.
+        Your PredishaBet wallet is protected and tied to your account.
       </p>
     </div>
   )

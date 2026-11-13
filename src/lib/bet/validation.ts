@@ -48,6 +48,7 @@ const referenceSchema = z
 
 export const depositSchema = z.object({
   amountMinor: z.number().int().min(1_000).max(1_000_000),
+  phone: z.string().trim().min(7).max(20).optional(),
   reference: referenceSchema.optional(),
 })
 
@@ -129,7 +130,34 @@ export const gamePlaySchema = z.discriminatedUnion('game', [
   slotsPlaySchema,
 ])
 
+export const adminSlipSelectionSchema = z.object({
+  fixtureId: z.string().trim().min(1).max(160),
+  marketId: z.string().trim().min(1).max(80),
+  selectionId: z.string().trim().min(1).max(80),
+  odds: z.number().finite().min(1.01).max(1000),
+})
+
+export const adminSlipCreateSchema = z.object({
+  title: z.string().trim().max(120).optional(),
+  stakeMinor: z.number().int().min(MIN_STAKE_MINOR).max(MAX_STAKE_MINOR),
+  selections: z.array(adminSlipSelectionSchema).min(1).max(MAX_SELECTIONS),
+})
+
+export const adminSlipActionSchema = z.object({
+  action: z.enum(['freeze', 'unfreeze']),
+  reason: z.string().trim().max(200).optional(),
+})
+
+export const slipPaySchema = z.object({
+  phone: z.string().trim().min(7).max(20),
+})
+
+export const adminPlatformModeSchema = z.object({
+  mode: z.enum(['LIVE', 'SANDBOX']),
+})
+
 export type PlaceBetInput = z.infer<typeof placeBetSchema>
+export type AdminSlipCreateInput = z.infer<typeof adminSlipCreateSchema>
 export type SelectionInput = z.infer<typeof selectionInputSchema>
 export type DepositInput = z.infer<typeof depositSchema>
 export type WithdrawInput = z.infer<typeof withdrawSchema>

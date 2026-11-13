@@ -11,7 +11,7 @@ import { getWalletView } from '@/lib/bet/wallet'
 
 export const metadata: Metadata = {
   title: 'Account',
-  description: 'Your sandbox wallet and Predisha account details.',
+  description: 'Your betting wallet and Predisha account details.',
 }
 
 export default async function BetAccountPage() {
@@ -21,7 +21,7 @@ export default async function BetAccountPage() {
     return (
       <AuthRequired
         title="Sign in to your wallet"
-        description="The sandbox wallet, tickets and game history are tied to your Predisha account."
+        description="Your betting wallet, tickets and game history are tied to your Predisha account."
         nextPath="/bet/account"
       />
     )
@@ -33,8 +33,8 @@ export default async function BetAccountPage() {
     <div className="space-y-6">
       <SectionHeading
         eyebrow="Account"
-        title="Your sandbox wallet"
-        description="Play money only. The betting wallet is separate from any Predisha subscription."
+        title="Your betting wallet"
+        description="Wallet balances and payouts are managed with the configured payment provider."
       />
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
@@ -59,7 +59,7 @@ export default async function BetAccountPage() {
           <section className="rounded-2xl border border-accent/20 bg-accent/10 p-5 text-xs leading-relaxed text-accent">
             <div className="flex items-center gap-2 font-semibold">
               <ShieldCheck className="h-4 w-4" />
-              Sandbox safety
+              Safety
             </div>
             <p className="mt-2 text-accent/80">
               PredishaBet never asks for a mobile-money PIN, card number or payment approval. If a
@@ -72,7 +72,7 @@ export default async function BetAccountPage() {
               href="/bet/deposit"
               className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-background"
             >
-              Add sandbox funds
+              Deposit funds
             </Link>
             <Link
               href="/bet/bets"

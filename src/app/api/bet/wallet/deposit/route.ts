@@ -1,5 +1,7 @@
 import { json } from '@/lib/api'
-import { handleBetError, isUniqueConstraintError } from '@/lib/bet/errors'
+import { startWalletDeposit } from '@/lib/bet/deposits'
+import { BetError, handleBetError, isUniqueConstraintError } from '@/lib/bet/errors'
+import { getBetMode } from '@/lib/bet/mode'
 import { randomCode } from '@/lib/bet/random'
 import { guardMutation, readJson, requireViewer } from '@/lib/bet/security'
 import { depositSchema } from '@/lib/bet/validation'
@@ -15,6 +17,31 @@ export async function POST(request: Request) {
     guardMutation(request, 'deposit', 10, 60_000)
     const viewer = await requireViewer()
     const input = await readJson(request, depositSchema)
+    const mode = await getBetMode()
+
+    if (mode === 'LIVE') {
+      if (!input.phone) {
+        throw new BetError(
+          'Enter the mobile-money number that will approve the deposit.',
+          422,
+          'PHONE_REQUIRED',
+        )
+      }
+      const order = await startWalletDeposit({
+        userId: viewer.userId,
+        amountMinor: input.amountMinor,
+        phone: input.phone,
+      })
+      return json(
+        {
+          wallet: await getWalletView(viewer.userId),
+          order,
+          mode,
+        },
+        { status: 202 },
+      )
+    }
+
     const reference = input.reference ?? `dep:${viewer.userId}:${Date.now()}:${randomCode(6)}`
 
     const existing = await findTransactionByReference(reference)
@@ -22,7 +49,7 @@ export async function POST(request: Request) {
       return json({
         wallet: await getWalletView(viewer.userId),
         duplicate: true,
-        sandbox: true,
+        mode,
       })
     }
 
@@ -33,8 +60,8 @@ export async function POST(request: Request) {
           amountMinor: input.amountMinor,
           type: 'DEPOSIT',
           reference,
-          note: 'Sandbox deposit',
-          metadata: { sandbox: true, source: 'manual' },
+          note: 'Deposit',
+          metadata: { mode, source: 'manual' },
         })
       })
     } catch (error) {
@@ -42,7 +69,7 @@ export async function POST(request: Request) {
         return json({
           wallet: await getWalletView(viewer.userId),
           duplicate: true,
-          sandbox: true,
+          mode,
         })
       }
       throw error
@@ -51,7 +78,7 @@ export async function POST(request: Request) {
     return json({
       wallet: await getWalletView(viewer.userId),
       duplicate: false,
-      sandbox: true,
+      mode,
     })
   } catch (error) {
     return handleBetError(error)

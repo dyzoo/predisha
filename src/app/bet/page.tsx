@@ -7,16 +7,18 @@ import { GameCard } from '@/components/bet/game-card'
 import { BET_GAMES } from '@/components/bet/games-catalog'
 import { SectionHeading } from '@/components/bet/section-heading'
 import { getBetCatalog } from '@/lib/bet/catalog'
+import { getBetMode, type BetMode } from '@/lib/bet/mode'
 
 export const metadata: Metadata = {
-  title: 'PredishaBet · sandbox sportsbook',
+  title: 'PredishaBet · sportsbook',
   description:
-    'Browse live and upcoming fixtures with transparent simulated odds, build a bet slip and play with sandbox funds.',
+    'Browse live and upcoming fixtures with transparent simulated odds, build a bet slip, deposit funds and place a bet.',
 }
 
 export default async function BetHomePage() {
   await connection()
   const catalog = await getBetCatalog()
+  const mode: BetMode = await getBetMode()
   const live = catalog.events.filter(event => event.live)
   const upcoming = catalog.events
     .filter(event => event.effectiveStatus === 'SCHEDULED')
@@ -32,16 +34,16 @@ export default async function BetHomePage() {
         <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
         <div className="relative max-w-2xl">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">
-            Sandbox sportsbook
+            Live sportsbook
           </p>
           <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-5xl">
             Model-implied odds.
             <br />
-            <span className="text-accent">Play-money stakes.</span>
+            <span className="text-accent">Betting stakes.</span>
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-text sm:text-base">
-            PredishaBet turns the Predisha match model into a transparent sandbox book. Every price
-            is simulated, every wallet is play money, and every settlement runs server-side.
+            PredishaBet turns the Predisha model into a transparent book. Every price is simulated,
+            every settlement runs server-side, and wallet funding runs through HarakaPay.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -110,8 +112,8 @@ export default async function BetHomePage() {
       <section>
         <SectionHeading
           eyebrow="Arcade"
-          title="Sandbox games"
-          description="Fast rounds with server-side randomness and no real-money wagering."
+          title="Games"
+          description="Fast rounds with server-side randomness and betting wallet stakes."
           action="All games"
           actionHref="/bet/games"
         />
@@ -133,7 +135,7 @@ export default async function BetHomePage() {
             {
               icon: ShieldCheck,
               title: 'No payment collection',
-              body: 'Deposits and withdrawals are sandbox ledger entries. No phone number, PIN or mobile-money request is ever sent.',
+              body: 'Deposits run through HarakaPay mobile-money prompts. No card processor or mobile-money PIN is stored.',
             },
             {
               icon: Scale,
@@ -166,7 +168,7 @@ export default async function BetHomePage() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
               Promo
             </p>
-            <h2 className="mt-2 font-display text-2xl font-semibold">Claim sandbox credit</h2>
+            <h2 className="mt-2 font-display text-2xl font-semibold">{mode === 'SANDBOX' ? 'Claim play-money credit' : 'Claim bonus credit'}</h2>
             <p className="mt-1 text-sm text-muted-text">
               New and existing accounts can claim play-money bonuses. No deposit or card is
               required.

@@ -3,6 +3,7 @@ import { cashoutAviator } from '@/lib/bet/aviator'
 import { handleBetError } from '@/lib/bet/errors'
 import { guardMutation, readJson, requireViewer } from '@/lib/bet/security'
 import { aviatorCashoutSchema } from '@/lib/bet/validation'
+import { getBetMode } from '@/lib/bet/mode'
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     const viewer = await requireViewer()
     const input = await readJson(request, aviatorCashoutSchema)
     const result = await cashoutAviator(viewer.userId, input.betId, new Date())
-    return json({ ...result, sandbox: true })
+    return json({ ...result, mode: await getBetMode() })
   } catch (error) {
     return handleBetError(error)
   }

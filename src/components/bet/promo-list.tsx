@@ -7,6 +7,7 @@ import { Check, CircleAlert, Gift, Loader2 } from 'lucide-react'
 import { formatDateTimeLabel, formatTzs } from '@/lib/bet/format'
 import type { BetPromoView } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
+import { useBetMode } from './bet-mode-context'
 
 export function PromoList({
   promos,
@@ -17,6 +18,7 @@ export function PromoList({
 }) {
   const router = useRouter()
   const { refreshWallet } = useBetSlip()
+  const { mode } = useBetMode()
   const [busyId, setBusyId] = useState<string | null>(null)
   const [errorId, setErrorId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -95,7 +97,7 @@ export function PromoList({
                 className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-background disabled:opacity-60"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {busy ? 'Claiming…' : 'Claim sandbox bonus'}
+                {busy ? 'Claiming.' : mode === 'SANDBOX' ? 'Claim play-money bonus' : 'Claim bonus'}
               </button>
             ) : (
               <Link

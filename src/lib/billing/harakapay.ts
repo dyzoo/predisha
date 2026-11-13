@@ -65,6 +65,17 @@ export function toTzsAmount(amountMinor: number, rateTzsPerUsd: number): number 
   return Math.max(tzs, MIN_TZS_AMOUNT)
 }
 
+/**
+ * Betting amounts are stored in whole TZS, while subscription amounts are
+ * stored in USD minor units. Convert only when the source currency is not TZS.
+ */
+export function amountTzsFor(input: { amountMinor: number; currency: string }): number {
+  if (input.currency.trim().toUpperCase() === 'TZS') {
+    return Math.max(Math.round(input.amountMinor), MIN_TZS_AMOUNT)
+  }
+  return toTzsAmount(input.amountMinor, usdToTzsRate())
+}
+
 export async function createHarakaPayOrder(input: HarakaPayOrderInput): Promise<HarakaPayOrderResult> {
   const key = apiKey()
   if (!key) {
@@ -85,7 +96,7 @@ export async function createHarakaPayOrder(input: HarakaPayOrderInput): Promise<
       headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
       body: JSON.stringify({
         phone: input.phone,
-        amount: toTzsAmount(input.amountMinor, usdToTzsRate()),
+        amount: amountTzsFor(input),
         description: input.description,
         ...(input.webhookUrl ? { webhook_url: input.webhookUrl } : {}),
       }),

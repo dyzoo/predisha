@@ -5,6 +5,7 @@ import { CircleAlert, Loader2 } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
+import { useBetMode } from './bet-mode-context'
 
 type RouletteBet = 'RED' | 'BLACK' | 'EVEN' | 'ODD' | 'LOW' | 'HIGH' | 'NUMBER'
 
@@ -37,6 +38,7 @@ function numberColor(value: number): string {
 
 export function RouletteGame() {
   const { refreshWallet } = useBetSlip()
+  const { mode } = useBetMode()
   const [stakeMinor, setStakeMinor] = useState(1_000)
   const [bet, setBet] = useState<RouletteBet>('RED')
   const [number, setNumber] = useState(7)
@@ -79,7 +81,7 @@ export function RouletteGame() {
     <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
       <div className="rounded-3xl border border-border bg-gradient-to-br from-surface via-surface to-accent/10 p-5 sm:p-6">
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-          Roulette · sandbox
+          Roulette {mode === 'SANDBOX' ? 'Sandbox' : 'Live'}
         </p>
         <h1 className="mt-1 font-display text-2xl font-semibold">Single-zero roulette</h1>
         <p className="mt-1 text-sm text-muted-text">

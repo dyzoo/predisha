@@ -108,59 +108,109 @@ export function buildSnapshot(
   })
 }
 
-export async function placeBet(
-  userId: string,
-  input: { stakeMinor: number; selections: BetSelectionInput[] },
-  now: Date = new Date(),
-): Promise<BetTicketView> {
-  const catalog = await getBetCatalog(now)
-  const selections = buildSnapshot(input.selections, catalog.events, now)
+function sanitizeSelections(selections: TicketSelection[]): TicketSelection[] {
+  return selections.map(selection => ({
+    ...selection,
+    result: 'PENDING' as TicketResult,
+    finalScore: null,
+    demoResult: false,
+  }))
+}
+
+export async function generateTicketCode(): Promise<string> {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const candidate = randomCode(8)
+    const existing = await prisma.betTicket.findUnique({ where: { code: candidate } })
+    if (!existing) return candidate
+  }
+  throw new BetError('Could not create a ticket code. Please try again.', 503, 'CODE_UNAVAILABLE')
+}
+
+export function computeTicketTotals(
+  stakeMinor: number,
+  selections: TicketSelection[],
+): { totalOdds: number; potentialReturnMinor: number } {
   const totalOdds = combineOdds(selections.map(selection => selection.odds))
-  const potentialReturnMinor = Math.floor(input.stakeMinor * totalOdds)
+  const potentialReturnMinor = Math.floor(stakeMinor * totalOdds)
 
   if (potentialReturnMinor > MAX_TICKET_PAYOUT_MINOR) {
     throw new BetError(
-      'Potential return exceeds the sandbox ticket limit. Reduce the stake or selections.',
+      'Potential return exceeds the ticket payout limit. Reduce the stake or selections.',
       422,
       'PAYOUT_LIMIT',
       { maxPayoutMinor: MAX_TICKET_PAYOUT_MINOR },
     )
   }
 
-  let code = ''
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    const candidate = randomCode(8)
-    const existing = await prisma.betTicket.findUnique({ where: { code: candidate } })
-    if (!existing) {
-      code = candidate
-      break
-    }
-  }
-  if (!code) {
-    throw new BetError('Could not create a ticket code. Please try again.', 503, 'CODE_UNAVAILABLE')
+  return { totalOdds, potentialReturnMinor }
+}
+
+export interface TicketDraft {
+  code: string
+  stakeMinor: number
+  selections: TicketSelection[]
+  totalOdds: number
+  potentialReturnMinor: number
+  debitBalance?: boolean
+  reference?: string
+  note?: string
+}
+
+export async function insertTicket(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  input: TicketDraft,
+): Promise<BetTicket> {
+  if (input.debitBalance !== false) {
+    await debitWallet(tx, {
+      userId,
+      amountMinor: input.stakeMinor,
+      type: 'BET_STAKE',
+      reference: input.reference ?? `ticket:${input.code}:stake`,
+      note: input.note ?? `Ticket ${input.code}`,
+    })
   }
 
+  return tx.betTicket.create({
+    data: {
+      userId,
+      code: input.code,
+      stakeMinor: input.stakeMinor,
+      totalOdds: input.totalOdds,
+      potentialReturnMinor: input.potentialReturnMinor,
+      selectionCount: input.selections.length,
+      selections: input.selections as unknown as Prisma.InputJsonValue,
+    },
+  })
+}
+
+export async function placeBetFromSelections(
+  userId: string,
+  input: {
+    stakeMinor: number
+    selections: TicketSelection[]
+    debitBalance?: boolean
+    reference?: string
+    note?: string
+  },
+): Promise<BetTicketView> {
+  const selections = sanitizeSelections(input.selections)
+  const { totalOdds, potentialReturnMinor } = computeTicketTotals(input.stakeMinor, selections)
+  const code = await generateTicketCode()
+
   try {
-    const ticket = await prisma.$transaction(async tx => {
-      await debitWallet(tx, {
-        userId,
-        amountMinor: input.stakeMinor,
-        type: 'BET_STAKE',
-        reference: `ticket:${code}:stake`,
-        note: `Ticket ${code}`,
-      })
-      return tx.betTicket.create({
-        data: {
-          userId,
-          code,
-          stakeMinor: input.stakeMinor,
-          totalOdds,
-          potentialReturnMinor,
-          selectionCount: selections.length,
-          selections: selections as unknown as Prisma.InputJsonValue,
-        },
-      })
-    })
+    const ticket = await prisma.$transaction(tx =>
+      insertTicket(tx, userId, {
+        code,
+        stakeMinor: input.stakeMinor,
+        selections,
+        totalOdds,
+        potentialReturnMinor,
+        debitBalance: input.debitBalance,
+        reference: input.reference,
+        note: input.note,
+      }),
+    )
     return toTicketView(ticket)
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -168,6 +218,16 @@ export async function placeBet(
     }
     throw error
   }
+}
+
+export async function placeBet(
+  userId: string,
+  input: { stakeMinor: number; selections: BetSelectionInput[] },
+  now: Date = new Date(),
+): Promise<BetTicketView> {
+  const catalog = await getBetCatalog(now)
+  const selections = buildSnapshot(input.selections, catalog.events, now)
+  return placeBetFromSelections(userId, { stakeMinor: input.stakeMinor, selections })
 }
 
 export interface TicketEvaluation {
@@ -402,7 +462,7 @@ export async function resolveDemoTicket(
 
   const selections = parseSelections(ticket.selections)
   if (selections.length === 0 || !selections.every(selection => selection.fixtureId.startsWith('demo-'))) {
-    throw new BetError('Only demo fixtures can be resolved with the sandbox resolver.', 422, 'NOT_DEMO')
+    throw new BetError('Only demo fixtures can be resolved with the demo resolver.', 422, 'NOT_DEMO')
   }
 
   const forced = selections.map(selection => {

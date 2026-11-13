@@ -14,6 +14,7 @@ import { formatMultiplier, formatTzs } from '@/lib/bet/format'
 import type { BetGameRoundView } from '@/lib/bet/types'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
+import { useBetMode } from './bet-mode-context'
 
 interface MinesDetail {
   mines?: number
@@ -27,6 +28,7 @@ const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
 
 export function MinesGame() {
   const { refreshWallet } = useBetSlip()
+  const { mode } = useBetMode()
   const [round, setRound] = useState<BetGameRoundView | null>(null)
   const [stakeMinor, setStakeMinor] = useState(1_000)
   const [mines, setMines] = useState(3)
@@ -119,7 +121,7 @@ export function MinesGame() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-              Mines · sandbox
+              Mines {mode === 'SANDBOX' ? 'Sandbox' : 'Live'}
             </p>
             <h1 className="mt-1 font-display text-2xl font-semibold">Reveal gems, avoid mines</h1>
             <p className="mt-1 text-sm text-muted-text">
@@ -287,7 +289,7 @@ export function MinesGame() {
           </div>
 
           <div className="rounded-2xl border border-border bg-surface/80 p-5 text-[11px] leading-relaxed text-muted-text">
-            <p className="font-semibold text-main-text">How the sandbox payout works</p>
+            <p className="font-semibold text-main-text">How the payout works</p>
             <p className="mt-1">
               Each safe tile increases the multiplier using the remaining safe-tile probability with a
               3% house edge. A mine ends the round immediately.

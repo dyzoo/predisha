@@ -10,6 +10,7 @@ import type {
 } from '@/lib/bet/types'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
+import { useBetMode } from './bet-mode-context'
 
 interface AviatorState {
   round: AviatorRoundView
@@ -22,6 +23,7 @@ const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
 
 export function AviatorGame() {
   const { refreshWallet } = useBetSlip()
+  const { mode } = useBetMode()
   const [state, setState] = useState<AviatorState | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -140,7 +142,7 @@ export function AviatorGame() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-              Aviator · sandbox
+              Aviator {mode === 'SANDBOX' ? 'Sandbox' : 'Live'}
             </p>
             <h1 className="mt-1 font-display text-2xl font-semibold">Catch the multiplier</h1>
           </div>
@@ -212,7 +214,7 @@ export function AviatorGame() {
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-2xl border border-border bg-surface/80 p-5">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold">Place a sandbox bet</h2>
+            <h2 className="text-sm font-semibold">Place a bet</h2>
             <div className="flex rounded-lg border border-border p-0.5">
               {[1, 2].map(candidate => (
                 <button
@@ -353,7 +355,7 @@ export function AviatorGame() {
             </ul>
           ) : (
             <p className="mt-3 text-sm text-muted-text">
-              No bets in this round. Choose a seat and place a sandbox bet while the timer is
+              No bets in this round. Choose a seat and place a bet while the timer is
               counting down.
             </p>
           )}

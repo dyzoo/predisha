@@ -3,6 +3,7 @@ import { cashoutTicket } from '@/lib/bet/bets'
 import { handleBetError } from '@/lib/bet/errors'
 import { guardMutation, requireViewer } from '@/lib/bet/security'
 import { getWalletView } from '@/lib/bet/wallet'
+import { getBetMode } from '@/lib/bet/mode'
 
 export async function POST(
   request: Request,
@@ -16,7 +17,7 @@ export async function POST(
     return json({
       ticket,
       wallet: await getWalletView(viewer.userId),
-      sandbox: true,
+      mode: await getBetMode(),
     })
   } catch (error) {
     return handleBetError(error)

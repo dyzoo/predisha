@@ -1,7 +1,7 @@
 import type { FixtureStatus } from '@/lib/sports/provider'
+import type { BetMode } from './mode-copy'
 
 export const BET_CURRENCY = 'TZS'
-export const BET_SANDBOX_LABEL = 'Sandbox play money'
 export const BOOK_MARGIN = 0.06
 export const MIN_STAKE_MINOR = 500
 export const MAX_STAKE_MINOR = 500_000
@@ -75,6 +75,7 @@ export interface TicketSelection {
   fixtureLabel: string
   competition: string
   kickoffIso: string
+  kickoffLabel?: string
   marketId: string
   marketName: string
   selectionId: string
@@ -116,7 +117,7 @@ export interface BetTransactionView {
 export interface BetWalletView {
   balanceMinor: number
   currency: typeof BET_CURRENCY
-  sandbox: true
+  mode: BetMode
   transactions: BetTransactionView[]
 }
 

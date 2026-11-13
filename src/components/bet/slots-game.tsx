@@ -5,6 +5,7 @@ import { CircleAlert, Loader2, Sparkles } from 'lucide-react'
 import { formatMultiplier, formatTzs } from '@/lib/bet/format'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
+import { useBetMode } from './bet-mode-context'
 
 const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
 
@@ -24,6 +25,7 @@ interface SlotsOutcome {
 
 export function SlotsGame() {
   const { refreshWallet } = useBetSlip()
+  const { mode } = useBetMode()
   const [stakeMinor, setStakeMinor] = useState(1_000)
   const [outcome, setOutcome] = useState<SlotsOutcome | null>(null)
   const [busy, setBusy] = useState(false)
@@ -61,7 +63,7 @@ export function SlotsGame() {
     <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
       <div className="rounded-3xl border border-border bg-gradient-to-br from-surface via-surface to-accent/10 p-5 sm:p-6">
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-          Slots · sandbox
+          Slots {mode === 'SANDBOX' ? 'Sandbox' : 'Live'}
         </p>
         <h1 className="mt-1 font-display text-2xl font-semibold">Three-reel arcade</h1>
         <p className="mt-1 text-sm text-muted-text">

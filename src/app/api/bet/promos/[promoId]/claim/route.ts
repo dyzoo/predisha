@@ -3,6 +3,7 @@ import { handleBetError } from '@/lib/bet/errors'
 import { claimPromo } from '@/lib/bet/promos'
 import { guardMutation, readJson, requireViewer } from '@/lib/bet/security'
 import { promoClaimSchema } from '@/lib/bet/validation'
+import { getBetMode } from '@/lib/bet/mode'
 
 export async function POST(
   request: Request,
@@ -17,7 +18,7 @@ export async function POST(
       return json({ error: 'Promo mismatch.' }, { status: 422 })
     }
     const result = await claimPromo(viewer.userId, promoId)
-    return json({ ...result, sandbox: true })
+    return json({ ...result, mode: await getBetMode() })
   } catch (error) {
     return handleBetError(error)
   }

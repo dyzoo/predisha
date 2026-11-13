@@ -3,6 +3,7 @@ import { handleBetError } from '@/lib/bet/errors'
 import { startMines } from '@/lib/bet/games'
 import { guardMutation, readJson, requireViewer } from '@/lib/bet/security'
 import { minesStartSchema } from '@/lib/bet/validation'
+import { getBetMode } from '@/lib/bet/mode'
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     const viewer = await requireViewer()
     const input = await readJson(request, minesStartSchema)
     const result = await startMines(viewer.userId, input)
-    return json({ ...result, sandbox: true }, { status: 201 })
+    return json({ ...result, mode: await getBetMode() }, { status: 201 })
   } catch (error) {
     return handleBetError(error)
   }

@@ -4,6 +4,7 @@ import { handleBetError } from '@/lib/bet/errors'
 import { guardMutation, readJson, requireViewer } from '@/lib/bet/security'
 import { placeBetSchema } from '@/lib/bet/validation'
 import { getWalletView } from '@/lib/bet/wallet'
+import { getBetMode } from '@/lib/bet/mode'
 
 export async function GET() {
   try {
@@ -13,7 +14,7 @@ export async function GET() {
       listTickets(viewer.userId, now),
       getWalletView(viewer.userId),
     ])
-    return json({ tickets, wallet, sandbox: true })
+    return json({ tickets, wallet, mode: await getBetMode() })
   } catch (error) {
     return handleBetError(error)
   }
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
       {
         ticket,
         wallet: await getWalletView(viewer.userId),
-        sandbox: true,
+        mode: await getBetMode(),
       },
       { status: 201 },
     )

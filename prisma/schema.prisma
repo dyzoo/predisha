@@ -27,12 +27,14 @@ model User {
   predictionSlips PredictionSlip[]
   freePreview     UserFreePreview?
 
-  betWallet       BetWallet?
-  betTransactions BetTransaction[]
-  betTickets      BetTicket[]
-  betPromoClaims  BetPromoClaim[]
-  betGameRounds   BetGameRound[]
-  betAviatorBets  BetAviatorBet[]
+  betWallet        BetWallet?
+  betTransactions  BetTransaction[]
+  betTickets       BetTicket[]
+  betPromoClaims   BetPromoClaim[]
+  betGameRounds    BetGameRound[]
+  betAviatorBets   BetAviatorBet[]
+  adminBetEntries  AdminBetEntry[]
+  betPaymentOrders BetPaymentOrder[]
 }
 
 enum Role {
@@ -451,8 +453,8 @@ enum SyncStatus {
   FAILED
 }
 
-// Sandbox betting module. Every balance is play money; no payment provider is
-// involved and no real-money settlement is possible.
+// Betting module. The platform can run in LIVE or SANDBOX mode; mode-specific
+// copy and payment behaviour are driven by PlatformSetting below.
 model BetWallet {
   id           String   @id @default(cuid())
   userId       String   @unique
@@ -602,4 +604,102 @@ enum BetAviatorBetStatus {
   ACTIVE
   CASHED_OUT
   LOST
+}
+
+// Platform-wide key/value settings. The betting mode is stored under
+// `bet.mode` with values LIVE or SANDBOX and can be toggled from the admin
+// console. Missing rows fall back to the BET_MODE environment variable.
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Admin-authored bet slips. An admin selects upcoming fixtures, sets prices,
+// assigns a stake and shares the generated code/link with customers.
+model AdminBetSlip {
+  id                   String              @id @default(cuid())
+  code                 String              @unique
+  title                String?
+  mode                 String              @default("LIVE")
+  selections           Json
+  totalOdds            Float
+  stakeMinor           Int
+  potentialReturnMinor Int
+  status               AdminBetSlipStatus @default(OPEN)
+  freezeReason         String?
+  autoFreezeAt         DateTime
+  frozenAt             DateTime?
+  frozenBy             String?
+  createdBy            String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  entries AdminBetEntry[]
+
+  @@index([status])
+  @@index([autoFreezeAt])
+  @@index([createdAt])
+}
+
+enum AdminBetSlipStatus {
+  OPEN
+  FROZEN
+  CLOSED
+}
+
+// A customer's attempt to take an admin-authored slip. Payment is collected
+// with HarakaPay before the entry is marked PAID.
+model AdminBetEntry {
+  id              String              @id @default(cuid())
+  slipId          String
+  userId          String?
+  phone           String
+  stakeMinor      Int
+  status          AdminBetEntryStatus @default(PENDING)
+  provider        String?
+  providerOrderId String?             @unique
+  ticketId        String?             @unique
+  placementStartedAt DateTime?
+  failureReason   String?
+  paidAt          DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  slip AdminBetSlip @relation(fields: [slipId], references: [id], onDelete: Cascade)
+  user User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([slipId, status])
+  @@index([phone])
+  @@index([createdAt])
+}
+
+enum AdminBetEntryStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+// HarakaPay collection orders for wallet deposits. The webhook resolves the
+// order to a user, then credits the betting wallet idempotently.
+model BetPaymentOrder {
+  id          String    @id @default(cuid())
+  userId      String
+  kind        String    @default("DEPOSIT")
+  amountMinor Int
+  currency    String    @default("TZS")
+  provider    String
+  orderId     String    @unique
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
 }

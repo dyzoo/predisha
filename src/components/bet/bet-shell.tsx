@@ -16,8 +16,11 @@ import {
 } from 'lucide-react'
 import type { ClientViewer } from '@/lib/auth/entitlements'
 import { formatTzs } from '@/lib/bet/format'
+import type { BetMode } from '@/lib/bet/mode-copy'
 import { BetSlipDock } from './bet-slip-dock'
 import { BetSlipProvider, useBetSlip } from './bet-slip-provider'
+import { BetModeProvider, useBetMode } from './bet-mode-context'
+import { betModeCopy } from '@/lib/bet/mode-copy'
 
 const NAV = [
   { href: '/bet', label: 'Home', icon: Home },
@@ -38,21 +41,22 @@ function isActive(pathname: string, href: string): boolean {
 function ShellInner({ viewer, children }: { viewer: ClientViewer; children: ReactNode }) {
   const pathname = usePathname()
   const { wallet, walletLoading } = useBetSlip()
+  const { mode } = useBetMode()
+  const copy = betModeCopy(mode)
 
   return (
     <div className="min-h-screen bg-background text-main-text">
-      <div className="border-b border-accent/20 bg-accent/10">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 text-[11px] leading-relaxed text-accent sm:px-6">
-          <ShieldAlert className="h-4 w-4 shrink-0" />
-          <p>
-            Sandbox mode: every balance and payout is play money. No real deposits, withdrawals or
-            mobile-money PINs are collected.{' '}
-            <Link href="/bet/how-it-works" className="font-semibold underline underline-offset-2">
+      {copy.banner ? (
+        <div className="border-b border-accent/20 bg-accent/10">
+          <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 text-[11px] leading-relaxed text-accent sm:px-6">
+            <ShieldAlert className="h-4 w-4 shrink-0" />
+            <p>{copy.banner}</p>
+            <Link href="/bet/how-it-works" className="ml-auto shrink-0 font-semibold underline underline-offset-2">
               How it works
             </Link>
-          </p>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
@@ -131,10 +135,7 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
 
       <footer className="border-t border-border bg-surface/40 pb-24 lg:pb-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-xs text-muted-text sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-          <p>
-            PredishaBet is a sandbox sportsbook demo. Simulated odds are generated from the
-            Predisha model and are not live market prices.
-          </p>
+          <p>{copy.footer}</p>
           <div className="flex flex-wrap gap-4">
             <Link href="/bet/how-it-works" className="hover:text-accent">
               How it works
@@ -182,10 +183,20 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
   )
 }
 
-export function BetShell({ viewer, children }: { viewer: ClientViewer; children: ReactNode }) {
+export function BetShell({
+  viewer,
+  mode,
+  children,
+}: {
+  viewer: ClientViewer
+  mode: BetMode
+  children: ReactNode
+}) {
   return (
     <BetSlipProvider viewer={viewer}>
-      <ShellInner viewer={viewer}>{children}</ShellInner>
+      <BetModeProvider mode={mode}>
+        <ShellInner viewer={viewer}>{children}</ShellInner>
+      </BetModeProvider>
     </BetSlipProvider>
   )
 }

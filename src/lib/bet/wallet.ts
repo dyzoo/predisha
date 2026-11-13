@@ -1,6 +1,7 @@
 import { Prisma, type BetTransactionType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { BetError } from './errors'
+import { getBetMode } from './mode'
 import type { BetTransactionView, BetWalletView } from './types'
 
 export async function ensureWallet(userId: string) {
@@ -39,7 +40,7 @@ export async function getWalletView(userId: string): Promise<BetWalletView> {
   return {
     balanceMinor: wallet.balanceMinor,
     currency: 'TZS',
-    sandbox: true,
+    mode: await getBetMode(),
     transactions: transactions.map(toTransactionView),
   }
 }
@@ -103,7 +104,7 @@ export async function debitWallet(
   if (updated.count === 0) {
     const existing = await tx.betWallet.findUnique({ where: { userId: params.userId } })
     throw new BetError(
-      'Not enough sandbox balance. Add sandbox funds first.',
+      'Not enough balance. Deposit funds first.',
       422,
       'INSUFFICIENT_FUNDS',
       { balanceMinor: existing?.balanceMinor ?? 0 },

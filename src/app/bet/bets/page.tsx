@@ -10,7 +10,7 @@ import { getWalletView } from '@/lib/bet/wallet'
 
 export const metadata: Metadata = {
   title: 'My bets',
-  description: 'Sandbox tickets, settlements and cash-out options.',
+  description: 'Betting tickets, settlements and cash-out options.',
 }
 
 export default async function BetTicketsPage() {
@@ -40,6 +40,7 @@ export default async function BetTicketsPage() {
         action="Place another bet"
         actionHref="/bet/sports"
       />
+
 
       <WalletCard wallet={wallet} showTransactions={false} />
 
