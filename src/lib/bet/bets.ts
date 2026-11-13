@@ -6,7 +6,6 @@ import { combineOdds, findSelection, settleMarket } from './odds'
 import { hashString, mulberry32, randomCode } from './random'
 import { creditWallet, debitWallet } from './wallet'
 import {
-  MAX_TICKET_PAYOUT_MINOR,
   type BetSelectionInput,
   type BetTicketStatusView,
   type BetTicketView,
@@ -132,15 +131,6 @@ export function computeTicketTotals(
 ): { totalOdds: number; potentialReturnMinor: number } {
   const totalOdds = combineOdds(selections.map(selection => selection.odds))
   const potentialReturnMinor = Math.floor(stakeMinor * totalOdds)
-
-  if (potentialReturnMinor > MAX_TICKET_PAYOUT_MINOR) {
-    throw new BetError(
-      'Potential return exceeds the ticket payout limit. Reduce the stake or selections.',
-      422,
-      'PAYOUT_LIMIT',
-      { maxPayoutMinor: MAX_TICKET_PAYOUT_MINOR },
-    )
-  }
 
   return { totalOdds, potentialReturnMinor }
 }

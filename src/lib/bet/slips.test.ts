@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { computeTicketTotals } from './bets'
-import { BetError } from './errors'
 import { isSlipFrozen, maskPhone, toAdminSlipView } from './slips'
-import { MAX_TICKET_PAYOUT_MINOR, type TicketSelection } from './types'
+import { type TicketSelection } from './types'
 
 function selection(odds: number): TicketSelection {
   return {
@@ -30,17 +29,11 @@ describe('computeTicketTotals', () => {
     })
   })
 
-  it('rejects tickets above the payout limit', () => {
-    const stakeMinor = 500_000
-    const odds = MAX_TICKET_PAYOUT_MINOR / stakeMinor + 1
-
-    try {
-      computeTicketTotals(stakeMinor, [selection(odds)])
-      throw new Error('expected a payout limit error')
-    } catch (error) {
-      expect(error).toBeInstanceOf(BetError)
-      expect((error as BetError).code).toBe('PAYOUT_LIMIT')
-    }
+  it('allows large potential returns without a payout cap', () => {
+    expect(computeTicketTotals(500_000, [selection(1000)])).toEqual({
+      totalOdds: 1000,
+      potentialReturnMinor: 500_000_000,
+    })
   })
 })
 

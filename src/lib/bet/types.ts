@@ -5,7 +5,6 @@ export const BET_CURRENCY = 'TZS'
 export const BOOK_MARGIN = 0.06
 export const MIN_STAKE_MINOR = 500
 export const MAX_STAKE_MINOR = 500_000
-export const MAX_TICKET_PAYOUT_MINOR = 20_000_000
 export const MAX_SELECTIONS = 20
 export const SHARE_CODE_HOURS = 24
 
