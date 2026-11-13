@@ -5,13 +5,14 @@ import { Receipt, SlidersHorizontal } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminBetModeToggle } from '@/components/admin/admin-bet-mode-toggle'
-import { AdminSlipGenerator, type GeneratorEvent } from '@/components/admin/admin-slip-generator'
+import { AdminSlipGenerator } from '@/components/admin/admin-slip-generator'
 import { AdminSlipList, type AdminSlipListItemView } from '@/components/admin/admin-slip-list'
 import { AdminNav } from '@/components/admin/admin-nav'
 import { canViewAdmin } from '@/lib/auth/entitlements'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
-import { getBetCatalog } from '@/lib/bet/catalog'
+import { harakapayApiKeyConfigured } from '@/lib/billing/harakapay'
 import { getBetMode } from '@/lib/bet/mode'
+import { buildAdminSlipRecommendation } from '@/lib/bet/recommendation'
 import { listAdminBetSlips } from '@/lib/bet/slips'
 
 export const metadata: Metadata = {
@@ -39,30 +40,11 @@ export default async function AdminBetsPage() {
     )
   }
 
-  const [mode, catalog, slips] = await Promise.all([
+  const [mode, recommendation, slips] = await Promise.all([
     getBetMode(),
-    getBetCatalog(),
+    buildAdminSlipRecommendation(),
     listAdminBetSlips(),
   ])
-
-  const events: GeneratorEvent[] = catalog.events
-    .filter(event => event.effectiveStatus === 'SCHEDULED' || event.effectiveStatus === 'LIVE')
-    .slice(0, 40)
-    .map(event => ({
-      id: event.id,
-      label: `${event.home.name} vs ${event.away.name} · ${event.competition} · ${event.kickoffLabel}`,
-      kickoffLabel: event.kickoffLabel,
-      status: event.effectiveStatus,
-      markets: event.markets.map(market => ({
-        id: market.id,
-        name: market.name,
-        selections: market.selections.map(selection => ({
-          selectionId: selection.selectionId,
-          label: selection.label,
-          odds: selection.odds,
-        })),
-      })),
-    }))
 
   const slipItems: AdminSlipListItemView[] = slips.map(slip => ({
     id: slip.id,
@@ -102,13 +84,22 @@ export default async function AdminBetsPage() {
     <PageShell
       eyebrow="Admin"
       title="Bet control"
-      intro="Switch the platform between live and sandbox, build shareable bet slips with your own stake and odds, and freeze a slip the moment you need to."
+      intro="Switch the platform between live and sandbox, review the model's best upcoming picks, set the odds and stake you want to offer, then freeze a slip the moment you need to."
     >
       <AdminNav active="/admin/bets" />
 
       <AdminBetModeToggle mode={mode} />
 
-      <AdminSlipGenerator events={events} />
+      {!harakapayApiKeyConfigured() ? (
+        <section className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-xs leading-relaxed text-amber-200">
+          HarakaPay is not loaded on this server, so live card and mobile-money payments will
+          return a configuration error. Add <code className="font-mono">HARAKAPAY_API_KEY</code> to
+          <code className="font-mono"> .env.local</code> and restart the app, or keep the platform in
+          Sandbox mode for test slips.
+        </section>
+      ) : null}
+
+      <AdminSlipGenerator recommendation={recommendation} />
 
       <section className="rounded-2xl border border-border bg-surface/60 p-5">
         <h2 className="flex items-center gap-2 font-display text-base font-bold text-main-text">

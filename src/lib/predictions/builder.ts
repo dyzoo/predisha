@@ -13,6 +13,8 @@ export interface BuildSlipOptions {
   risk: BuilderRisk
   odds?: number | null
   maxSelections: number
+  selectionCount?: number
+  maxProbability?: number
   currency: string
   demo: boolean
   premium: boolean
@@ -141,12 +143,25 @@ interface Candidate {
   score: number
 }
 
-function bestCandidate(match: MatchView, risk: BuilderRisk): Candidate | null {
+function bestCandidate(
+  match: MatchView,
+  risk: BuilderRisk,
+  maxProbability?: number,
+): Candidate | null {
   const minimum = RISK_MINIMUM_PROBABILITY[risk]
-  const options = fallbackOptions(match).filter(
-    option => Number.isFinite(option.probability) && option.probability >= minimum,
+  const all = fallbackOptions(match)
+  const options = all.filter(
+    option =>
+      Number.isFinite(option.probability) &&
+      option.probability >= minimum &&
+      (maxProbability === undefined || option.probability <= maxProbability),
   )
-  const pool = options.length > 0 ? options : fallbackOptions(match)
+  const pool =
+    options.length > 0
+      ? options
+      : maxProbability === undefined
+        ? all
+        : all.filter(option => option.probability >= minimum)
   if (pool.length === 0) return null
 
   const option = pool.reduce((best, current) =>
@@ -172,7 +187,7 @@ export function buildPredictionSlip(
   )
 
   const candidates = eligible
-    .map(match => bestCandidate(match, options.risk))
+    .map(match => bestCandidate(match, options.risk, options.maxProbability))
     .filter((candidate): candidate is Candidate => candidate !== null)
     .sort((a, b) => b.score - a.score)
 
@@ -186,10 +201,8 @@ export function buildPredictionSlip(
     }
   }
 
-  const wanted = Math.min(
-    BUILDER_RISK_CONFIG[options.risk].selections,
-    options.maxSelections,
-  )
+  const requested = options.selectionCount ?? BUILDER_RISK_CONFIG[options.risk].selections
+  const wanted = Math.max(1, Math.min(requested, options.maxSelections))
   const chosen = candidates.slice(0, wanted)
   if (chosen.length === 0) return null
 

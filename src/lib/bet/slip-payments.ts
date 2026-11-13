@@ -153,7 +153,7 @@ export async function startSlipPayment(input: {
 
   if (!harakapayApiKeyConfigured()) {
     throw new BetError(
-      'Card and mobile-money payments are not configured yet. Contact the operator.',
+      'Card and mobile-money payments are not configured on this server yet. The operator must add HARAKAPAY_API_KEY and restart the app, or switch the platform to Sandbox mode for test slips.',
       503,
       'PAYMENT_UNAVAILABLE',
     )

@@ -33,6 +33,18 @@ function marketIdFor(option: MarketOption): BetMarketId | null {
   return MARKET_IDS[option.market] ?? null
 }
 
+export function marketIdForOutcomeKey(key: string): BetMarketId | null {
+  if (key === 'HOME' || key === 'DRAW' || key === 'AWAY') return '1x2'
+  if (key.startsWith('DC_')) return 'double-chance'
+  if (key.startsWith('OVER_') || key.startsWith('UNDER_')) return 'total-goals'
+  if (key.startsWith('BTTS_')) return 'btts'
+  return null
+}
+
+export function marketNameForId(id: BetMarketId): string {
+  return MARKET_NAMES[id]
+}
+
 export function buildMarkets(prediction: PredictionResult | null): BetMarket[] {
   if (!prediction?.marketOptions?.length) return []
 

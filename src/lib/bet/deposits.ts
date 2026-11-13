@@ -69,7 +69,7 @@ export async function startWalletDeposit(input: {
   }
   if (!harakapayApiKeyConfigured()) {
     throw new BetError(
-      'Mobile-money payments are not configured yet. Contact the operator.',
+      'Mobile-money payments are not configured on this server yet. The operator must add HARAKAPAY_API_KEY and restart the app, or switch the platform to Sandbox mode for test deposits.',
       503,
       'PAYMENT_UNAVAILABLE',
     )
