@@ -1,39 +1,46 @@
 import type { BetAviatorBet } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import {
+  DEFAULT_AVIATOR_CONFIG,
+  getAviatorConfig,
+  type AviatorConfig,
+} from './aviator-config'
 import { BetError, isUniqueConstraintError } from './errors'
 import { hashString, mulberry32 } from './random'
 import { creditWallet, debitWallet, getWalletView } from './wallet'
 import type { AviatorBetView, AviatorRoundView, BetWalletView } from './types'
 
-export const AVIATOR_ROUND_MS = 20_000
-export const AVIATOR_WAIT_MS = 5_000
-const GROWTH = 0.18
-const MAX_CRASH = 14
-
-export function crashPointFor(roundId: string): number {
+export function crashPointFor(
+  roundId: string,
+  config: AviatorConfig = DEFAULT_AVIATOR_CONFIG,
+): number {
   const random = mulberry32(hashString(roundId))()
-  const raw = 0.97 / Math.max(0.0001, 1 - random)
-  return Math.max(1.15, Math.min(MAX_CRASH, Math.round(raw * 100) / 100))
+  const raw = (1 - config.houseEdge) / Math.max(0.0001, 1 - random)
+  const capped = Math.min(config.maxCrash, Math.max(1, raw))
+  return Math.round(capped * 100) / 100
 }
 
-export function aviatorRoundAt(now: Date): AviatorRoundView {
-  const index = Math.floor(now.getTime() / AVIATOR_ROUND_MS)
+export function aviatorRoundAt(
+  now: Date,
+  config: AviatorConfig = DEFAULT_AVIATOR_CONFIG,
+): AviatorRoundView {
+  const index = Math.floor(now.getTime() / config.roundMs)
   const roundId = `av-${index}`
-  const startsAt = index * AVIATOR_ROUND_MS
-  const endsAt = startsAt + AVIATOR_ROUND_MS
+  const startsAt = index * config.roundMs
+  const endsAt = startsAt + config.roundMs
   const elapsed = now.getTime() - startsAt
-  const crashAt = crashPointFor(roundId)
-  const crashDurationMs = (Math.log(crashAt) / GROWTH) * 1000
+  const crashAt = crashPointFor(roundId, config)
+  const crashDurationMs = (Math.log(crashAt) / config.growth) * 1000
 
   let phase: AviatorRoundView['phase'] = 'WAITING'
   let multiplier = 1
 
-  if (elapsed >= AVIATOR_WAIT_MS) {
-    if (elapsed - AVIATOR_WAIT_MS < crashDurationMs) {
+  if (elapsed >= config.waitMs) {
+    if (elapsed - config.waitMs < crashDurationMs) {
       phase = 'FLYING'
       multiplier = Math.min(
         crashAt,
-        Math.exp(((elapsed - AVIATOR_WAIT_MS) / 1000) * GROWTH),
+        Math.exp(((elapsed - config.waitMs) / 1000) * config.growth),
       )
     } else {
       phase = 'CRASHED'
@@ -49,8 +56,8 @@ export function aviatorRoundAt(now: Date): AviatorRoundView {
     crashAt,
     startsAtIso: new Date(startsAt).toISOString(),
     endsAtIso: new Date(endsAt).toISOString(),
-    waitRemainingMs: phase === 'WAITING' ? AVIATOR_WAIT_MS - elapsed : 0,
-    flyElapsedMs: Math.max(0, elapsed - AVIATOR_WAIT_MS),
+    waitRemainingMs: phase === 'WAITING' ? config.waitMs - elapsed : 0,
+    flyElapsedMs: Math.max(0, elapsed - config.waitMs),
   }
 }
 
@@ -77,7 +84,23 @@ export async function placeAviatorBet(
   input: { stakeMinor: number; slot: number; autoCashout?: number },
   now: Date = new Date(),
 ): Promise<{ bet: AviatorBetView; wallet: BetWalletView }> {
-  const round = aviatorRoundAt(now)
+  const config = await getAviatorConfig()
+  if (!config.enabled) {
+    throw new BetError(
+      'Aviator is paused by the operator. Try again when betting reopens.',
+      503,
+      'AVIATOR_DISABLED',
+    )
+  }
+  if (input.autoCashout !== undefined && input.autoCashout > config.maxCrash) {
+    throw new BetError(
+      `Auto cash out must be ${config.maxCrash.toFixed(2)}x or lower for this game.`,
+      422,
+      'AUTO_CASHOUT_TOO_HIGH',
+    )
+  }
+
+  const round = aviatorRoundAt(now, config)
   if (round.phase !== 'WAITING') {
     throw new BetError('Betting is closed for this round.', 409, 'ROUND_CLOSED', {
       round,
@@ -124,7 +147,8 @@ export async function cashoutAviator(
     throw new BetError('That bet is already settled.', 409, 'BET_CLOSED')
   }
 
-  const round = aviatorRoundAt(now)
+  const config = await getAviatorConfig()
+  const round = aviatorRoundAt(now, config)
   if (bet.roundId !== round.roundId) {
     throw new BetError('That round is already over.', 409, 'ROUND_OVER')
   }
@@ -160,8 +184,12 @@ export async function cashoutAviator(
   return { bet: toAviatorBetView(updated), wallet: await getWalletView(userId) }
 }
 
-export async function settleAviatorForUser(userId: string, now: Date): Promise<void> {
-  const round = aviatorRoundAt(now)
+export async function settleAviatorForUser(
+  userId: string,
+  now: Date,
+  config: AviatorConfig = DEFAULT_AVIATOR_CONFIG,
+): Promise<void> {
+  const round = aviatorRoundAt(now, config)
   const active = await prisma.betAviatorBet.findMany({
     where: { userId, status: 'ACTIVE' },
   })
@@ -222,14 +250,16 @@ export interface AviatorState {
   bets: AviatorBetView[]
   history: Array<{ roundId: string; crashAt: number }>
   wallet: BetWalletView
+  config: AviatorConfig
 }
 
 export async function getAviatorState(
   userId: string,
   now: Date = new Date(),
 ): Promise<AviatorState> {
-  await settleAviatorForUser(userId, now)
-  const round = aviatorRoundAt(now)
+  const config = await getAviatorConfig()
+  await settleAviatorForUser(userId, now, config)
+  const round = aviatorRoundAt(now, config)
   const [bets, wallet] = await Promise.all([
     prisma.betAviatorBet.findMany({
       where: { userId, roundId: round.roundId },
@@ -241,7 +271,7 @@ export async function getAviatorState(
   const history = Array.from({ length: 10 }, (_, offset) => {
     const index = round.index - 1 - offset
     const roundId = `av-${index}`
-    return { roundId, crashAt: crashPointFor(roundId) }
+    return { roundId, crashAt: crashPointFor(roundId, config) }
   })
 
   return {
@@ -249,5 +279,6 @@ export async function getAviatorState(
     bets: bets.map(toAviatorBetView),
     history,
     wallet,
+    config,
   }
 }

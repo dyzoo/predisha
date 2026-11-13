@@ -1,10 +1,11 @@
 import Link from 'next/link'
-import { LayoutDashboard, Ticket, Users } from 'lucide-react'
+import { LayoutDashboard, Plane, Ticket, Users } from 'lucide-react'
 
 const items = [
   { href: '/admin', label: 'Overview', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/bets', label: 'Bets', icon: Ticket },
+  { href: '/admin/aviator', label: 'Aviator', icon: Plane },
 ]
 
 export function AdminNav({ active }: { active: string }) {

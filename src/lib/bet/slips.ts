@@ -353,6 +353,97 @@ export async function unfreezeAdminBetSlip(input: {
   return toAdminSlipView(slip, now)
 }
 
+export async function closeAdminBetSlip(input: {
+  id: string
+  reason?: string | null
+  actorId: string
+  now?: Date
+}): Promise<AdminBetSlipView> {
+  const now = input.now ?? new Date()
+  const existing = await prisma.adminBetSlip.findUnique({ where: { id: input.id } })
+  if (!existing) {
+    throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
+  }
+  if (existing.status === 'CLOSED') {
+    return toAdminSlipView(existing, now)
+  }
+
+  const slip = await prisma.$transaction(async tx => {
+    const updated = await tx.adminBetSlip.update({
+      where: { id: input.id },
+      data: {
+        status: 'CLOSED',
+        freezeReason:
+          input.reason?.trim().slice(0, 200) || 'Betting was closed by an administrator.',
+        frozenAt: now,
+        frozenBy: input.actorId,
+      },
+    })
+    await tx.adminAuditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: 'admin.slip.close',
+        target: existing.code,
+        metadata: { title: existing.title, previousStatus: existing.status },
+      },
+    })
+    return updated
+  })
+  return toAdminSlipView(slip, now)
+}
+
+export async function deleteAdminBetSlip(input: {
+  id: string
+  actorId: string
+  ipAddress?: string | null
+}): Promise<{ code: string }> {
+  const slip = await prisma.adminBetSlip.findUnique({
+    where: { id: input.id },
+    include: {
+      entries: {
+        select: { id: true, status: true, ticketId: true },
+      },
+    },
+  })
+  if (!slip) {
+    throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
+  }
+
+  const blocked = slip.entries.some(
+    entry =>
+      entry.ticketId !== null ||
+      entry.status === 'PAID' ||
+      entry.status === 'PENDING',
+  )
+  if (blocked) {
+    throw new BetError(
+      'This slip has paid or pending entries and cannot be deleted.',
+      409,
+      'SLIP_HAS_ACTIVE_ENTRIES',
+    )
+  }
+
+  await prisma.$transaction(async tx => {
+    await tx.adminBetSlip.delete({ where: { id: slip.id } })
+    await tx.adminAuditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: 'admin.slip.delete',
+        target: slip.code,
+        ipAddress: input.ipAddress ?? null,
+        metadata: {
+          title: slip.title,
+          mode: slip.mode,
+          stakeMinor: slip.stakeMinor,
+          deletedEntries: slip.entries.length,
+        },
+      },
+    })
+  })
+
+  return { code: slip.code }
+}
+
 export async function listAdminBetEntries(slipId: string): Promise<AdminBetEntryView[]> {
   const entries = await prisma.adminBetEntry.findMany({
     where: { slipId },

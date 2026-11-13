@@ -74,7 +74,7 @@ export const promoClaimSchema = z.object({
 export const aviatorBetSchema = z.object({
   stakeMinor: stakeSchema,
   slot: z.number().int().min(1).max(2),
-  autoCashout: z.number().min(1.1).max(100).optional(),
+  autoCashout: z.number().min(1.1).max(500).optional(),
 })
 
 export const aviatorCashoutSchema = z.object({
@@ -144,7 +144,7 @@ export const adminSlipCreateSchema = z.object({
 })
 
 export const adminSlipActionSchema = z.object({
-  action: z.enum(['freeze', 'unfreeze']),
+  action: z.enum(['freeze', 'unfreeze', 'close']),
   reason: z.string().trim().max(200).optional(),
 })
 
@@ -155,6 +155,29 @@ export const slipPaySchema = z.object({
 export const adminPlatformModeSchema = z.object({
   mode: z.enum(['LIVE', 'SANDBOX']),
 })
+
+export const aviatorSettingsSchema = z
+  .object({
+    enabled: z.boolean(),
+    waitSeconds: z.number().int().min(2).max(30),
+    roundSeconds: z.number().int().min(10).max(300),
+    growth: z.number().min(0.05).max(0.5),
+    maxCrash: z.number().min(1.1).max(500),
+    houseEdge: z.number().min(0).max(0.25),
+  })
+  .superRefine((value, ctx) => {
+    const waitMs = value.waitSeconds * 1000
+    const roundMs = value.roundSeconds * 1000
+    const longestFlightMs = (Math.log(value.maxCrash) / value.growth) * 1000
+    if (waitMs + longestFlightMs > roundMs) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'Increase the round length or lower the maximum crash multiplier so every flight can finish before the next round.',
+        path: ['roundSeconds'],
+      })
+    }
+  })
 
 export type PlaceBetInput = z.infer<typeof placeBetSchema>
 export type AdminSlipCreateInput = z.infer<typeof adminSlipCreateSchema>

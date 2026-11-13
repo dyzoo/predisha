@@ -108,8 +108,8 @@ export default async function AdminBetsPage() {
         </h2>
         <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-text">
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Slips freeze automatically when their first match kicks off. You can also freeze or reopen
-          any open slip manually.
+          Slips freeze automatically when their first match kicks off. Admins can freeze, close,
+          delete or filter previous slips here.
         </p>
       </section>
 

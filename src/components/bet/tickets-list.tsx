@@ -7,6 +7,7 @@ import {
   Banknote,
   Check,
   CircleAlert,
+  CircleCheck,
   Clock,
   FlaskConical,
   Loader2,
@@ -75,6 +76,8 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [errorId, setErrorId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successId, setSuccessId] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   if (tickets.length === 0) {
     return (
@@ -100,14 +103,29 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
     setBusyId(ticket.id)
     setErrorId(null)
     setErrorMessage(null)
+    setSuccessId(null)
+    setSuccessMessage(null)
     try {
       const response = await fetch(`/api/bet/bets/${ticket.id}/${action}`, { method: 'POST' })
-      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      const payload = (await response.json().catch(() => ({}))) as {
+        ticket?: BetTicketView
+        error?: string
+      }
       if (!response.ok) {
         setErrorId(ticket.id)
         setErrorMessage(payload.error ?? 'The ticket could not be updated.')
         return
       }
+      setSuccessId(ticket.id)
+      setSuccessMessage(
+        action === 'cashout'
+          ? `Ticket ${ticket.code} cashed out for ${formatTzs(
+              payload.ticket?.payoutMinor ?? 0,
+            )}.`
+          : `Demo result applied. Ticket ${ticket.code} is ${(
+              payload.ticket?.status ?? 'updated'
+            ).toLowerCase()}.`,
+      )
       await refreshWallet()
       router.refresh()
     } catch {
@@ -205,6 +223,15 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
               >
                 <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
                 {errorMessage}
+              </div>
+            ) : null}
+            {successId === ticket.id && successMessage ? (
+              <div
+                role="status"
+                className="mt-3 flex items-start gap-2 rounded-xl border border-accent/25 bg-accent/10 px-3 py-2 text-xs text-accent"
+              >
+                <CircleCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                {successMessage}
               </div>
             ) : null}
 
