@@ -52,6 +52,8 @@ export interface AdminBetEntryView {
   status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
   providerOrderId: string | null
   ticketId: string | null
+  ticketCode: string | null
+  failureReason: string | null
   paidAt: string | null
   createdAt: string
 }
@@ -101,16 +103,20 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
   }
 }
 
-function toEntryView(entry: {
-  id: string
-  phone: string
-  stakeMinor: number
-  status: string
-  providerOrderId: string | null
-  ticketId: string | null
-  paidAt: Date | null
-  createdAt: Date
-}): AdminBetEntryView {
+function toEntryView(
+  entry: {
+    id: string
+    phone: string
+    stakeMinor: number
+    status: string
+    providerOrderId: string | null
+    ticketId: string | null
+    failureReason: string | null
+    paidAt: Date | null
+    createdAt: Date
+  },
+  ticketCode: string | null = null,
+): AdminBetEntryView {
   return {
     id: entry.id,
     phoneMasked: maskPhone(entry.phone),
@@ -118,9 +124,21 @@ function toEntryView(entry: {
     status: entry.status as AdminBetEntryView['status'],
     providerOrderId: entry.providerOrderId,
     ticketId: entry.ticketId,
+    ticketCode,
+    failureReason: entry.failureReason,
     paidAt: entry.paidAt?.toISOString() ?? null,
     createdAt: entry.createdAt.toISOString(),
   }
+}
+
+async function ticketCodesById(ticketIds: Array<string | null>): Promise<Map<string, string>> {
+  const ids = ticketIds.filter((id): id is string => Boolean(id))
+  if (ids.length === 0) return new Map()
+  const tickets = await prisma.betTicket.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, code: true },
+  })
+  return new Map(tickets.map(ticket => [ticket.id, ticket.code]))
 }
 
 export async function createAdminBetSlip(input: {
@@ -270,8 +288,13 @@ export async function listAdminBetSlips(now = new Date()): Promise<AdminBetSlipL
     },
   })
 
+  const ticketIds = slips.flatMap(slip => slip.entries.map(entry => entry.ticketId))
+  const codeByTicket = await ticketCodesById(ticketIds)
+
   return slips.map(slip => {
-    const entries = slip.entries.map(toEntryView)
+    const entries = slip.entries.map(entry =>
+      toEntryView(entry, entry.ticketId ? codeByTicket.get(entry.ticketId) ?? null : null),
+    )
     return {
       ...toAdminSlipView(slip, now),
       entries,
@@ -336,7 +359,10 @@ export async function listAdminBetEntries(slipId: string): Promise<AdminBetEntry
     orderBy: { createdAt: 'desc' },
     take: 100,
   })
-  return entries.map(toEntryView)
+  const codeByTicket = await ticketCodesById(entries.map(entry => entry.ticketId))
+  return entries.map(entry =>
+    toEntryView(entry, entry.ticketId ? codeByTicket.get(entry.ticketId) ?? null : null),
+  )
 }
 export async function placeAdminSlipBet(input: {
   entryId: string

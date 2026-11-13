@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CircleAlert, Copy, Loader2, Lock, LockOpen, Ticket } from 'lucide-react'
+import { CircleAlert, Copy, Loader2, Lock, LockOpen, RefreshCw, Ticket } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
 
 export interface AdminSlipSelectionView {
@@ -10,6 +10,18 @@ export interface AdminSlipSelectionView {
   marketName: string
   selectionLabel: string
   odds: number
+}
+
+export interface AdminSlipEntryView {
+  id: string
+  phoneMasked: string
+  stakeMinor: number
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
+  ticketId: string | null
+  ticketCode: string | null
+  failureReason: string | null
+  paidAt: string | null
+  createdAt: string
 }
 
 export interface AdminSlipListItemView {
@@ -27,6 +39,7 @@ export interface AdminSlipListItemView {
   potentialReturnMinor: number
   entryCount: number
   paidCount: number
+  entries: AdminSlipEntryView[]
   selections: AdminSlipSelectionView[]
 }
 
@@ -45,6 +58,7 @@ function freezeLabel(iso: string): string {
 export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
   const router = useRouter()
   const [pendingCode, setPendingCode] = useState<string | null>(null)
+  const [pendingEntry, setPendingEntry] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
@@ -79,6 +93,33 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
       setCopiedCode(code)
     } catch {
       setCopiedCode(null)
+    }
+  }
+
+  async function retryEntry(entryId: string) {
+    if (pendingEntry) return
+    setPendingEntry(entryId)
+    setError(null)
+    try {
+      const response = await fetch(
+        `/api/admin/bets/entries/${encodeURIComponent(entryId)}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'retry' }),
+        },
+      )
+      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      if (!response.ok) {
+        setError(payload.error ?? 'Could not place this bet. Try again later.')
+        return
+      }
+      router.refresh()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setPendingEntry(null)
     }
   }
 
@@ -207,6 +248,63 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                 </dd>
               </div>
             </dl>
+
+            {slip.entries.length > 0 ? (
+              <div className="mt-3 rounded-xl border border-border bg-background/40 p-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-text">
+                  Payments
+                </p>
+                <ul className="mt-1.5 space-y-1.5">
+                  {slip.entries.map(entry => {
+                    const canRetry =
+                      !entry.ticketId && (entry.status === 'PAID' || entry.status === 'FAILED')
+                    const retrying = pendingEntry === entry.id
+                    return (
+                      <li
+                        key={entry.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface/60 px-2.5 py-1.5 text-[11px]"
+                      >
+                        <span className="flex min-w-0 flex-wrap items-center gap-2">
+                          <span
+                            className={
+                              entry.status === 'PAID'
+                                ? 'font-semibold text-accent'
+                                : entry.status === 'FAILED'
+                                  ? 'font-semibold text-red-300'
+                                  : 'font-semibold text-amber-200'
+                            }
+                          >
+                            {entry.status}
+                          </span>
+                          <span className="text-muted-text">{entry.phoneMasked}</span>
+                          {entry.ticketCode ? (
+                            <span className="font-mono text-accent">{entry.ticketCode}</span>
+                          ) : null}
+                          {entry.failureReason ? (
+                            <span className="text-red-300">{entry.failureReason}</span>
+                          ) : null}
+                        </span>
+                        {canRetry ? (
+                          <button
+                            type="button"
+                            onClick={() => retryEntry(entry.id)}
+                            disabled={Boolean(pendingEntry)}
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1 text-[10px] font-semibold text-main-text transition-colors hover:border-accent/40 disabled:opacity-60"
+                          >
+                            {retrying ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
+                            Retry placement
+                          </button>
+                        ) : null}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ) : null}
           </article>
         )
       })}

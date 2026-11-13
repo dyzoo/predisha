@@ -26,6 +26,8 @@ export interface SlipPaymentEntryView {
   phoneMasked: string
   stakeMinor: number
   providerOrderId: string | null
+  ticketId: string | null
+  ticketCode: string | null
   paidAt: string | null
   createdAt: string
   message: string
@@ -43,15 +45,19 @@ function appUrl(): string {
     .replace(/\/+$/, '')
 }
 
-function entryView(entry: {
-  id: string
-  status: string
-  phone: string
-  stakeMinor: number
-  providerOrderId: string | null
-  paidAt: Date | null
-  createdAt: Date
-}): SlipPaymentEntryView {
+function entryView(
+  entry: {
+    id: string
+    status: string
+    phone: string
+    stakeMinor: number
+    providerOrderId: string | null
+    ticketId: string | null
+    paidAt: Date | null
+    createdAt: Date
+  },
+  ticketCode: string | null = null,
+): SlipPaymentEntryView {
   const status = entry.status as SlipPaymentEntryView['status']
   return {
     id: entry.id,
@@ -59,6 +65,8 @@ function entryView(entry: {
     phoneMasked: maskPhone(entry.phone),
     stakeMinor: entry.stakeMinor,
     providerOrderId: entry.providerOrderId,
+    ticketId: entry.ticketId,
+    ticketCode,
     paidAt: entry.paidAt?.toISOString() ?? null,
     createdAt: entry.createdAt.toISOString(),
     message:
@@ -68,6 +76,20 @@ function entryView(entry: {
           ? 'The payment was not completed. You can try again with the same phone number.'
           : 'Approve the mobile-money prompt on your phone to complete this bet.',
   }
+}
+
+async function ticketCodeFor(ticketId: string | null): Promise<string | null> {
+  if (!ticketId) return null
+  const ticket = await prisma.betTicket.findUnique({
+    where: { id: ticketId },
+    select: { code: true },
+  })
+  return ticket?.code ?? null
+}
+
+async function loadEntryView(entryId: string): Promise<SlipPaymentEntryView> {
+  const entry = await prisma.adminBetEntry.findUniqueOrThrow({ where: { id: entryId } })
+  return entryView(entry, await ticketCodeFor(entry.ticketId))
 }
 
 async function markEntryPaid(entryId: string, paidAt = new Date()) {
@@ -126,7 +148,7 @@ export async function startSlipPayment(input: {
     if (input.userId) {
       await placeAdminSlipBet({ entryId: entry.id, now })
     }
-    return { entry: entryView(entry), slip, mode: slip.mode }
+    return { entry: await loadEntryView(entry.id), slip, mode: slip.mode }
   }
 
   if (!harakapayApiKeyConfigured()) {
@@ -176,7 +198,7 @@ export async function refreshSlipPaymentEntry(entryId: string): Promise<SlipPaym
     if (SUCCESS_STATUSES.has(status)) {
       const updated = await markEntryPaid(entry.id)
       await placeEntryBet(updated.id)
-      return entryView(await prisma.adminBetEntry.findUniqueOrThrow({ where: { id: entry.id } }))
+      return loadEntryView(entry.id)
     }
     if (FAILURE_STATUSES.has(status)) {
       const updated = await prisma.adminBetEntry.update({
@@ -189,10 +211,10 @@ export async function refreshSlipPaymentEntry(entryId: string): Promise<SlipPaym
 
   if (entry.status === 'PAID' && entry.userId && !entry.ticketId) {
     await placeEntryBet(entry.id)
-    return entryView(await prisma.adminBetEntry.findUniqueOrThrow({ where: { id: entry.id } }))
+    return loadEntryView(entry.id)
   }
 
-  return entryView(entry)
+  return loadEntryView(entry.id)
 }
 
 export async function applySlipPaymentEvent(
@@ -223,6 +245,64 @@ export async function applySlipPaymentEvent(
   return { handled: true }
 }
 
+export async function retrySlipEntry(entryId: string): Promise<SlipPaymentEntryView> {
+  const entry = await prisma.adminBetEntry.findUnique({ where: { id: entryId } })
+  if (!entry) {
+    throw new BetError('That payment could not be found.', 404, 'ENTRY_NOT_FOUND')
+  }
+  if (entry.ticketId) return loadEntryView(entry.id)
+  if (!entry.userId) {
+    throw new BetError(
+      'This payment is not linked to an account, so a ticket cannot be placed.',
+      409,
+      'ENTRY_NO_USER',
+    )
+  }
+
+  if (entry.status === 'PAID') {
+    await placeEntryBet(entry.id)
+  } else if (entry.status === 'FAILED') {
+    if (entry.provider !== 'sandbox') {
+      if (entry.provider !== HARAKAPAY_PROVIDER_NAME || !entry.providerOrderId) {
+        throw new BetError('This payment cannot be retried.', 409, 'NOT_RETRYABLE')
+      }
+      const result = await getHarakaPayOrderStatus(entry.providerOrderId)
+      const status = (result.status ?? '').toLowerCase()
+      if (!SUCCESS_STATUSES.has(status)) {
+        throw new BetError(
+          'The payment was not confirmed, so the bet cannot be placed.',
+          409,
+          'PAYMENT_NOT_CONFIRMED',
+        )
+      }
+    }
+    await prisma.adminBetEntry.update({
+      where: { id: entry.id },
+      data: {
+        status: 'PAID',
+        paidAt: entry.paidAt ?? new Date(),
+        failureReason: null,
+        placementStartedAt: null,
+      },
+    })
+    await placeEntryBet(entry.id)
+  } else {
+    throw new BetError('This entry is not ready to retry.', 409, 'NOT_RETRYABLE')
+  }
+
+  const fresh = await prisma.adminBetEntry.findUniqueOrThrow({ where: { id: entry.id } })
+  if (!fresh.ticketId) {
+    throw new BetError(
+      fresh.failureReason
+        ? `The bet could not be placed (${fresh.failureReason}).`
+        : 'The bet could not be placed. Nothing was charged twice.',
+      409,
+      fresh.failureReason ?? 'PLACEMENT_FAILED',
+    )
+  }
+  return loadEntryView(entry.id)
+}
+
 export async function getSlipEntryForCode(
   code: string,
   entryId: string,
@@ -243,8 +323,19 @@ export async function listEntriesForSlip(code: string) {
     orderBy: { createdAt: 'desc' },
     take: 50,
   })
+  const ticketIds = entries
+    .map(entry => entry.ticketId)
+    .filter((id): id is string => Boolean(id))
+  const tickets =
+    ticketIds.length > 0
+      ? await prisma.betTicket.findMany({
+          where: { id: { in: ticketIds } },
+          select: { id: true, code: true },
+        })
+      : []
+  const codeByTicket = new Map(tickets.map(ticket => [ticket.id, ticket.code]))
   return entries.map(entry => ({
-    ...entryView(entry),
+    ...entryView(entry, entry.ticketId ? codeByTicket.get(entry.ticketId) ?? null : null),
     phoneMasked: maskPhone(entry.phone),
   }))
 }

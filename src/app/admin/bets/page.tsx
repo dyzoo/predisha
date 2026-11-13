@@ -79,6 +79,17 @@ export default async function AdminBetsPage() {
     potentialReturnMinor: slip.potentialReturnMinor,
     entryCount: slip.entryCount,
     paidCount: slip.paidCount,
+    entries: slip.entries.map(entry => ({
+      id: entry.id,
+      phoneMasked: entry.phoneMasked,
+      stakeMinor: entry.stakeMinor,
+      status: entry.status,
+      ticketId: entry.ticketId,
+      ticketCode: entry.ticketCode,
+      failureReason: entry.failureReason,
+      paidAt: entry.paidAt,
+      createdAt: entry.createdAt,
+    })),
     selections: slip.selections.map(selection => ({
       fixtureLabel: selection.fixtureLabel,
       marketName: selection.marketName,

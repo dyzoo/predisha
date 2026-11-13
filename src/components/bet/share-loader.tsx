@@ -40,6 +40,8 @@ interface SlipEntry {
   phoneMasked: string
   stakeMinor: number
   providerOrderId: string | null
+  ticketId: string | null
+  ticketCode: string | null
   paidAt: string | null
   createdAt: string
   message: string
@@ -329,6 +331,14 @@ export function ShareLoader({ code }: { code: string }) {
             </div>
             <h2 className="mt-3 font-display text-xl font-semibold">Bet confirmed</h2>
             <p className="mt-1 text-sm text-muted-text">{entry?.message}</p>
+            {entry?.ticketCode ? (
+              <p className="mt-3 rounded-xl border border-accent/25 bg-accent/10 px-3 py-2 text-sm text-main-text">
+                Ticket code{' '}
+                <span className="font-mono text-base font-bold tracking-[0.18em] text-accent">
+                  {entry.ticketCode}
+                </span>
+              </p>
+            ) : null}
             <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <Link href="/bet/bets" className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-background">
                 View my bets
