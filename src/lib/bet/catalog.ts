@@ -49,14 +49,18 @@ export function buildBetEvent(analysis: MatchAnalysis, now: Date): BetEvent {
     effectiveStatus,
     live: effectiveStatus === 'LIVE',
     home: {
+      id: home.id,
       name: home.name,
       short: home.shortName || home.name.slice(0, 3).toUpperCase(),
       color: home.color,
+      logoUrl: home.logoUrl ?? null,
     },
     away: {
+      id: away.id,
       name: away.name,
       short: away.shortName || away.name.slice(0, 3).toUpperCase(),
       color: away.color,
+      logoUrl: away.logoUrl ?? null,
     },
     kickoffIso: fixture.kickoffUtc.toISOString(),
     kickoffLabel: formatKickoffLabel(fixture.kickoffUtc.toISOString()),

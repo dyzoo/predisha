@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Radio } from 'lucide-react'
+import { TeamBadge } from '@/components/teams/team-badge'
 import { MarketPanel } from '@/components/bet/market-panel'
 import { statusLabel } from '@/lib/bet/format'
 import { getBetEvent } from '@/lib/bet/catalog'
@@ -56,10 +57,7 @@ export default async function BetMatchPage({ params }: { params: Params }) {
 
         <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
           <div className="flex min-w-0 flex-col items-center text-center">
-            <span
-              className="h-10 w-10 rounded-full"
-              style={{ backgroundColor: event.home.color }}
-            />
+            <TeamBadge team={event.home} size="lg" />
             <p className="mt-2 text-sm font-semibold sm:text-lg">{event.home.name}</p>
           </div>
           <div className="text-center">
@@ -69,10 +67,7 @@ export default async function BetMatchPage({ params }: { params: Params }) {
             <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-text">Simulated odds</p>
           </div>
           <div className="flex min-w-0 flex-col items-center text-center">
-            <span
-              className="h-10 w-10 rounded-full"
-              style={{ backgroundColor: event.away.color }}
-            />
+            <TeamBadge team={event.away} size="lg" />
             <p className="mt-2 text-sm font-semibold sm:text-lg">{event.away.name}</p>
           </div>
         </div>

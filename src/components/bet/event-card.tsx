@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ArrowUpRight, Radio } from 'lucide-react'
+import { TeamBadge } from '@/components/teams/team-badge'
 import { statusLabel } from '@/lib/bet/format'
 import type { BetEvent } from '@/lib/bet/types'
 import { OddsButton } from './odds-button'
@@ -35,10 +36,7 @@ export function EventCard({ event }: { event: BetEvent }) {
       <div className="mt-4 space-y-2.5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: event.home.color }}
-            />
+            <TeamBadge team={event.home} size="md" />
             <span className="truncate text-sm font-semibold">{event.home.name}</span>
           </div>
           <span className="shrink-0 text-lg font-bold tabular-nums">
@@ -47,10 +45,7 @@ export function EventCard({ event }: { event: BetEvent }) {
         </div>
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: event.away.color }}
-            />
+            <TeamBadge team={event.away} size="md" />
             <span className="truncate text-sm font-semibold">{event.away.name}</span>
           </div>
           <span className="shrink-0 text-lg font-bold tabular-nums">

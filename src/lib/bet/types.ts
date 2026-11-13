@@ -37,8 +37,8 @@ export interface BetEvent {
   status: FixtureStatus
   effectiveStatus: FixtureStatus
   live: boolean
-  home: { name: string; short: string; color: string }
-  away: { name: string; short: string; color: string }
+  home: { id: string; name: string; short: string; color: string; logoUrl?: string | null }
+  away: { id: string; name: string; short: string; color: string; logoUrl?: string | null }
   kickoffIso: string
   kickoffLabel: string
   score: { home: number; away: number } | null
