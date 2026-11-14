@@ -172,3 +172,11 @@ export interface AviatorRoundView {
   waitRemainingMs: number
   flyElapsedMs: number
 }
+
+export interface AviatorPulseView {
+  phase: AviatorRoundView['phase']
+  multiplier: number
+  waitRemainingMs: number
+  crashAt: number | null
+  history: Array<{ roundId: string; crashAt: number }>
+}

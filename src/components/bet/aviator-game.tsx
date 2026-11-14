@@ -31,6 +31,7 @@ type Slot = 1 | 2
 type Phase = 'wait' | 'fly' | 'crash'
 const AVIATOR_SLOTS: Slot[] = [1, 2]
 const AVIATOR_QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
+const AVIATOR_AUTO_CHIPS = [1.5, 2, 3, 5]
 
 function toPhase(phase: AviatorRoundView['phase']): Phase {
   if (phase === 'WAITING') return 'wait'
@@ -229,8 +230,8 @@ export function AviatorGame() {
     }
   }
 
-  const cashout = async (betId: string) => {
-    setBusySlot(1)
+  const cashout = async (betId: string, slot: Slot) => {
+    setBusySlot(slot)
     setError(null)
     setErrorCode(null)
     setSuccess(null)
@@ -254,7 +255,7 @@ export function AviatorGame() {
       }
 
       setSuccess(
-        `Cashed out Bet ${payload.bet?.slot ?? 1} at ${formatMultiplier(payload.bet?.cashedOutAt ?? 1)} for ${formatTzs(payload.bet?.payoutMinor ?? 0)}.`,
+        `Cashed out Bet ${payload.bet?.slot ?? slot} at ${formatMultiplier(payload.bet?.cashedOutAt ?? 1)} for ${formatTzs(payload.bet?.payoutMinor ?? 0)}.`,
       )
       await loadState()
       await refreshWallet()
@@ -276,7 +277,7 @@ export function AviatorGame() {
     }
 
     if (phaseNow === 'fly' && mine && mine.status === 'ACTIVE') {
-      await cashout(mine.id)
+      await cashout(mine.id, slot)
     }
   }
 
@@ -358,88 +359,211 @@ export function AviatorGame() {
       <div className="av-bets">
         {AVIATOR_SLOTS.map(slot => {
           const mine = state?.bets.find(bet => bet.slot === slot) ?? null
-          let label = 'Bet'
-          let disabled = !state
-          let buttonClass = ''
+          const active = mine?.status === 'ACTIVE'
+          const cashed = mine?.status === 'CASHED_OUT'
+          const lost = mine?.status === 'LOST'
 
-          if (phase === 'wait' && mine) {
-            label = 'Waiting'
+          const statusText = !state
+            ? 'Connecting'
+            : active
+              ? phase === 'fly'
+                ? 'Flying'
+                : 'Placed'
+              : cashed
+                ? 'Cashed'
+                : lost
+                  ? 'Lost'
+                  : phase === 'wait'
+                    ? 'Open'
+                    : phase === 'fly'
+                      ? 'Flying'
+                      : 'Crashed'
+
+          const statusTone = !state
+            ? 'is-muted'
+            : active
+              ? phase === 'fly'
+                ? 'is-live'
+                : 'is-open'
+              : cashed
+                ? 'is-win'
+                : lost
+                  ? 'is-lost'
+                  : phase === 'wait'
+                    ? 'is-open'
+                    : phase === 'fly'
+                      ? 'is-live'
+                      : 'is-crash'
+
+          const title = !state
+            ? 'Getting ready'
+            : active
+              ? phase === 'fly'
+                ? 'In the air'
+                : 'You are in'
+              : cashed
+                ? 'Nice cash out'
+                : lost
+                  ? 'Round ended'
+                  : phase === 'wait'
+                    ? 'Ready to fly'
+                    : 'Next round'
+
+          let ctaLabel = 'Place bet'
+          let ctaClass = ''
+          let disabled = !state
+
+          if (!state) {
+            ctaLabel = 'Connecting…'
+            ctaClass = 'is-wait'
+          } else if (phase === 'wait' && mine) {
+            ctaLabel = 'Bet placed'
             disabled = true
-            buttonClass = 'wait'
-          } else if (phase === 'fly' && mine && mine.status === 'ACTIVE') {
-            label = `Cash out ${activeMultiplier.toFixed(2)}x`
-            buttonClass = 'cash'
-          } else if (mine && mine.status === 'CASHED_OUT') {
-            label = `Cashed ${(mine.cashedOutAt ?? 0).toFixed(2)}x`
+            ctaClass = 'is-wait'
+          } else if (phase === 'fly' && active) {
+            ctaLabel = `Cash out ${activeMultiplier.toFixed(2)}x`
+            ctaClass = 'is-cash'
+          } else if (cashed) {
+            ctaLabel = `Cashed at ${(mine?.cashedOutAt ?? 0).toFixed(2)}x`
             disabled = true
+            ctaClass = 'is-done'
+          } else if (lost) {
+            ctaLabel = 'Round lost'
+            disabled = true
+            ctaClass = 'is-lost'
           } else if (phase !== 'wait') {
-            label = phase === 'fly' ? 'Next round' : 'Bet'
+            ctaLabel = phase === 'fly' ? 'Next round opens soon' : 'Next round'
             disabled = true
+            ctaClass = 'is-wait'
           }
 
-          const note =
-            mine && mine.status === 'CASHED_OUT'
-              ? `Won ${formatTzs(Math.round(mine.stakeMinor * (mine.cashedOutAt ?? 0)))}`
-              : ''
+          let note = 'Place your bet before takeoff.'
+          let noteClass = ''
+
+          if (!state) {
+            note = 'Loading the round…'
+          } else if (phase === 'fly' && active) {
+            note = `Cash out value ${formatTzs(Math.round((mine?.stakeMinor ?? 0) * activeMultiplier))}`
+            noteClass = 'is-live'
+          } else if (cashed) {
+            note = `Won ${formatTzs(mine?.payoutMinor ?? 0)}`
+            noteClass = 'is-win'
+          } else if (lost) {
+            note = 'Better luck next round.'
+            noteClass = 'is-lost'
+          } else if (phase === 'wait' && active) {
+            note = mine?.autoCashout
+              ? `Auto cash out at ${mine.autoCashout.toFixed(2)}x`
+              : 'You are in. Good luck!'
+          } else if (phase === 'fly') {
+            note = 'Cash out is closed for this round.'
+          } else if (phase === 'crash') {
+            note = 'Waiting for the next round.'
+          }
 
           return (
             <article className="av-panel" data-slot={slot} key={slot}>
-              <div className="av-panel-h">Bet {slot}</div>
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-text">
-                Bet amount (TZS)
-              </p>
-              <input
-                className="input"
-                id={`avStake${slot}`}
-                inputMode="numeric"
-                type="number"
-                min={MIN_STAKE_MINOR}
-                step={500}
-                value={panels[slot].stakeMinor}
-                onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], stakeMinor: Number(event.target.value) } }))}
-              />
-              <div className="mb-2 grid grid-cols-4 gap-1">
+              <div className="av-panel-head">
+                <div>
+                  <div className="av-panel-kicker">Bet {slot}</div>
+                  <h3 className="av-panel-title">{title}</h3>
+                </div>
+                <span className={`av-pill ${statusTone}`}>{statusText}</span>
+              </div>
+
+              <label className="av-field" htmlFor={`avStake${slot}`}>
+                <span className="av-field-label">Bet amount</span>
+                <span className="av-stake">
+                  <span className="av-currency">TZS</span>
+                  <input
+                    className="av-stake-input"
+                    id={`avStake${slot}`}
+                    inputMode="numeric"
+                    type="number"
+                    min={MIN_STAKE_MINOR}
+                    step={500}
+                    value={panels[slot].stakeMinor}
+                    onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], stakeMinor: Number(event.target.value) } }))}
+                  />
+                </span>
+              </label>
+
+              <div className="av-chips" aria-label={`Quick stake amounts for Bet ${slot}`}>
                 {AVIATOR_QUICK_STAKES.map(amount => (
                   <button
                     key={amount}
                     type="button"
+                    aria-pressed={panels[slot].stakeMinor === amount}
                     onClick={() =>
                       setPanels(current => ({
                         ...current,
                         [slot]: { ...current[slot], stakeMinor: amount },
                       }))
                     }
-                    className="rounded-md border border-border px-1 py-1 text-[10px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:text-accent"
+                    className={`av-chip ${panels[slot].stakeMinor === amount ? 'is-active' : ''}`}
                   >
-                    {formatTzs(amount)}
+                    {formatTzs(amount).replace('TZS ', '')}
                   </button>
                 ))}
               </div>
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-text">
-                Auto cash out (optional)
-              </p>
-              <input
-                className="input"
-                id={`avAuto${slot}`}
-                inputMode="decimal"
-                type="number"
-                min={1.1}
-                max={state?.config.maxCrash ?? 100}
-                step={0.1}
-                value={panels[slot].autoCashout}
-                placeholder="e.g. 2.00"
-                onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], autoCashout: event.target.value } }))}
-              />
+
+              <label className="av-field" htmlFor={`avAuto${slot}`}>
+                <span className="av-field-label">
+                  Auto cash out
+                  <span className="av-optional">Optional</span>
+                </span>
+                <span className="av-auto">
+                  <input
+                    className="av-auto-input"
+                    id={`avAuto${slot}`}
+                    inputMode="decimal"
+                    type="number"
+                    min={1.1}
+                    max={state?.config.maxCrash ?? 100}
+                    step={0.1}
+                    value={panels[slot].autoCashout}
+                    placeholder="Set a target"
+                    onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], autoCashout: event.target.value } }))}
+                  />
+                  <span className="av-auto-x">x</span>
+                </span>
+              </label>
+
+              <div className="av-chips av-chips-auto" aria-label={`Quick auto cash out values for Bet ${slot}`}>
+                {AVIATOR_AUTO_CHIPS.map(target => {
+                  const selected = Number(panels[slot].autoCashout) === target
+                  return (
+                    <button
+                      key={target}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        setPanels(current => ({
+                          ...current,
+                          [slot]: {
+                            ...current[slot],
+                            autoCashout: selected ? '' : target.toFixed(2),
+                          },
+                        }))
+                      }
+                      className={`av-chip ${selected ? 'is-active' : ''}`}
+                    >
+                      {target.toFixed(2)}x
+                    </button>
+                  )
+                })}
+              </div>
+
               <button
-                className={`wide gold ${buttonClass} ${busySlot === slot ? 'is-busy' : ''}`}
+                className={`av-cta ${ctaClass} ${busySlot === slot ? 'is-busy' : ''}`}
                 type="button"
                 id={`avGo${slot}`}
                 disabled={disabled || busySlot === slot}
                 onClick={() => void handleBetClick(slot)}
               >
-                {busySlot === slot ? <Loader2 className="h-4 w-4 animate-spin" /> : label}
+                {busySlot === slot ? <Loader2 className="h-5 w-5 animate-spin" /> : ctaLabel}
               </button>
-              <p className="hint" id={`avSlotMsg${slot}`}>
+              <p className={`av-note ${noteClass}`} id={`avSlotMsg${slot}`}>
                 {note}
               </p>
             </article>

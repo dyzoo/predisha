@@ -11,6 +11,7 @@ import { creditWallet, debitWallet, getWalletView } from './wallet'
 import type {
   AviatorBetView,
   AviatorPlayerView,
+  AviatorPulseView,
   AviatorRoundView,
   BetWalletView,
 } from './types'
@@ -331,6 +332,18 @@ function demoAviatorPlayers(
   })
 }
 
+function recentAviatorHistory(
+  round: AviatorRoundView,
+  config: AviatorConfig,
+  count: number,
+): Array<{ roundId: string; crashAt: number }> {
+  return Array.from({ length: count }, (_, offset) => {
+    const index = round.phase === 'CRASHED' ? round.index - offset : round.index - 1 - offset
+    const roundId = `av-${index}`
+    return { roundId, crashAt: crashPointFor(roundId, config) }
+  })
+}
+
 export interface AviatorState {
   round: AviatorRoundView
   bets: AviatorBetView[]
@@ -338,6 +351,19 @@ export interface AviatorState {
   history: Array<{ roundId: string; crashAt: number }>
   wallet: BetWalletView
   config: AviatorConfig
+}
+
+export async function getAviatorPulse(now: Date = new Date()): Promise<AviatorPulseView> {
+  const config = await getAviatorConfig()
+  const round = aviatorRoundAt(now, config)
+
+  return {
+    phase: round.phase,
+    multiplier: round.multiplier,
+    waitRemainingMs: round.waitRemainingMs,
+    crashAt: round.phase === 'CRASHED' ? round.crashAt : null,
+    history: recentAviatorHistory(round, config, 6),
+  }
 }
 
 export async function getAviatorState(
@@ -373,11 +399,7 @@ export async function getAviatorState(
     ...demoAviatorPlayers(round, Math.max(0, 12 - realPlayers.length)),
   ]
 
-  const history = Array.from({ length: 10 }, (_, offset) => {
-    const index = round.phase === 'CRASHED' ? round.index - offset : round.index - 1 - offset
-    const roundId = `av-${index}`
-    return { roundId, crashAt: crashPointFor(roundId, config) }
-  })
+  const history = recentAviatorHistory(round, config, 10)
 
   return {
     round,

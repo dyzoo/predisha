@@ -207,34 +207,292 @@ button, a { cursor: pointer; }
 
 .av-bets {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+  align-items: stretch;
 }
 
 .av-panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px;
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(200, 255, 67, 0.07), transparent 55%),
+    linear-gradient(180deg, #252c36 0%, #1a2029 100%);
+  box-shadow: 0 18px 40px -32px rgba(0, 0, 0, 0.9);
 }
 
-.av-panel-h {
-  font-weight: 700;
-  margin-bottom: 8px;
+.av-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.av-panel .input {
-  margin: 0 0 8px;
+.av-panel-kicker {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--gold-2);
 }
 
-.av-panel button.cash {
-  background: var(--teal);
+.av-panel-title {
+  margin-top: 6px;
+  font-size: clamp(1.15rem, 2.6vw, 1.5rem);
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--main-text);
+}
+
+.av-pill {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 6px 10px;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.av-pill.is-open,
+.av-pill.is-win {
+  color: var(--accent);
+  background: rgba(200, 255, 67, 0.09);
+}
+
+.av-pill.is-live {
+  color: var(--gold-2);
+  background: rgba(240, 213, 46, 0.09);
+}
+
+.av-pill.is-crash,
+.av-pill.is-lost {
+  color: #ff8a8a;
+  background: rgba(255, 90, 90, 0.09);
+}
+
+.av-pill.is-muted {
+  color: var(--muted-text);
+}
+
+.av-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.av-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-text);
+}
+
+.av-optional {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #77808d;
+}
+
+.av-stake,
+.av-auto {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 0 14px;
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(9, 12, 16, 0.5);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.av-stake:focus-within,
+.av-auto:focus-within {
+  border-color: rgba(200, 255, 67, 0.6);
+  background: rgba(9, 12, 16, 0.75);
+}
+
+.av-currency {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--gold-2);
+}
+
+.av-stake-input,
+.av-auto-input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--main-text);
+}
+
+.av-stake-input {
+  font-size: clamp(1.55rem, 4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.av-auto-input {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.av-auto-x {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--gold-2);
+}
+
+.av-stake-input::placeholder,
+.av-auto-input::placeholder {
+  color: #6d7682;
+  font-weight: 600;
+}
+
+.av-stake-input::-webkit-outer-spin-button,
+.av-stake-input::-webkit-inner-spin-button,
+.av-auto-input::-webkit-outer-spin-button,
+.av-auto-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.av-stake-input[type='number'],
+.av-auto-input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.av-chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.av-chip {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 11px;
+  padding: 9px 4px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted-text);
+  font-size: 11px;
+  font-weight: 800;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+
+.av-chip:hover {
+  border-color: rgba(200, 255, 67, 0.45);
+  color: var(--main-text);
+}
+
+.av-chip.is-active {
+  border-color: rgba(200, 255, 67, 0.7);
+  background: rgba(200, 255, 67, 0.13);
+  color: var(--accent);
+}
+
+.av-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 58px;
+  border: 0;
+  border-radius: 15px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f0d52e, #c8ff43);
+  color: #13170c;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  box-shadow: 0 12px 24px -16px rgba(200, 255, 67, 0.7);
+  transition:
+    transform 0.12s,
+    filter 0.12s,
+    opacity 0.12s;
+}
+
+.av-cta:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.av-cta:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.av-cta.is-cash {
+  background: linear-gradient(135deg, #1bd093, #8fffd2);
   color: #062018;
+  box-shadow: 0 12px 24px -16px rgba(27, 208, 147, 0.8);
 }
 
-.av-panel button.wait {
-  opacity: 0.7;
+.av-cta.is-wait,
+.av-cta.is-done,
+.av-cta.is-lost {
+  background: #2a323d;
+  color: var(--muted-text);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.av-cta.is-lost {
+  color: #ff8a8a;
+}
+
+.av-cta.is-busy {
+  opacity: 0.8;
+}
+
+.av-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted-text);
+}
+
+.av-note.is-live {
+  color: var(--gold-2);
+}
+
+.av-note.is-win {
+  color: var(--accent);
+}
+
+.av-note.is-lost {
+  color: #ff8a8a;
 }
 
 .av-players {
@@ -299,8 +557,35 @@ button, a { cursor: pointer; }
 }
 
 @media (max-width: 700px) {
+  .av-page {
+    padding: 6px 10px 18px;
+  }
+
   .av-bets {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .av-panel {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .av-panel-title {
+    font-size: 1.15rem;
+  }
+
+  .av-stake,
+  .av-auto {
+    min-height: 54px;
+  }
+
+  .av-stake-input {
+    font-size: 1.6rem;
+  }
+
+  .av-cta {
+    min-height: 56px;
   }
 
   .av-sky {
