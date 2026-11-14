@@ -33,8 +33,6 @@ export function AviatorGame() {
   const playersRef = useRef<HTMLDivElement | null>(null)
   const readoutMultRef = useRef<HTMLSpanElement | null>(null)
   const readoutMsgRef = useRef<HTMLParagraphElement | null>(null)
-  const betRefs = useRef<Record<number, HTMLButtonElement | null>>({})
-  const noteRefs = useRef<Record<number, HTMLParagraphElement | null>>({})
 
   const [state, setState] = useState<AviatorState | null>(null)
   const [panels, setPanels] = useState<Record<number, BetPanelState>>({
@@ -107,45 +105,6 @@ export function AviatorGame() {
         })
         .join('')
       if (data.bets.length === 0) players.innerHTML = '<p class="hint">Waiting for bets</p>'
-    }
-
-    const mineBySlot: Record<number, AviatorBetView | null> = {1: null, 2: null}
-    for (const bet of data.bets) {
-      if (bet.slot === 1 || bet.slot === 2) mineBySlot[bet.slot] = bet
-    }
-
-    for (const slot of [1, 2] as const) {
-      const btn = betRefs.current[slot]
-      const note = noteRefs.current[slot]
-      const mine = mineBySlot[slot]
-
-      if (!btn) continue
-      btn.classList.remove('cash', 'wait')
-
-      if (phase === 'wait' && !mine) {
-        btn.textContent = 'Bet'
-        btn.disabled = false
-      } else if (phase === 'wait' && mine) {
-        btn.textContent = 'Waiting'
-        btn.classList.add('wait')
-        btn.disabled = true
-      } else if (phase === 'fly' && mine && mine.status === 'ACTIVE') {
-        btn.textContent = `Cash out ${multiplier.toFixed(2)}x`
-        btn.classList.add('cash')
-        btn.disabled = false
-      } else if (mine && mine.status === 'CASHED_OUT') {
-        btn.textContent = `Cashed ${(mine.cashedOutAt ?? 0).toFixed(2)}x`
-        btn.disabled = true
-      } else {
-        btn.textContent = phase === 'fly' ? 'Next round' : 'Bet'
-        btn.disabled = phase !== 'wait'
-      }
-
-      if (note) {
-        note.textContent = mine && mine.status === 'CASHED_OUT'
-          ? `Won ${formatTzs(Math.round(mine.stakeMinor * (mine.cashedOutAt ?? 0)))}`
-          : ''
-      }
     }
   }, [])
 
@@ -287,13 +246,8 @@ export function AviatorGame() {
     }
   }
 
-  const setBetRef = (slot: number) => (node: HTMLButtonElement | null) => {
-    betRefs.current[slot] = node
-  }
-
-  const setNoteRef = (slot: number) => (node: HTMLParagraphElement | null) => {
-    noteRefs.current[slot] = node
-  }
+  const phase = (state?.round.phase.toLowerCase() ?? 'wait') as Phase
+  const activeMultiplier = state?.round.multiplier ?? 1
 
   return (
     <section className="av-page">
@@ -339,43 +293,72 @@ export function AviatorGame() {
       </div>
 
       <div className="av-bets">
-        {AVIATOR_SLOTS.map(slot => (
-          <article className="av-panel" data-slot={slot} key={slot}>
-            <div className="av-panel-h">Bet {slot}</div>
-            <input
-              className="input"
-              id={`avStake${slot}`}
-              inputMode="numeric"
-              type="number"
-              min={MIN_STAKE_MINOR}
-              step={500}
-              value={panels[slot].stakeMinor}
-              onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], stakeMinor: Number(event.target.value) } }))}
-            />
-            <input
-              className="input"
-              id={`avAuto${slot}`}
-              inputMode="decimal"
-              type="number"
-              min={1.1}
-              max={state?.config.maxCrash ?? 100}
-              step={0.1}
-              value={panels[slot].autoCashout}
-              placeholder="Auto cash out e.g. 2.00"
-              onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], autoCashout: event.target.value } }))}
-            />
-            <button
-              className={`wide gold ${busySlot === slot ? 'is-busy' : ''}`}
-              type="button"
-              id={`avGo${slot}`}
-              ref={setBetRef(slot)}
-              onClick={() => void handleBetClick(slot)}
-            >
-              {busySlot === slot ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Bet'}
-            </button>
-            <p className="hint" id={`avSlotMsg${slot}`} ref={setNoteRef(slot)} />
-          </article>
-        ))}
+        {AVIATOR_SLOTS.map(slot => {
+          const mine = state?.bets.find(bet => bet.slot === slot) ?? null
+          let label = 'Bet'
+          let disabled = false
+          let buttonClass = ''
+
+          if (phase === 'wait' && mine) {
+            label = 'Waiting'
+            disabled = true
+            buttonClass = 'wait'
+          } else if (phase === 'fly' && mine && mine.status === 'ACTIVE') {
+            label = `Cash out ${activeMultiplier.toFixed(2)}x`
+            buttonClass = 'cash'
+          } else if (mine && mine.status === 'CASHED_OUT') {
+            label = `Cashed ${(mine.cashedOutAt ?? 0).toFixed(2)}x`
+            disabled = true
+          } else if (phase !== 'wait') {
+            label = phase === 'fly' ? 'Next round' : 'Bet'
+            disabled = true
+          }
+
+          const note =
+            mine && mine.status === 'CASHED_OUT'
+              ? `Won ${formatTzs(Math.round(mine.stakeMinor * (mine.cashedOutAt ?? 0)))}`
+              : ''
+
+          return (
+            <article className="av-panel" data-slot={slot} key={slot}>
+              <div className="av-panel-h">Bet {slot}</div>
+              <input
+                className="input"
+                id={`avStake${slot}`}
+                inputMode="numeric"
+                type="number"
+                min={MIN_STAKE_MINOR}
+                step={500}
+                value={panels[slot].stakeMinor}
+                onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], stakeMinor: Number(event.target.value) } }))}
+              />
+              <input
+                className="input"
+                id={`avAuto${slot}`}
+                inputMode="decimal"
+                type="number"
+                min={1.1}
+                max={state?.config.maxCrash ?? 100}
+                step={0.1}
+                value={panels[slot].autoCashout}
+                placeholder="Auto cash out e.g. 2.00"
+                onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], autoCashout: event.target.value } }))}
+              />
+              <button
+                className={`wide gold ${buttonClass} ${busySlot === slot ? 'is-busy' : ''}`}
+                type="button"
+                id={`avGo${slot}`}
+                disabled={disabled || busySlot === slot}
+                onClick={() => void handleBetClick(slot)}
+              >
+                {busySlot === slot ? <Loader2 className="h-4 w-4 animate-spin" /> : label}
+              </button>
+              <p className="hint" id={`avSlotMsg${slot}`}>
+                {note}
+              </p>
+            </article>
+          )
+        })}
       </div>
 
       <div className="av-players" id="avPlayers" ref={playersRef} />

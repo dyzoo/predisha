@@ -71,6 +71,11 @@ function normalizeItems(value: unknown): BetSlipItem[] {
   return value.filter(isSlipItem).slice(0, MAX_SELECTIONS)
 }
 
+function isSlipItemStarted(item: BetSlipItem): boolean {
+  const kickoff = new Date(item.kickoffIso).getTime()
+  return Number.isNaN(kickoff) || kickoff <= Date.now()
+}
+
 export function BetSlipProvider({
   viewer,
   children,
@@ -240,6 +245,11 @@ export function BetSlipProvider({
     }
     if (stakeMinor < MIN_STAKE_MINOR) {
       return { ok: false, code: 'BAD_STAKE', error: 'Stake is below the minimum.' }
+    }
+
+    const startedItem = items.find(item => isSlipItemStarted(item))
+    if (startedItem) {
+      return { ok: false, code: 'FIXTURE_CLOSED', error: 'This match has already started.' }
     }
 
     setPlacing(true)

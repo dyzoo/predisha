@@ -213,6 +213,7 @@ export function ShareLoader({ code }: { code: string }) {
         if (payload.live) setLive(payload.live)
         if (payload.liveGames) setLiveGames(payload.liveGames)
         if (payload.upcomingGames) setUpcomingGames(payload.upcomingGames)
+        if (payload.slip) setSlip(payload.slip)
       } catch {
         return
       }
@@ -290,6 +291,17 @@ export function ShareLoader({ code }: { code: string }) {
   async function startPayment() {
     if (paying) return
     setPayError(null)
+
+    if (
+      slip &&
+      (slip.frozen ||
+        slip.status !== 'OPEN' ||
+        new Date(slip.autoFreezeAt).getTime() <= Date.now())
+    ) {
+      setPayError(slip.frozenReason ?? 'Betting is closed for this slip because a match has started.')
+      return
+    }
+
     const cleaned = phone.trim()
     if (cleaned.length < 7) {
       setPayError('Enter the mobile-money number you want to pay with.')
@@ -710,10 +722,10 @@ export function ShareLoader({ code }: { code: string }) {
             eyebrow="Sportsbook"
             title="Upcoming games"
             description="Tap any price to add it to your bet slip."
-            action="All sports"
+            action="Explore more"
             actionHref="/bet/sports"
           />
-          <EventGrid events={upcomingGames} />
+          <EventGrid events={upcomingGames.slice(0, 2)} />
         </section>
       ) : null}
 
