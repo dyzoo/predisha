@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Wallet } from 'lucide-react'
 import { formatMultiplier, formatTzs } from '@/lib/bet/format'
 import type {
   AviatorBetView,
@@ -30,6 +30,13 @@ interface BetPanelState {
 type Slot = 1 | 2
 type Phase = 'wait' | 'fly' | 'crash'
 const AVIATOR_SLOTS: Slot[] = [1, 2]
+const AVIATOR_QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
+
+function toPhase(phase: AviatorRoundView['phase']): Phase {
+  if (phase === 'WAITING') return 'wait'
+  if (phase === 'FLYING') return 'fly'
+  return 'crash'
+}
 
 export function AviatorGame() {
   const { refreshWallet } = useBetSlip()
@@ -52,7 +59,7 @@ export function AviatorGame() {
   const [success, setSuccess] = useState<string | null>(null)
 
   const paintAviator = useCallback((data: AviatorState) => {
-    const phase: Phase = data.round.phase.toLowerCase() as Phase
+    const phase = toPhase(data.round.phase)
     const multiplier = data.round.multiplier
     const crash = data.round.crashAt
     const waitLeft = data.round.waitRemainingMs
@@ -116,6 +123,10 @@ export function AviatorGame() {
       if (players.length === 0) playersEl.innerHTML = '<p class="hint">Waiting for bets</p>'
     }
   }, [])
+
+  useEffect(() => {
+    if (state) paintAviator(state)
+  }, [paintAviator, state])
 
   useEffect(() => {
     let cancelled = false
@@ -256,7 +267,7 @@ export function AviatorGame() {
 
   const handleBetClick = async (slot: Slot) => {
     if (!state) return
-    const phaseNow = state.round.phase.toLowerCase() as Phase
+    const phaseNow = toPhase(state.round.phase)
     const mine = state.bets.find(bet => bet.slot === slot) ?? null
 
     if (phaseNow === 'wait' && !mine) {
@@ -269,7 +280,7 @@ export function AviatorGame() {
     }
   }
 
-  const phase = (state?.round.phase.toLowerCase() ?? 'wait') as Phase
+  const phase = state ? toPhase(state.round.phase) : 'wait'
   const activeMultiplier = state?.round.multiplier ?? 1
 
   return (
@@ -295,6 +306,24 @@ export function AviatorGame() {
           <span>{success}</span>
         </div>
       ) : null}
+
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface/70 px-3 py-2 text-xs">
+        <span className="inline-flex items-center gap-1.5 text-muted-text">
+          <Wallet className="h-4 w-4 text-accent" />
+          Aviator bets are placed here, using your main wallet.
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="font-semibold tabular-nums text-main-text">
+            {state ? formatTzs(state.wallet.balanceMinor) : '…'}
+          </span>
+          <Link
+            href="/bet/deposit"
+            className="rounded-lg bg-accent px-2.5 py-1 text-[10px] font-bold text-background"
+          >
+            Deposit
+          </Link>
+        </span>
+      </div>
 
       <div className="av-hist" id="avHist" ref={histRef} />
 
@@ -330,7 +359,7 @@ export function AviatorGame() {
         {AVIATOR_SLOTS.map(slot => {
           const mine = state?.bets.find(bet => bet.slot === slot) ?? null
           let label = 'Bet'
-          let disabled = false
+          let disabled = !state
           let buttonClass = ''
 
           if (phase === 'wait' && mine) {
@@ -356,6 +385,9 @@ export function AviatorGame() {
           return (
             <article className="av-panel" data-slot={slot} key={slot}>
               <div className="av-panel-h">Bet {slot}</div>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-text">
+                Bet amount (TZS)
+              </p>
               <input
                 className="input"
                 id={`avStake${slot}`}
@@ -366,6 +398,26 @@ export function AviatorGame() {
                 value={panels[slot].stakeMinor}
                 onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], stakeMinor: Number(event.target.value) } }))}
               />
+              <div className="mb-2 grid grid-cols-4 gap-1">
+                {AVIATOR_QUICK_STAKES.map(amount => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() =>
+                      setPanels(current => ({
+                        ...current,
+                        [slot]: { ...current[slot], stakeMinor: amount },
+                      }))
+                    }
+                    className="rounded-md border border-border px-1 py-1 text-[10px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:text-accent"
+                  >
+                    {formatTzs(amount)}
+                  </button>
+                ))}
+              </div>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-text">
+                Auto cash out (optional)
+              </p>
               <input
                 className="input"
                 id={`avAuto${slot}`}
@@ -375,7 +427,7 @@ export function AviatorGame() {
                 max={state?.config.maxCrash ?? 100}
                 step={0.1}
                 value={panels[slot].autoCashout}
-                placeholder="Auto cash out e.g. 2.00"
+                placeholder="e.g. 2.00"
                 onChange={event => setPanels(current => ({ ...current, [slot]: { ...current[slot], autoCashout: event.target.value } }))}
               />
               <button

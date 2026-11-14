@@ -255,6 +255,82 @@ export async function settleAviatorForUser(
   }
 }
 
+const DEMO_PLAYER_NAMES = [
+  'Amina',
+  'Baraka',
+  'Neema',
+  'Juma',
+  'Zawadi',
+  'Kelvin',
+  'Rehema',
+  'Moses',
+  'Tumaini',
+  'Salma',
+  'Emmanuel',
+  'Halima',
+  'Peter',
+  'Grace',
+  'Ali',
+  'Fatuma',
+  'Joseph',
+  'Asha',
+  'Daudi',
+  'Esther',
+  'Hamisi',
+  'Lulu',
+  'Mariam',
+  'Nuru',
+  'Rashid',
+  'Said',
+  'Tatu',
+  'Yusuf',
+]
+
+const DEMO_STAKES = [500, 1_000, 1_500, 2_000, 2_500, 5_000, 10_000, 15_000, 20_000]
+
+function demoAviatorPlayers(
+  round: AviatorRoundView,
+  count: number,
+): AviatorPlayerView[] {
+  if (count <= 0) return []
+
+  const random = mulberry32(hashString(`aviator-players:${round.roundId}`))
+  const names = [...DEMO_PLAYER_NAMES]
+  for (let index = names.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(random() * (index + 1))
+    const current = names[index]
+    names[index] = names[swap]
+    names[swap] = current
+  }
+
+  return names.slice(0, Math.min(count, names.length)).map(name => {
+    const stakeMinor = DEMO_STAKES[Math.floor(random() * DEMO_STAKES.length)]
+    const cashTarget = Math.round((1.2 + random() * 4.8) * 100) / 100
+    let status: AviatorPlayerView['status'] = 'ACTIVE'
+    let cashedOutAt: number | null = null
+
+    if (round.phase === 'FLYING' && round.multiplier >= cashTarget) {
+      status = 'CASHED_OUT'
+      cashedOutAt = cashTarget
+    } else if (round.phase === 'CRASHED') {
+      if (cashTarget < round.crashAt) {
+        status = 'CASHED_OUT'
+        cashedOutAt = cashTarget
+      } else {
+        status = 'LOST'
+      }
+    }
+
+    return {
+      name: `${name.slice(0, 1)}***`,
+      mine: false,
+      stakeMinor,
+      cashedOutAt,
+      status,
+    }
+  })
+}
+
 export interface AviatorState {
   round: AviatorRoundView
   bets: AviatorBetView[]
@@ -285,16 +361,20 @@ export async function getAviatorState(
     getWalletView(userId),
   ])
 
-  const players: AviatorPlayerView[] = playerBets.map(bet => ({
+  const realPlayers: AviatorPlayerView[] = playerBets.map(bet => ({
     name: bet.userId === userId ? 'You' : maskedPlayerName(bet.user.name),
     mine: bet.userId === userId,
     stakeMinor: bet.stakeMinor,
     cashedOutAt: bet.cashedOutAt,
     status: bet.status,
   }))
+  const players = [
+    ...realPlayers,
+    ...demoAviatorPlayers(round, Math.max(0, 12 - realPlayers.length)),
+  ]
 
   const history = Array.from({ length: 10 }, (_, offset) => {
-    const index = round.index - 1 - offset
+    const index = round.phase === 'CRASHED' ? round.index - offset : round.index - 1 - offset
     const roundId = `av-${index}`
     return { roundId, crashAt: crashPointFor(roundId, config) }
   })

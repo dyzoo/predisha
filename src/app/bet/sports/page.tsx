@@ -18,8 +18,13 @@ type SearchParams = Promise<{
   status?: string
 }>
 
-function startOfUtcDay(date: Date): number {
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+const EAT_OFFSET_MS = 3 * 60 * 60 * 1000
+
+function startOfEatDay(date: Date): number {
+  const shifted = new Date(date.getTime() + EAT_OFFSET_MS)
+  return (
+    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) - EAT_OFFSET_MS
+  )
 }
 
 export default async function BetSportsPage({
@@ -35,7 +40,7 @@ export default async function BetSportsPage({
   const status = params.status ?? 'all'
 
   const catalog = await getBetCatalog()
-  const today = startOfUtcDay(new Date())
+  const today = startOfEatDay(new Date())
   const dayMs = 24 * 60 * 60 * 1000
 
   const sports = [...new Map(catalog.events.map(event => [event.sportId, event.sport])).entries()]

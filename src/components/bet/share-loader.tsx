@@ -13,7 +13,7 @@ import {
   Share2,
   Smartphone,
 } from 'lucide-react'
-import { formatOdds, formatTzs } from '@/lib/bet/format'
+import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
 import type { BetEvent, BetSlipItem, TicketSelection } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
@@ -101,15 +101,10 @@ function toSlipItem(selection: TicketSelection): BetSlipItem {
   }
 }
 
-function utcLabel(iso: string, fallback = '--'): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return fallback
-  return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`
-}
-
 function kickoffLabel(selection: TicketSelection): string {
-  if (selection.kickoffLabel) return selection.kickoffLabel
-  return utcLabel(selection.kickoffIso, 'Kickoff time unavailable')
+  const date = new Date(selection.kickoffIso)
+  if (Number.isNaN(date.getTime())) return 'Kickoff time unavailable'
+  return formatDateTimeLabel(selection.kickoffIso)
 }
 
 function statusClass(status: SlipStatus): string {
@@ -456,11 +451,11 @@ export function ShareLoader({ code }: { code: string }) {
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-muted-text">
             <span className="inline-flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5 text-accent" />
-              Created {utcLabel(slip.createdAt)}
+              Created {formatDateTimeLabel(slip.createdAt)}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-accent" />
-              Closes {utcLabel(slip.autoFreezeAt)}
+              Closes {formatDateTimeLabel(slip.autoFreezeAt)}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Share2 className="h-3.5 w-3.5 text-accent" />

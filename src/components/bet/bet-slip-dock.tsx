@@ -106,42 +106,59 @@ export function BetSlipDock() {
         <button
           type="button"
           onClick={openSlip}
-          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-bold text-background shadow-2xl shadow-accent/20 lg:bottom-6 lg:right-6"
+          className="fixed inset-x-3 bottom-20 z-40 flex items-center justify-between gap-3 rounded-2xl bg-accent px-4 py-3 text-background shadow-2xl shadow-accent/20 lg:inset-x-auto lg:bottom-6 lg:left-1/2 lg:w-[520px] lg:-translate-x-1/2"
         >
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-background px-1 text-[11px] text-accent">
-            {items.length}
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-background/20 px-2 text-xs font-black tabular-nums">
+              {items.length}
+            </span>
+            <span className="truncate text-sm font-bold">
+              {items.length} selection{items.length === 1 ? '' : 's'}
+            </span>
           </span>
-          Bet slip
-          <span className="tabular-nums">@ {formatOdds(totalOdds)}</span>
-          <ChevronDown className="h-4 w-4" />
+          <span className="flex shrink-0 items-center gap-2">
+            <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-background/70">
+              Total odds
+            </span>
+            <span className="text-lg font-black tabular-nums">{formatOdds(totalOdds)}</span>
+            <ChevronDown className="h-4 w-4" />
+          </span>
         </button>
       ) : null}
 
       {open ? (
         <section
           aria-label="Bet slip"
-          className="fixed inset-x-0 bottom-16 z-50 max-h-[78vh] overflow-y-auto rounded-t-3xl border border-border bg-surface p-4 shadow-2xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-h-[80vh] sm:w-[390px] sm:rounded-3xl"
+          className="fixed inset-x-0 bottom-16 z-50 max-h-[84vh] overflow-y-auto rounded-t-3xl border border-border bg-surface p-4 shadow-2xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-h-[84vh] sm:w-[420px] sm:rounded-3xl"
         >
           <div className="flex items-center justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
                 Bet slip
               </p>
-              <h2 className="font-display text-lg font-semibold">
+              <h2 className="truncate font-display text-lg font-semibold">
                 {success ? 'Bet placed' : `${items.length} selection${items.length === 1 ? '' : 's'}`}
               </h2>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (success) resetSuccess()
-                else closeSlip()
-              }}
-              aria-label="Close bet slip"
-              className="rounded-lg p-2 text-muted-text transition-colors hover:bg-elevated-surface hover:text-main-text"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="text-right">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-text">
+                  Total odds
+                </p>
+                <p className="text-sm font-bold tabular-nums text-accent">{formatOdds(totalOdds)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (success) resetSuccess()
+                  else closeSlip()
+                }}
+                aria-label="Close bet slip"
+                className="rounded-lg p-2 text-muted-text transition-colors hover:bg-elevated-surface hover:text-main-text"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {success ? (
@@ -189,7 +206,7 @@ export function BetSlipDock() {
             </div>
           ) : (
             <>
-              <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
+              <div className="mt-3 max-h-[42vh] space-y-2 overflow-y-auto pr-1">
                 {items.map(item => (
                   <div
                     key={item.key}

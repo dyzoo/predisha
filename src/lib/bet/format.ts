@@ -8,8 +8,11 @@ const tzs = new Intl.NumberFormat('en-GB', {
   maximumFractionDigits: 0,
 })
 
+export const BET_TIME_ZONE = 'Africa/Dar_es_Salaam'
+export const BET_TIME_ZONE_LABEL = 'EAT'
+
 const dateTime = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'UTC',
+  timeZone: BET_TIME_ZONE,
   day: '2-digit',
   month: 'short',
   hour: '2-digit',
@@ -18,7 +21,7 @@ const dateTime = new Intl.DateTimeFormat('en-GB', {
 })
 
 const timeOnly = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'UTC',
+  timeZone: BET_TIME_ZONE,
   hour: '2-digit',
   minute: '2-digit',
   hour12: false,
@@ -41,19 +44,19 @@ export function formatMultiplier(multiplier: number): string {
 export function formatDateTimeLabel(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return '—'
-  return `${dateTime.format(date)} UTC`
+  return `${dateTime.format(date)} ${BET_TIME_ZONE_LABEL}`
 }
 
 export function formatKickoffLabel(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return '—'
-  return `${dateTime.format(date)} UTC`
+  return `${dateTime.format(date)} ${BET_TIME_ZONE_LABEL}`
 }
 
 export function formatTimeLabel(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return '—'
-  return `${timeOnly.format(date)} UTC`
+  return `${timeOnly.format(date)} ${BET_TIME_ZONE_LABEL}`
 }
 
 export function statusLabel(status: string): string {

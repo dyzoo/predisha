@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import {
   ClipboardList,
   Gamepad2,
@@ -46,9 +46,68 @@ function isActive(pathname: string, href: string): boolean {
 
 function ShellInner({ viewer, children }: { viewer: ClientViewer; children: ReactNode }) {
   const pathname = usePathname()
+  const navRef = useRef<HTMLElement | null>(null)
   const { wallet, walletLoading, items, slipOpen, openSlip } = useBetSlip()
   const { mode } = useBetMode()
   const copy = betModeCopy(mode)
+  const isGamePage = pathname.startsWith('/bet/games/')
+
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    let frame = 0
+    let last = 0
+    let offset = nav.scrollLeft
+    let paused = false
+
+    const step = (time: number) => {
+      if (!last) last = time
+      const elapsed = Math.min(64, time - last)
+      last = time
+      const max = nav.scrollWidth - nav.clientWidth
+
+      if (!paused && max > 2) {
+        offset += elapsed * 0.018
+        if (offset >= max - 1) offset = 0
+        nav.scrollLeft = offset
+      }
+
+      frame = requestAnimationFrame(step)
+    }
+
+    const pause = () => {
+      paused = true
+      offset = nav.scrollLeft
+    }
+    const resume = () => {
+      paused = false
+      offset = nav.scrollLeft
+      last = 0
+    }
+    const resumeIfFocusLeft = () => {
+      if (!nav.contains(document.activeElement)) resume()
+    }
+
+    frame = requestAnimationFrame(step)
+    nav.addEventListener('pointerenter', pause)
+    nav.addEventListener('pointerleave', resume)
+    nav.addEventListener('touchstart', pause, { passive: true })
+    nav.addEventListener('touchend', resume)
+    nav.addEventListener('focusin', pause)
+    nav.addEventListener('focusout', resumeIfFocusLeft)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      nav.removeEventListener('pointerenter', pause)
+      nav.removeEventListener('pointerleave', resume)
+      nav.removeEventListener('touchstart', pause)
+      nav.removeEventListener('touchend', resume)
+      nav.removeEventListener('focusin', pause)
+      nav.removeEventListener('focusout', resumeIfFocusLeft)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-background text-main-text">
@@ -136,6 +195,7 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
 
         <div className="border-t border-border/70">
           <nav
+            ref={navRef}
             aria-label="Betting sections"
             className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-3 py-2 sm:px-6 lg:justify-center"
           >
@@ -206,28 +266,41 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
               </Link>
             )
           })}
-          <button
-            type="button"
-            onClick={openSlip}
-            aria-label={`Open bet slip with ${items.length} selection${items.length === 1 ? '' : 's'}`}
-            className={`flex flex-col items-center gap-1 px-2 py-2.5 text-[10px] font-medium transition-colors ${
-              slipOpen ? 'text-accent' : 'text-muted-text'
-            }`}
-          >
-            <span className="relative">
-              <ClipboardList className="h-5 w-5" />
-              {items.length > 0 ? (
-                <span className="absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold tabular-nums text-background">
-                  {items.length}
-                </span>
-              ) : null}
-            </span>
-            Betslip
-          </button>
+          {isGamePage ? (
+            <Link
+              href="/bet/games"
+              aria-current={isActive(pathname, '/bet/games') ? 'page' : undefined}
+              className={`flex flex-col items-center gap-1 px-2 py-2.5 text-[10px] font-medium transition-colors ${
+                isActive(pathname, '/bet/games') ? 'text-accent' : 'text-muted-text'
+              }`}
+            >
+              <Gamepad2 className="h-5 w-5" />
+              Games
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={openSlip}
+              aria-label={`Open bet slip with ${items.length} selection${items.length === 1 ? '' : 's'}`}
+              className={`flex flex-col items-center gap-1 px-2 py-2.5 text-[10px] font-medium transition-colors ${
+                slipOpen ? 'text-accent' : 'text-muted-text'
+              }`}
+            >
+              <span className="relative">
+                <ClipboardList className="h-5 w-5" />
+                {items.length > 0 ? (
+                  <span className="absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold tabular-nums text-background">
+                    {items.length}
+                  </span>
+                ) : null}
+              </span>
+              Betslip
+            </button>
+          )}
         </div>
       </nav>
 
-      <BetSlipDock />
+      {isGamePage ? null : <BetSlipDock />}
     </div>
   )
 }
