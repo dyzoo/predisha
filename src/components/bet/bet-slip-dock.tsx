@@ -31,14 +31,16 @@ export function BetSlipDock() {
     potentialReturnMinor,
     placeBet,
     placing,
+    slipOpen: open,
+    openSlip,
+    closeSlip,
   } = useBetSlip()
-  const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<BetTicketView | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
 
-  if (items.length === 0 && !success) return null
+  if (items.length === 0 && !success && !open) return null
 
   async function onPlace() {
     setError(null)
@@ -49,7 +51,7 @@ export function BetSlipDock() {
       return
     }
     setSuccess(result.ticket ?? null)
-    setOpen(true)
+    openSlip()
     router.refresh()
   }
 
@@ -95,7 +97,7 @@ export function BetSlipDock() {
   function resetSuccess() {
     setSuccess(null)
     setShareUrl(null)
-    setOpen(false)
+    closeSlip()
   }
 
   return (
@@ -103,7 +105,7 @@ export function BetSlipDock() {
       {!open ? (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={openSlip}
           className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-bold text-background shadow-2xl shadow-accent/20 lg:bottom-6 lg:right-6"
         >
           <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-background px-1 text-[11px] text-accent">
@@ -133,7 +135,7 @@ export function BetSlipDock() {
               type="button"
               onClick={() => {
                 if (success) resetSuccess()
-                else setOpen(false)
+                else closeSlip()
               }}
               aria-label="Close bet slip"
               className="rounded-lg p-2 text-muted-text transition-colors hover:bg-elevated-surface hover:text-main-text"
@@ -170,6 +172,20 @@ export function BetSlipDock() {
                   Continue
                 </button>
               </div>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-border bg-background/40 p-6 text-center">
+              <p className="text-sm font-semibold text-main-text">Your bet slip is empty</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-text">
+                Add selections from the sportsbook to build a bet.
+              </p>
+              <Link
+                href="/bet/sports"
+                onClick={closeSlip}
+                className="mt-4 inline-block rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-background"
+              >
+                Browse fixtures
+              </Link>
             </div>
           ) : (
             <>
@@ -300,7 +316,7 @@ export function BetSlipDock() {
                 type="button"
                 onClick={() => {
                   clear()
-                  setOpen(false)
+                  closeSlip()
                 }}
                 className="mt-2 w-full rounded-xl px-4 py-2 text-xs font-medium text-muted-text hover:text-red-300"
               >

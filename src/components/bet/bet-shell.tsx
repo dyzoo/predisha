@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ClipboardList,
   Gamepad2,
   Gift,
   Home,
@@ -31,7 +34,12 @@ const NAV = [
   { href: '/bet/promo', label: 'Promo', icon: Gift },
 ]
 
-const MOBILE_NAV = NAV.slice(0, 5)
+const MOBILE_NAV = [
+  { href: '/bet', label: 'Home', icon: Home },
+  { href: '/bet/sports', label: 'Sports', icon: Trophy },
+  { href: '/bet/live', label: 'Live', icon: Radio },
+  { href: '/bet/bets', label: 'My Bets', icon: Ticket },
+]
 
 function isActive(pathname: string, href: string): boolean {
   if (href === '/bet') return pathname === '/bet'
@@ -40,7 +48,7 @@ function isActive(pathname: string, href: string): boolean {
 
 function ShellInner({ viewer, children }: { viewer: ClientViewer; children: ReactNode }) {
   const pathname = usePathname()
-  const { wallet, walletLoading } = useBetSlip()
+  const { wallet, walletLoading, items, slipOpen, openSlip } = useBetSlip()
   const { mode } = useBetMode()
   const copy = betModeCopy(mode)
 
@@ -102,6 +110,20 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
                   <span className="tabular-nums">
                     {walletLoading && !wallet ? '…' : formatTzs(wallet?.balanceMinor ?? 0)}
                   </span>
+                </Link>
+                <Link
+                  href="/bet/deposit"
+                  className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-accent px-2.5 text-xs font-bold text-background transition-opacity hover:opacity-90 sm:px-3"
+                >
+                  <ArrowDownToLine className="h-4 w-4" />
+                  <span className="hidden sm:inline">Deposit</span>
+                </Link>
+                <Link
+                  href="/bet/withdraw"
+                  className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 text-xs font-semibold text-main-text transition-colors hover:border-accent/40 sm:px-3"
+                >
+                  <ArrowUpFromLine className="h-4 w-4" />
+                  <span className="hidden sm:inline">Withdraw</span>
                 </Link>
                 <Link
                   href="/bet/account"
@@ -175,6 +197,24 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
               </Link>
             )
           })}
+          <button
+            type="button"
+            onClick={openSlip}
+            aria-label={`Open bet slip with ${items.length} selection${items.length === 1 ? '' : 's'}`}
+            className={`flex flex-col items-center gap-1 px-2 py-2.5 text-[10px] font-medium transition-colors ${
+              slipOpen ? 'text-accent' : 'text-muted-text'
+            }`}
+          >
+            <span className="relative">
+              <ClipboardList className="h-5 w-5" />
+              {items.length > 0 ? (
+                <span className="absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold tabular-nums text-background">
+                  {items.length}
+                </span>
+              ) : null}
+            </span>
+            Betslip
+          </button>
         </div>
       </nav>
 

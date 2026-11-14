@@ -1,7 +1,16 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CircleAlert, CircleCheck, Loader2, PauseCircle, Plane, TrendingUp } from 'lucide-react'
+import {
+  CircleAlert,
+  CircleCheck,
+  Loader2,
+  PauseCircle,
+  Plane,
+  Radio,
+  TrendingUp,
+} from 'lucide-react'
 import type { AviatorConfig } from '@/lib/bet/aviator-config'
 import { formatMultiplier, formatTzs } from '@/lib/bet/format'
 import type {
@@ -21,7 +30,22 @@ interface AviatorState {
   config: AviatorConfig
 }
 
+interface BetPanelState {
+  stakeMinor: number
+  autoCashout: string
+}
+
+type Slot = 1 | 2
+
 const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
+const SPORTS_NAV = [
+  { href: '/bet/sports', label: 'Football' },
+  { href: '/bet/sports?view=upcoming', label: 'Upcoming' },
+  { href: '/bet/live', label: 'In-Play' },
+  { href: '/bet/sports', label: 'All Sports' },
+  { href: '/bet/bets', label: 'My Bets' },
+  { href: '#multiplier-history', label: 'Multiplier History' },
+] as const
 
 export function AviatorGame() {
   const { refreshWallet } = useBetSlip()
@@ -31,10 +55,11 @@ export function AviatorGame() {
   const [error, setError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [stakeMinor, setStakeMinor] = useState(1_000)
-  const [autoCashout, setAutoCashout] = useState('')
-  const [slot, setSlot] = useState(1)
-  const [busy, setBusy] = useState(false)
+  const [panels, setPanels] = useState<Record<Slot, BetPanelState>>({
+    1: { stakeMinor: 1_000, autoCashout: '' },
+    2: { stakeMinor: 1_000, autoCashout: '' },
+  })
+  const [busySlot, setBusySlot] = useState<number | null>(null)
   const [clock, setClock] = useState(0)
   const [syncedAtMs, setSyncedAtMs] = useState<number | null>(null)
   const polling = useRef(false)
@@ -90,8 +115,6 @@ export function AviatorGame() {
     }
   }, [load])
 
-  const activeBet = state?.bets.find(bet => bet.slot === slot && bet.status === 'ACTIVE') ?? null
-  const settledBet = state?.bets.find(bet => bet.slot === slot) ?? null
   const phase = state?.round.phase ?? 'WAITING'
   const config = state?.config
   const enabled = config?.enabled ?? true
@@ -122,21 +145,29 @@ export function AviatorGame() {
             drift,
         )
       : 0
-  const canBet = enabled && phase === 'WAITING' && !activeBet && !busy
-  const canCashout = phase === 'FLYING' && Boolean(activeBet) && !busy
-  const cashoutPreview = activeBet ? Math.floor(activeBet.stakeMinor * multiplier) : 0
+  const activeBets = state?.bets.filter(bet => bet.status === 'ACTIVE') ?? []
 
-  async function placeBet() {
-    setBusy(true)
+  const activeBetFor = (slot: Slot) =>
+    state?.bets.find(bet => bet.slot === slot && bet.status === 'ACTIVE') ?? null
+  const settledBetFor = (slot: Slot) =>
+    state?.bets.find(bet => bet.slot === slot && bet.status !== 'ACTIVE') ?? null
+
+  function updatePanel(slot: Slot, patch: Partial<BetPanelState>) {
+    setPanels(current => ({ ...current, [slot]: { ...current[slot], ...patch } }))
+  }
+
+  async function placeBet(slot: Slot) {
+    const panel = panels[slot]
+    setBusySlot(slot)
     setError(null)
     setSuccess(null)
     try {
-      const auto = Number.parseFloat(autoCashout)
+      const auto = Number.parseFloat(panel.autoCashout)
       const response = await fetch('/api/bet/games/aviator/bet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stakeMinor,
+          stakeMinor: panel.stakeMinor,
           slot,
           ...(Number.isFinite(auto) && auto >= 1.1 ? { autoCashout: auto } : {}),
         }),
@@ -150,8 +181,8 @@ export function AviatorGame() {
         return
       }
       setSuccess(
-        `Seat ${payload.bet?.slot ?? slot} bet placed for ${formatTzs(
-          payload.bet?.stakeMinor ?? stakeMinor,
+        `Bet ${payload.bet?.slot ?? slot} placed for ${formatTzs(
+          payload.bet?.stakeMinor ?? panel.stakeMinor,
         )}.`,
       )
       await load()
@@ -159,20 +190,19 @@ export function AviatorGame() {
     } catch {
       setError('Network error. Please try again.')
     } finally {
-      setBusy(false)
+      setBusySlot(null)
     }
   }
 
-  async function cashout() {
-    if (!activeBet) return
-    setBusy(true)
+  async function cashout(bet: AviatorBetView) {
+    setBusySlot(bet.slot)
     setError(null)
     setSuccess(null)
     try {
       const response = await fetch('/api/bet/games/aviator/cashout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ betId: activeBet.id }),
+        body: JSON.stringify({ betId: bet.id }),
       })
       const payload = (await response.json().catch(() => ({}))) as {
         bet?: AviatorBetView
@@ -183,7 +213,7 @@ export function AviatorGame() {
         return
       }
       setSuccess(
-        `Cashed out Seat ${payload.bet?.slot ?? activeBet.slot} at ${formatMultiplier(
+        `Cashed out Bet ${payload.bet?.slot ?? bet.slot} at ${formatMultiplier(
           payload.bet?.cashedOutAt ?? multiplier,
         )} for ${formatTzs(payload.bet?.payoutMinor ?? 0)}.`,
       )
@@ -192,7 +222,7 @@ export function AviatorGame() {
     } catch {
       setError('Network error. Please try again.')
     } finally {
-      setBusy(false)
+      setBusySlot(null)
     }
   }
 
@@ -206,19 +236,58 @@ export function AviatorGame() {
 
   return (
     <div className="space-y-4">
-      <div className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-[#1b2430] via-surface to-[#2a1b1f] p-5 sm:p-7">
+      <nav
+        aria-label="Aviator sports navigation"
+        className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-surface/70 p-1"
+      >
+        {SPORTS_NAV.map(item => (
+          <Link
+            key={item.label}
+            href={item.href}
+            className="shrink-0 rounded-xl px-3 py-2 text-[11px] font-semibold text-muted-text transition-colors hover:bg-background/50 hover:text-accent"
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+
+      {error || loadError ? (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs text-red-200"
+        >
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          {error ?? loadError}
+        </div>
+      ) : null}
+      {success ? (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-xl border border-accent/25 bg-accent/10 px-3 py-2 text-xs text-accent"
+        >
+          <CircleCheck className="mt-0.5 h-4 w-4 shrink-0" />
+          {success}
+        </div>
+      ) : null}
+
+      <div
+        id="multiplier-history"
+        className="rounded-2xl border border-border bg-surface/80 p-3"
+      >
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-              Aviator {mode === 'SANDBOX' ? 'Sandbox' : 'Live'}
-            </p>
-            <h1 className="mt-1 font-display text-2xl font-semibold">Catch the multiplier</h1>
-          </div>
-          <div className="flex flex-wrap justify-end gap-1.5">
-            {(state?.history ?? []).slice(0, 6).map(item => (
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-text">
+            Multiplier history
+          </p>
+          <p className="text-[10px] text-muted-text">Latest rounds</p>
+        </div>
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+          {(state?.history ?? []).length === 0 ? (
+            <span className="px-2 py-1 text-xs text-muted-text">No rounds yet.</span>
+          ) : (
+            (state?.history ?? []).slice(0, 18).map(item => (
               <span
                 key={item.roundId}
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums ${
+                className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold tabular-nums ${
                   item.crashAt >= 2
                     ? 'bg-accent/15 text-accent'
                     : 'bg-red-400/15 text-red-300'
@@ -226,7 +295,29 @@ export function AviatorGame() {
               >
                 {formatMultiplier(item.crashAt)}
               </span>
-            ))}
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="relative overflow-hidden rounded-3xl border border-border bg-[#0b0f14] p-5 sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-300">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-red-400" />
+              </span>
+              Live Aviator
+            </p>
+            <h1 className="mt-1 font-display text-2xl font-semibold">Catch the multiplier</h1>
+            <p className="mt-1 text-xs text-muted-text">
+              {mode === 'SANDBOX' ? 'Sandbox' : 'Live'} mode · server-side crash points
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-right">
+            <p className="text-[10px] uppercase tracking-wide text-muted-text">Active bets</p>
+            <p className="text-xl font-bold tabular-nums text-accent">{activeBets.length}</p>
           </div>
         </div>
 
@@ -238,7 +329,29 @@ export function AviatorGame() {
           </div>
         ) : null}
 
-        <div className="relative mt-6 flex h-52 items-center justify-center overflow-hidden rounded-2xl border border-white/5 bg-background/40">
+        <div className="relative mt-6 flex h-60 items-center justify-center overflow-hidden rounded-2xl border border-white/5 bg-[#080b10]">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 600 260"
+            preserveAspectRatio="none"
+            className="absolute inset-0 h-full w-full"
+          >
+            <path
+              d="M 24 225 C 135 210, 205 135, 310 120 C 420 104, 500 72, 585 28"
+              fill="none"
+              stroke="#C8FF43"
+              strokeOpacity="0.55"
+              strokeWidth="2"
+              strokeDasharray="7 9"
+            />
+            <path
+              d="M 24 225 C 135 210, 205 135, 310 120 C 420 104, 500 72, 585 28"
+              fill="none"
+              stroke="#C8FF43"
+              strokeOpacity="0.14"
+              strokeWidth="10"
+            />
+          </svg>
           <div className="absolute inset-x-6 bottom-8 h-px bg-white/10" />
           {loading ? (
             <Loader2 className="h-8 w-8 animate-spin text-accent" />
@@ -247,17 +360,17 @@ export function AviatorGame() {
               <div
                 className="absolute transition-all duration-500 ease-out"
                 style={{
-                  left: `${Math.min(82, 8 + progress * 0.74)}%`,
-                  bottom: `${Math.min(70, 12 + progress * 0.55)}%`,
+                  left: `${Math.min(86, 8 + progress * 0.76)}%`,
+                  bottom: `${Math.min(74, 14 + progress * 0.56)}%`,
                 }}
               >
                 <Plane
-                  className={`h-8 w-8 -rotate-12 ${
+                  className={`h-9 w-9 -rotate-12 ${
                     phase === 'CRASHED' ? 'text-red-400' : 'text-accent'
                   }`}
                 />
               </div>
-              <div className="text-center">
+              <div className="relative text-center">
                 <p
                   className={`font-display text-5xl font-bold tabular-nums sm:text-6xl ${
                     phase === 'CRASHED' ? 'text-red-400' : 'text-main-text'
@@ -289,182 +402,193 @@ export function AviatorGame() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-2xl border border-border bg-surface/80 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold">Place a bet</h2>
-            <div className="flex rounded-lg border border-border p-0.5">
-              {[1, 2].map(candidate => (
-                <button
-                  key={candidate}
-                  type="button"
-                  onClick={() => setSlot(candidate)}
-                  className={`rounded-md px-3 py-1 text-[11px] font-semibold ${
-                    slot === candidate
-                      ? 'bg-accent text-background'
-                      : 'text-muted-text hover:text-main-text'
-                  }`}
-                >
-                  Seat {candidate}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {([1, 2] as const).map(candidate => {
+          const slot = candidate as Slot
+          const panel = panels[slot]
+          const activeBet = activeBetFor(slot)
+          const settledBet = settledBetFor(slot)
+          const busy = busySlot === slot
+          const canBet = enabled && phase === 'WAITING' && !activeBet && busySlot === null
+          const canCashout = phase === 'FLYING' && Boolean(activeBet) && busySlot === null
+          const cashoutPreview = activeBet
+            ? Math.floor(activeBet.stakeMinor * multiplier)
+            : 0
+          const disabled = activeBet ? !canCashout : !canBet
+          const label = !enabled
+            ? 'Betting paused'
+            : activeBet
+              ? phase === 'FLYING'
+                ? `Cash out ${formatTzs(cashoutPreview)}`
+                : `Bet ${slot} in play`
+              : phase === 'WAITING'
+                ? `Bet ${formatTzs(panel.stakeMinor)}`
+                : 'Next round'
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div>
-              <label htmlFor="aviator-stake" className="text-xs font-medium text-muted-text">
-                Stake (TZS)
-              </label>
-              <div className="mt-1.5 flex items-center rounded-xl border border-border bg-background/50 px-3 focus-within:border-accent/60">
-                <input
-                  id="aviator-stake"
-                  type="number"
-                  min={MIN_STAKE_MINOR}
-                  step={500}
-                  value={stakeMinor}
-                  onChange={event => setStakeMinor(Number(event.target.value))}
-                  className="w-full bg-transparent py-2.5 text-sm font-semibold tabular-nums outline-none"
-                />
+          return (
+            <div
+              key={slot}
+              className="rounded-2xl border border-border bg-surface/80 p-4"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-bold">Bet {slot}</h2>
+                {activeBet ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-red-300">
+                    <Radio className="h-3 w-3 animate-pulse" />
+                    In play
+                  </span>
+                ) : settledBet ? (
+                  <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] font-semibold text-muted-text">
+                    Last: {settledBet.status.toLowerCase()}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-accent">
+                    Next round
+                  </span>
+                )}
               </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div>
+                  <label
+                    htmlFor={`aviator-stake-${slot}`}
+                    className="text-[10px] font-medium uppercase tracking-wide text-muted-text"
+                  >
+                    Stake (TZS)
+                  </label>
+                  <div className="mt-1 flex items-center rounded-xl border border-border bg-background/50 px-2.5 focus-within:border-accent/60">
+                    <input
+                      id={`aviator-stake-${slot}`}
+                      type="number"
+                      min={MIN_STAKE_MINOR}
+                      step={500}
+                      value={panel.stakeMinor}
+                      onChange={event =>
+                        updatePanel(slot, { stakeMinor: Number(event.target.value) })
+                      }
+                      className="w-full bg-transparent py-2.5 text-sm font-semibold tabular-nums outline-none"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label
+                    htmlFor={`aviator-auto-${slot}`}
+                    className="text-[10px] font-medium uppercase tracking-wide text-muted-text"
+                  >
+                    Auto cash out
+                  </label>
+                  <div className="mt-1 flex items-center rounded-xl border border-border bg-background/50 px-2.5 focus-within:border-accent/60">
+                    <input
+                      id={`aviator-auto-${slot}`}
+                      type="number"
+                      min={1.1}
+                      max={config?.maxCrash ?? 100}
+                      step={0.1}
+                      placeholder="2.00"
+                      value={panel.autoCashout}
+                      onChange={event =>
+                        updatePanel(slot, { autoCashout: event.target.value })
+                      }
+                      className="w-full bg-transparent py-2.5 text-sm font-semibold tabular-nums outline-none placeholder:text-muted-text/60"
+                    />
+                    <span className="text-xs text-muted-text">x</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="mt-2 grid grid-cols-4 gap-1.5">
                 {QUICK_STAKES.map(amount => (
                   <button
                     key={amount}
                     type="button"
-                    onClick={() => setStakeMinor(amount)}
+                    onClick={() => updatePanel(slot, { stakeMinor: amount })}
                     className="rounded-md border border-border px-1.5 py-1 text-[10px] font-semibold text-muted-text hover:border-accent/40 hover:text-accent"
                   >
                     {formatTzs(amount)}
                   </button>
                 ))}
               </div>
-            </div>
-            <div>
-              <label htmlFor="aviator-auto" className="text-xs font-medium text-muted-text">
-                Auto cash out (optional)
-              </label>
-              <div className="mt-1.5 flex items-center rounded-xl border border-border bg-background/50 px-3 focus-within:border-accent/60">
-                <input
-                  id="aviator-auto"
-                  type="number"
-                  min={1.1}
-                  max={config?.maxCrash ?? 100}
-                  step={0.1}
-                  placeholder="e.g. 2.00"
-                  value={autoCashout}
-                  onChange={event => setAutoCashout(event.target.value)}
-                  className="w-full bg-transparent py-2.5 text-sm font-semibold tabular-nums outline-none placeholder:text-muted-text/60"
-                />
-                <span className="text-xs text-muted-text">x</span>
-              </div>
-              <p className="mt-2 text-[11px] text-muted-text">
-                The server settles auto cash out as the round flies.
+
+              <button
+                type="button"
+                onClick={
+                  activeBet
+                    ? () => {
+                        void cashout(activeBet)
+                      }
+                    : () => {
+                        void placeBet(slot)
+                      }
+                }
+                disabled={disabled}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-bold text-emerald-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : activeBet ? (
+                  <TrendingUp className="h-4 w-4" />
+                ) : (
+                  <Plane className="h-4 w-4" />
+                )}
+                {label}
+              </button>
+
+              <p className="mt-2 text-[10px] leading-relaxed text-muted-text">
+                {activeBet
+                  ? activeBet.autoCashout
+                    ? `Auto cash out at ${formatMultiplier(activeBet.autoCashout)}.`
+                    : 'Cash out manually before the round crashes.'
+                  : 'Enter your stake and place the bet before the countdown ends.'}
               </p>
             </div>
-          </div>
+          )
+        })}
+      </div>
 
-          {error || loadError ? (
-            <div
-              role="alert"
-              className="mt-3 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs text-red-200"
-            >
-              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-              {error ?? loadError}
-            </div>
-          ) : null}
-          {success ? (
-            <div
-              role="status"
-              className="mt-3 flex items-start gap-2 rounded-xl border border-accent/25 bg-accent/10 px-3 py-2 text-xs text-accent"
-            >
-              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0" />
-              {success}
-            </div>
-          ) : null}
-
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              onClick={placeBet}
-              disabled={!canBet}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {busy && !activeBet ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {!enabled
-                ? 'Betting paused'
-                : activeBet
-                  ? `Seat ${slot} is in play`
-                  : phase === 'WAITING'
-                    ? `Bet ${formatTzs(stakeMinor)}`
-                    : 'Waiting for next round'}
-            </button>
-            <button
-              type="button"
-              onClick={cashout}
-              disabled={!canCashout}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {busy && activeBet ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
-              {activeBet && phase === 'FLYING'
-                ? `Cash out ${formatTzs(cashoutPreview)}`
-                : 'Cash out'}
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-surface/80 p-5">
-          <h2 className="text-sm font-semibold">This round</h2>
-          {state?.bets.length ? (
-            <ul className="mt-3 space-y-2">
-              {state.bets.map(bet => (
-                <li
-                  key={bet.id}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/40 px-3 py-2 text-xs"
-                >
-                  <div>
-                    <p className="font-semibold">Seat {bet.slot}</p>
-                    <p className="text-[11px] text-muted-text">
-                      {formatTzs(bet.stakeMinor)}
-                      {bet.autoCashout ? ` · auto ${formatMultiplier(bet.autoCashout)}` : ''}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p
-                      className={`font-semibold ${
-                        bet.status === 'LOST' ? 'text-red-300' : 'text-accent'
-                      }`}
-                    >
-                      {bet.status === 'ACTIVE'
-                        ? `In play · ${formatTzs(Math.floor(bet.stakeMinor * multiplier))}`
-                        : bet.status === 'CASHED_OUT'
-                          ? `${formatMultiplier(bet.cashedOutAt ?? 1)} · ${formatTzs(bet.payoutMinor)}`
-                          : 'Lost'}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-sm text-muted-text">
-              No bets in this round. Choose a seat and place a bet while the timer is
-              counting down.
-            </p>
-          )}
-
-          {settledBet && settledBet.status !== 'ACTIVE' ? (
-            <p className="mt-3 rounded-xl bg-background/40 px-3 py-2 text-[11px] text-muted-text">
-              Last seat {settledBet.slot} result: {settledBet.status.toLowerCase()} at{' '}
-              {formatMultiplier(settledBet.cashedOutAt ?? 1)}.
-            </p>
-          ) : null}
-
-          <p className="mt-4 text-[11px] leading-relaxed text-muted-text">
-            Rounds are deterministic {((config?.roundMs ?? 30_000) / 1000).toFixed(0)}-second
-            cycles with a {((config?.waitMs ?? 6_000) / 1000).toFixed(0)}-second betting window.
-            The crash point is committed server-side, so the browser cannot change the outcome.
+      <div className="rounded-2xl border border-border bg-surface/80 p-4">
+        <h2 className="text-sm font-semibold">This round</h2>
+        {state?.bets.length ? (
+          <ul className="mt-3 space-y-2">
+            {state.bets.map(bet => (
+              <li
+                key={bet.id}
+                className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/40 px-3 py-2 text-xs"
+              >
+                <div>
+                  <p className="font-semibold">Bet {bet.slot}</p>
+                  <p className="text-[11px] text-muted-text">
+                    {formatTzs(bet.stakeMinor)}
+                    {bet.autoCashout ? ` · auto ${formatMultiplier(bet.autoCashout)}` : ''}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p
+                    className={`font-semibold ${
+                      bet.status === 'LOST' ? 'text-red-300' : 'text-accent'
+                    }`}
+                  >
+                    {bet.status === 'ACTIVE'
+                      ? `In play · ${formatTzs(Math.floor(bet.stakeMinor * multiplier))}`
+                      : bet.status === 'CASHED_OUT'
+                        ? `${formatMultiplier(bet.cashedOutAt ?? 1)} · ${formatTzs(bet.payoutMinor)}`
+                        : 'Lost'}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-muted-text">
+            No bets in this round. Choose Bet 1 or Bet 2 and place a bet while the timer is
+            counting down.
           </p>
-        </div>
+        )}
+
+        <p className="mt-4 text-[11px] leading-relaxed text-muted-text">
+          Rounds are deterministic {((config?.roundMs ?? 30_000) / 1000).toFixed(0)}-second
+          cycles with a {((config?.waitMs ?? 6_000) / 1000).toFixed(0)}-second betting window.
+          The crash point is committed server-side, so the browser cannot change the outcome.
+        </p>
       </div>
     </div>
   )

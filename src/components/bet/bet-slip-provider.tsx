@@ -41,6 +41,9 @@ interface BetSlipContextValue {
   refreshWallet: () => Promise<void>
   placeBet: () => Promise<PlaceBetResult>
   placing: boolean
+  slipOpen: boolean
+  openSlip: () => void
+  closeSlip: () => void
 }
 
 const BetSlipContext = createContext<BetSlipContextValue | null>(null)
@@ -81,6 +84,7 @@ export function BetSlipProvider({
   const [wallet, setWallet] = useState<BetWalletView | null>(null)
   const [walletLoading, setWalletLoading] = useState(false)
   const [placing, setPlacing] = useState(false)
+  const [slipOpen, setSlipOpen] = useState(false)
 
   useEffect(() => {
     try {
@@ -203,6 +207,8 @@ export function BetSlipProvider({
   }, [])
 
   const clear = useCallback(() => setItems([]), [])
+  const openSlip = useCallback(() => setSlipOpen(true), [])
+  const closeSlip = useCallback(() => setSlipOpen(false), [])
 
   const setStakeMinor = useCallback((value: number) => {
     if (!Number.isFinite(value)) return
@@ -292,6 +298,9 @@ export function BetSlipProvider({
       refreshWallet,
       placeBet,
       placing,
+      slipOpen,
+      openSlip,
+      closeSlip,
     }),
     [
       viewer,
@@ -311,6 +320,9 @@ export function BetSlipProvider({
       refreshWallet,
       placeBet,
       placing,
+      slipOpen,
+      openSlip,
+      closeSlip,
     ],
   )
 
