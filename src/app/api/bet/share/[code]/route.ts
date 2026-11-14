@@ -34,6 +34,11 @@ export async function GET(
     const now = new Date()
     const parsed = shareCodeSchema.safeParse(code)
     if (!parsed.success) return apiError('Enter a valid 6-character share code.', 422)
+    const catalog = await getBetCatalog(now)
+    const liveGames = catalog.events.filter(event => event.live)
+    const upcomingGames = catalog.events
+      .filter(event => event.effectiveStatus === 'SCHEDULED')
+      .slice(0, 9)
     const slip = await prisma.adminBetSlip.findUnique({ where: { code: parsed.data } })
     if (slip) {
       const view = toAdminSlipView(slip, now)
@@ -41,6 +46,8 @@ export async function GET(
         share: { code: view.code, selections: view.selections, expiresAt: view.autoFreezeAt, stale: false },
         slip: view,
         live: await liveMatchesFor(view.selections, now),
+        liveGames,
+        upcomingGames,
         mode: await getBetMode(),
       })
     }
@@ -49,6 +56,8 @@ export async function GET(
       share,
       slip: null,
       live: await liveMatchesFor(share.selections, now),
+      liveGames,
+      upcomingGames,
       mode: await getBetMode(),
     })
   } catch (error) {

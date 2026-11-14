@@ -162,9 +162,9 @@ export function TrialWithdrawalPanel({
             <Plane className="h-4 w-4 -rotate-12" />
             Continue playing Aviator
           </div>
-          <h3 className="mt-2 font-display text-xl font-semibold">Ready for a real flight?</h3>
+          <h3 className="mt-2 font-display text-xl font-semibold">Ready for another flight?</h3>
           <p className="mt-1 text-sm leading-relaxed text-muted-text">
-            Add real funds with HarakaPay, then place an Aviator bet with your betting wallet.
+            Add funds then place an Aviator bet with your betting wallet.
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <Link
@@ -172,7 +172,7 @@ export function TrialWithdrawalPanel({
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-background"
             >
               <Wallet className="h-4 w-4" />
-              Deposit with HarakaPay
+              Add funds
             </Link>
             <Link
               href="/bet/games/aviator"

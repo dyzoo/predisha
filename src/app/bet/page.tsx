@@ -43,7 +43,7 @@ export default async function BetHomePage() {
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-text sm:text-base">
             PredishaBet turns the Predisha model into a transparent book. Every price is simulated,
-            every settlement runs server-side, and wallet funding runs through HarakaPay.
+            every settlement runs server-side, and wallet funding runs through mobile money.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -135,7 +135,7 @@ export default async function BetHomePage() {
             {
               icon: ShieldCheck,
               title: 'No payment collection',
-              body: 'Deposits run through HarakaPay mobile-money prompts. No card processor or mobile-money PIN is stored.',
+              body: 'Deposits run through mobile-money prompts. No card processor or mobile-money PIN is stored.',
             },
             {
               icon: Scale,

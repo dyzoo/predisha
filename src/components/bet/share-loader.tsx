@@ -15,10 +15,12 @@ import {
 } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
-import type { BetSlipItem, TicketSelection } from '@/lib/bet/types'
+import type { BetEvent, BetSlipItem, TicketSelection } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { AviatorPromoModal } from './aviator-promo-modal'
 import { useBetSlip } from './bet-slip-provider'
+import { EventGrid } from './event-grid'
+import { SectionHeading } from './section-heading'
 
 type BetMode = 'LIVE' | 'SANDBOX'
 type SlipStatus = 'OPEN' | 'FROZEN' | 'CLOSED'
@@ -79,6 +81,8 @@ interface ShareResponse {
   }
   slip?: AdminSlip
   live?: SharedLiveMatch[]
+  liveGames?: BetEvent[]
+  upcomingGames?: BetEvent[]
   error?: string
 }
 
@@ -138,6 +142,8 @@ export function ShareLoader({ code }: { code: string }) {
   const [count, setCount] = useState(0)
   const [slip, setSlip] = useState<AdminSlip | null>(null)
   const [live, setLive] = useState<SharedLiveMatch[]>([])
+  const [liveGames, setLiveGames] = useState<BetEvent[]>([])
+  const [upcomingGames, setUpcomingGames] = useState<BetEvent[]>([])
   const [phone, setPhone] = useState('')
   const [paying, setPaying] = useState(false)
   const [entry, setEntry] = useState<SlipEntry | null>(null)
@@ -170,6 +176,8 @@ export function ShareLoader({ code }: { code: string }) {
           setCount(payload.slip.selections.length)
         }
         setLive(payload.live ?? [])
+        setLiveGames(payload.liveGames ?? [])
+        setUpcomingGames(payload.upcomingGames ?? [])
         if (payload.share) {
           const items = payload.share.selections.map(toSlipItem)
           setItemsFromShare(items)
@@ -190,6 +198,31 @@ export function ShareLoader({ code }: { code: string }) {
       cancelled = true
     }
   }, [code, setItemsFromShare])
+
+  useEffect(() => {
+    if (state !== 'ready') return
+    let cancelled = false
+
+    const timer = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/bet/share/${encodeURIComponent(code)}`, {
+          cache: 'no-store',
+        })
+        const payload = (await response.json().catch(() => ({}))) as ShareResponse
+        if (cancelled || !response.ok) return
+        if (payload.live) setLive(payload.live)
+        if (payload.liveGames) setLiveGames(payload.liveGames)
+        if (payload.upcomingGames) setUpcomingGames(payload.upcomingGames)
+      } catch {
+        return
+      }
+    }, 30_000)
+
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [code, state])
 
   useEffect(() => {
     if (!entry || entry.status !== 'PENDING') return
@@ -374,8 +407,8 @@ export function ShareLoader({ code }: { code: string }) {
   const isSandbox = slip.mode === 'SANDBOX'
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
-      <section className="overflow-hidden rounded-3xl border border-border bg-surface/80">
+    <div className="mx-auto max-w-6xl space-y-6">
+      <section className="mx-auto max-w-2xl overflow-hidden rounded-3xl border border-border bg-surface/80">
         <div className="border-b border-border bg-gradient-to-br from-accent/15 via-surface to-surface p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -551,7 +584,7 @@ export function ShareLoader({ code }: { code: string }) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border bg-surface/80 p-6">
+      <section className="mx-auto max-w-2xl rounded-3xl border border-border bg-surface/80 p-6">
         {paid ? (
           <div className="text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
@@ -657,6 +690,32 @@ export function ShareLoader({ code }: { code: string }) {
           </div>
         )}
       </section>
+
+      {liveGames.length > 0 ? (
+        <section>
+          <SectionHeading
+            eyebrow="In play"
+            title="Live games"
+            description="Scores refresh automatically while these matches are in play."
+            action="All live"
+            actionHref="/bet/live"
+          />
+          <EventGrid events={liveGames.slice(0, 6)} />
+        </section>
+      ) : null}
+
+      {upcomingGames.length > 0 ? (
+        <section>
+          <SectionHeading
+            eyebrow="Sportsbook"
+            title="Upcoming games"
+            description="Tap any price to add it to your bet slip."
+            action="All sports"
+            actionHref="/bet/sports"
+          />
+          <EventGrid events={upcomingGames} />
+        </section>
+      ) : null}
 
       {promoOpen && promo ? <AviatorPromoModal trial={promo} onClose={closePromo} /> : null}
     </div>

@@ -46,9 +46,17 @@ function toPicked(picks: AdminRecommendationPick[]): PickedSelection[] {
   return picks.map(pick => ({ ...pick, odds: pick.odds.toFixed(2) }))
 }
 
+function normalizeOddsValue(odds: string): number {
+  const value = Number(odds)
+  return Number.isFinite(value) ? Math.round(value * 100) / 100 : 0
+}
+
 function combinedOdds(picked: PickedSelection[]): number {
   if (picked.length === 0) return 0
-  const product = picked.reduce((total, item) => total * Number(item.odds || 0), 1)
+  const product = picked.reduce(
+    (total, item) => total * normalizeOddsValue(item.odds),
+    1,
+  )
   return Math.max(1, Math.round(product * 100) / 100)
 }
 
@@ -190,7 +198,7 @@ export function AdminSlipGenerator({
             fixtureId: item.fixtureId,
             marketId: item.marketId,
             selectionId: item.selectionId,
-            odds: Number(item.odds),
+            odds: normalizeOddsValue(item.odds),
           })),
         }),
       })
@@ -237,7 +245,7 @@ export function AdminSlipGenerator({
             Bet slip builder
           </h2>
           <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-text">
-            Start from the model's ranked picks or build the slip yourself. Remove any match, add
+            Start from the model ranked picks or build the slip yourself. Remove any match, add
             more from the full schedule, adjust the odds and publish when it is ready.
           </p>
         </div>
@@ -368,6 +376,11 @@ export function AdminSlipGenerator({
                       step={0.01}
                       value={item.odds}
                       onChange={event => updateOdds(index, event.target.value)}
+                      onBlur={() => {
+                        if (validOdds(item.odds)) {
+                          updateOdds(index, normalizeOddsValue(item.odds).toFixed(2))
+                        }
+                      }}
                       aria-label={`Odds for ${item.selectionLabel} in ${item.fixtureLabel}`}
                       className="w-20 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-right text-sm font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
                     />
@@ -466,6 +479,16 @@ export function AdminSlipGenerator({
             Slip code:{' '}
             <span className="font-mono text-sm font-bold tracking-[0.2em] text-accent">
               {result.slip.code}
+            </span>
+          </p>
+          <p className="mt-1 text-[11px] text-muted-text">
+            Total odds{' '}
+            <span className="font-semibold tabular-nums text-main-text">
+              {formatOdds(result.slip.totalOdds)}
+            </span>{' '}
+            | Payout{' '}
+            <span className="font-semibold tabular-nums text-accent">
+              {formatTzs(result.slip.potentialReturnMinor)}
             </span>
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">

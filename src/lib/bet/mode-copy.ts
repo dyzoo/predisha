@@ -49,7 +49,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     addFunds: 'Deposit funds',
     depositTitle: 'Deposit funds',
     depositDescription:
-      'Enter your mobile-money number. HarakaPay sends a USSD prompt and credits your wallet after you approve it.',
+      'Enter your mobile-money number. Approve the prompt on your phone to credit your wallet.',
     withdrawTitle: 'Send to mobile money',
     withdrawDescription:
       'Enter the amount and mobile-money number. The transfer is recorded against your wallet and processed for payout.',
@@ -61,13 +61,13 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     promosTitle: 'Bonuses',
     promosDescription: 'Claim available bonuses. One claim per promo per account.',
     shareNote: 'Share codes expire after 24 hours.',
-    paymentNote: 'Payments are collected securely with HarakaPay.',
+    paymentNote: 'Payments are collected securely through your mobile-money provider.',
     safetyNote:
       'Never share your mobile-money PIN. PredishaBet only sends a USSD approval prompt and never asks for your PIN.',
     homeEyebrow: 'Live sportsbook',
     homeAccent: 'Betting stakes.',
     homeDescription:
-      'PredishaBet turns the Predisha model into a transparent book. Prices are simulated, settlements are server-side and wallet funding runs through HarakaPay.',
+      'PredishaBet turns the Predisha model into a transparent book. Prices are simulated, settlements are server-side and wallet funding runs through mobile money.',
     walletsTitle: 'Server-owned wallets',
     walletsBody:
       'Betting wallets hold stakes and payouts. Balances, debits and credits live in PostgreSQL behind authenticated, rate-limited endpoints.',

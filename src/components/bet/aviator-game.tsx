@@ -39,20 +39,36 @@ type Slot = 1 | 2
 
 const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
 
-function flightPoint(progress: number) {
-  const t = Math.min(1, Math.max(0, progress / 100))
-  return {
-    x: 48 + t * 500,
-    y: 246 - Math.pow(t, 1.28) * 196 - Math.sin(t * Math.PI) * 12,
-  }
+interface FlightPoint {
+  x: number
+  y: number
+  progress: number
 }
 
-function flightTrail(progress: number) {
-  if (progress <= 0.5) return ''
-  const steps = 28
-  const points: Array<{ x: number; y: number }> = []
+function aviatorPoint(multiplier: number, crashAt: number): FlightPoint {
+  const crash = Math.max(crashAt, 1.01)
+  const value = Math.min(Math.max(multiplier, 1), crash)
+  const progress = Math.log(value) / Math.log(crash)
+  const x = 44 + progress * (600 - 88)
+  const y =
+    232 -
+    Math.pow(Math.max(0, (value - 1) / Math.max(0.0001, crash - 1)), 1.35) * 180
+  return { x, y, progress }
+}
+
+function flightPoint(multiplier: number, crashAt: number) {
+  const point = aviatorPoint(multiplier, crashAt)
+  return { x: point.x, y: point.y }
+}
+
+function flightTrail(multiplier: number, crashAt: number) {
+  const endMultiplier = Math.min(Math.max(multiplier, 1), Math.max(crashAt, 1.01))
+  const end = aviatorPoint(endMultiplier, crashAt)
+  const steps = Math.max(2, Math.round(end.progress * 40))
+  const points: FlightPoint[] = []
   for (let index = 0; index <= steps; index += 1) {
-    points.push(flightPoint((progress / steps) * index))
+    const value = 1 + (endMultiplier - 1) * (index / steps)
+    points.push(aviatorPoint(value, crashAt))
   }
   return points
     .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
@@ -350,80 +366,88 @@ export function AviatorGame() {
           </div>
         ) : null}
 
-        <div className="relative mt-6 h-64 overflow-hidden rounded-2xl border border-white/5 bg-[#05080d] sm:h-72">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(200,255,67,0.14),transparent_45%)]" />
+        <div className="relative mt-6 h-[22rem] overflow-hidden rounded-2xl border border-red-400/20 bg-[radial-gradient(circle_at_70%_20%,rgba(239,68,68,0.18),transparent_55%),radial-gradient(circle_at_20%_85%,rgba(251,146,60,0.12),transparent_60%),#0a0e14] sm:h-[26rem]">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
           <svg
             aria-hidden="true"
             viewBox="0 0 600 280"
             preserveAspectRatio="none"
             className="absolute inset-0 h-full w-full"
           >
+            <defs>
+              <linearGradient id="aviatorFlight" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#fdba74" />
+                <stop offset="100%" stopColor="#ef4444" />
+              </linearGradient>
+            </defs>
             {Array.from({ length: 8 }, (_, index) => (
               <line
                 key={`h-${index}`}
                 x1="0"
-                y1={32 + index * 32}
+                y1={28 + index * 32}
                 x2="600"
-                y2={32 + index * 32}
+                y2={28 + index * 32}
                 stroke="#ffffff"
-                strokeOpacity="0.04"
+                strokeOpacity="0.05"
                 strokeWidth="1"
               />
             ))}
             {Array.from({ length: 12 }, (_, index) => (
               <line
                 key={`v-${index}`}
-                x1={index * 55}
+                x1={index * 50}
                 y1="0"
-                x2={index * 55}
+                x2={index * 50}
                 y2="280"
                 stroke="#ffffff"
-                strokeOpacity="0.04"
+                strokeOpacity="0.05"
                 strokeWidth="1"
               />
             ))}
             {(() => {
-              const trail = flightTrail(progress)
-              const end = flightPoint(progress)
+              const crashAt = state?.round.crashAt ?? multiplier
+              const trail = flightTrail(multiplier, crashAt)
+              const end = flightPoint(multiplier, crashAt)
               return (
                 <>
                   {trail ? (
                     <path
-                      d={`${trail} L ${end.x.toFixed(1)} 280 L 48 280 Z`}
-                      fill="#C8FF43"
-                      fillOpacity="0.08"
+                      d={`${trail} L ${end.x.toFixed(1)} 232 L 44 232 Z`}
+                      fill="url(#aviatorFlight)"
+                      fillOpacity="0.14"
                     />
                   ) : null}
                   <path
-                    d={trail || 'M 48 246'}
+                    d={trail || 'M 44 232'}
                     fill="none"
-                    stroke="#C8FF43"
-                    strokeWidth="9"
-                    strokeOpacity="0.12"
+                    stroke="url(#aviatorFlight)"
+                    strokeWidth="10"
+                    strokeOpacity="0.2"
                     strokeLinecap="round"
                   />
                   <path
-                    d={trail || 'M 48 246'}
+                    d={trail || 'M 44 232'}
                     fill="none"
-                    stroke="#C8FF43"
-                    strokeWidth="2.5"
+                    stroke="url(#aviatorFlight)"
+                    strokeWidth="3"
+                    strokeOpacity={phase === 'CRASHED' ? 0.6 : 0.95}
                     strokeLinecap="round"
-                    strokeOpacity={phase === 'CRASHED' ? 0.35 : 0.95}
                   />
                 </>
               )
             })()}
           </svg>
-          <div className="absolute inset-x-8 bottom-9 h-px bg-white/10" />
+          <div className="absolute inset-x-8 bottom-6 h-px bg-white/10" />
           {loading ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-accent" />
+              <Loader2 className="h-8 w-8 animate-spin text-red-400" />
             </div>
           ) : (
             <>
               {(() => {
-                const point = flightPoint(progress)
-                const ahead = flightPoint(Math.min(100, progress + 2))
+                const crashAt = state?.round.crashAt ?? multiplier
+                const point = flightPoint(multiplier, crashAt)
+                const ahead = flightPoint(Math.min(crashAt, multiplier * 1.03), crashAt)
                 const angle =
                   (Math.atan2(ahead.y - point.y, ahead.x - point.x) * 180) / Math.PI
                 return (
@@ -433,14 +457,14 @@ export function AviatorGame() {
                     }`}
                     style={{
                       left: `${(point.x / 600) * 100}%`,
-                      top: `${(point.y / 280) * 100}%`,
+                      top: `${(232 - point.y) / 280 * 100}%`,
                       transform: `translate(-50%, -50%) rotate(${angle}deg)`,
                     }}
                   >
                     <svg
                       viewBox="0 0 64 64"
-                      className={`h-12 w-12 drop-shadow-[0_0_14px_rgba(200,255,67,0.55)] ${
-                        phase === 'CRASHED' ? 'text-red-400' : 'text-accent'
+                      className={`h-16 w-16 -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_0_18px_rgba(239,68,68,0.65)] ${
+                        phase === 'CRASHED' ? 'text-red-500' : 'text-orange-400'
                       }`}
                       fill="currentColor"
                       aria-hidden="true"

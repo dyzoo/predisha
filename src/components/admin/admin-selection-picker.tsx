@@ -82,10 +82,9 @@ export function AdminSelectionPicker({
 
   const filtered = useMemo(() => {
     const source = events ?? []
-    const now = Date.now()
     const needle = query.trim().toLowerCase()
     return source
-      .filter(event => event.effectiveStatus === 'SCHEDULED' && new Date(event.kickoffIso).getTime() > now)
+      .filter(event => event.effectiveStatus === 'SCHEDULED')
       .filter(event => {
         if (!needle) return true
         return [

@@ -180,7 +180,7 @@ export function WalletAmountForm({
           </div>
           <p className="mt-2 text-[11px] text-muted-text">
             {isDeposit
-              ? 'HarakaPay sends a prompt and credits your wallet after you approve it.'
+              ? 'Approve the prompt on your phone to credit your wallet instantly.'
               : 'Transfer requests are reviewed and settled to this number.'}
           </p>
         </>
