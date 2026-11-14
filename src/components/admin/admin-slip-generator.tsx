@@ -10,16 +10,22 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
+  Trash2,
+  Wand2,
+  X,
 } from 'lucide-react'
 import type {
   AdminRecommendationPick,
   AdminSlipRecommendation,
 } from '@/lib/bet/recommendation'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
+import { AdminSelectionPicker } from './admin-selection-picker'
 
 type PickedSelection = Omit<AdminRecommendationPick, 'odds'> & {
   odds: string
 }
+
+type CreationMode = 'AI' | 'MANUAL'
 
 const MIN_ODDS = 1.01
 const MAX_ODDS = 1000
@@ -63,6 +69,7 @@ export function AdminSlipGenerator({
   recommendation: AdminSlipRecommendation
 }) {
   const router = useRouter()
+  const [creationMode, setCreationMode] = useState<CreationMode>('AI')
   const [title, setTitle] = useState('')
   const [stake, setStake] = useState('1000')
   const [picked, setPicked] = useState<PickedSelection[]>(() => toPicked(recommendation.picks))
@@ -80,13 +87,46 @@ export function AdminSlipGenerator({
     Number.isFinite(stakeMinor) && stakeMinor > 0 && totalOdds > 0
       ? Math.floor(stakeMinor * totalOdds)
       : 0
+  const pickedFixtures = new Set(picked.map(item => item.fixtureId))
 
-  function updateOdds(index: number, odds: string) {
+  function clearFeedback() {
     setResult(null)
     setCopied(false)
+    setError(null)
+  }
+
+  function switchMode(next: CreationMode) {
+    if (next === creationMode) return
+    clearFeedback()
+    setCreationMode(next)
+    if (next === 'MANUAL') {
+      setPicked([])
+      setGeneratedAt(new Date().toISOString())
+    } else {
+      setPicked(toPicked(recommendation.picks))
+      setGeneratedAt(recommendation.generatedAt)
+      setDemo(recommendation.demo)
+    }
+  }
+
+  function updateOdds(index: number, odds: string) {
+    clearFeedback()
     setPicked(current =>
       current.map((item, position) => (position === index ? { ...item, odds } : item)),
     )
+  }
+
+  function removePick(fixtureId: string) {
+    clearFeedback()
+    setPicked(current => current.filter(item => item.fixtureId !== fixtureId))
+  }
+
+  function addPick(pick: AdminRecommendationPick) {
+    clearFeedback()
+    setPicked(current => {
+      if (current.some(item => item.fixtureId === pick.fixtureId)) return current
+      return [...current, ...toPicked([pick])]
+    })
   }
 
   async function refreshPicks() {
@@ -122,7 +162,11 @@ export function AdminSlipGenerator({
     setResult(null)
     setCopied(false)
     if (picked.length === 0) {
-      setError('The model has no eligible picks right now. Refresh in a moment.')
+      setError(
+        creationMode === 'MANUAL'
+          ? 'Add at least one match to create a slip.'
+          : 'The model has no eligible picks right now. Refresh in a moment or build a slip manually.',
+      )
       return
     }
     if (!Number.isInteger(stakeMinor) || stakeMinor < 500 || stakeMinor > 500_000) {
@@ -190,25 +234,54 @@ export function AdminSlipGenerator({
         <div>
           <h2 className="flex items-center gap-2 font-display text-base font-bold text-main-text">
             <Sparkles className="h-4 w-4 text-accent" />
-            AI slip generator
+            Bet slip builder
           </h2>
           <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-text">
-            The model ranks the best upcoming value picks across at least 15 matches. You only
-            adjust the odds you want to offer, then assign a stake and share the code.
+            Start from the model's ranked picks or build the slip yourself. Remove any match, add
+            more from the full schedule, adjust the odds and publish when it is ready.
           </p>
         </div>
+        {creationMode === 'AI' ? (
+          <button
+            type="button"
+            onClick={refreshPicks}
+            disabled={refreshing || pending}
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] font-semibold text-main-text transition-colors hover:border-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {refreshing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            {refreshing ? 'Refreshing...' : 'Refresh AI picks'}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-4 inline-flex rounded-xl border border-border bg-background/40 p-1">
         <button
           type="button"
-          onClick={refreshPicks}
-          disabled={refreshing || pending}
-          className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] font-semibold text-main-text transition-colors hover:border-accent/40 disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => switchMode('AI')}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+            creationMode === 'AI'
+              ? 'bg-accent text-background'
+              : 'text-muted-text hover:text-main-text'
+          }`}
         >
-          {refreshing ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5" />
-          )}
-          {refreshing ? 'Refreshing...' : 'Refresh AI picks'}
+          <Wand2 className="h-3.5 w-3.5" />
+          Use AI
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode('MANUAL')}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+            creationMode === 'MANUAL'
+              ? 'bg-accent text-background'
+              : 'text-muted-text hover:text-main-text'
+          }`}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Create manually
         </button>
       </div>
 
@@ -244,23 +317,26 @@ export function AdminSlipGenerator({
       <div className="mt-4 rounded-xl border border-border bg-background/40 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-text">
-            Model picks
+            {creationMode === 'AI' ? 'Model picks' : 'Your selections'}
           </p>
           <div className="flex items-center gap-2 text-[11px] text-muted-text">
-            {demo ? (
+            {creationMode === 'AI' && demo ? (
               <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-amber-200">
-                Demo data
+                Model data
               </span>
             ) : null}
             <span>{picked.length} matches</span>
-            <span className="text-muted-text/60">{generatedLabel(generatedAt)}</span>
+            {creationMode === 'AI' ? (
+              <span className="text-muted-text/60">{generatedLabel(generatedAt)}</span>
+            ) : null}
           </div>
         </div>
 
         {picked.length === 0 ? (
           <p className="mt-3 rounded-xl border border-dashed border-border bg-background/40 px-3 py-3 text-xs text-muted-text">
-            No upcoming fixtures pass the model quality gates right now. Refresh or try after the
-            next data sync.
+            {creationMode === 'MANUAL'
+              ? 'No matches yet. Use the button below to add selections from the upcoming schedule.'
+              : 'No upcoming fixtures pass the model quality gates right now. Refresh or switch to manual creation.'}
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -281,29 +357,45 @@ export function AdminSlipGenerator({
                     model probability
                   </p>
                 </div>
-                <label className="flex shrink-0 items-center gap-2">
-                  <span className="text-[10px] uppercase tracking-wide text-muted-text">Odds</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={MIN_ODDS}
-                    max={MAX_ODDS}
-                    step={0.01}
-                    value={item.odds}
-                    onChange={event => updateOdds(index, event.target.value)}
-                    aria-label={`Odds for ${item.selectionLabel} in ${item.fixtureLabel}`}
-                    className="w-20 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-right text-sm font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
-                  />
-                </label>
+                <div className="flex shrink-0 items-center gap-2">
+                  <label className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-text">Odds</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={MIN_ODDS}
+                      max={MAX_ODDS}
+                      step={0.01}
+                      value={item.odds}
+                      onChange={event => updateOdds(index, event.target.value)}
+                      aria-label={`Odds for ${item.selectionLabel} in ${item.fixtureLabel}`}
+                      className="w-20 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-right text-sm font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => removePick(item.fixtureId)}
+                    aria-label={`Remove ${item.fixtureLabel}`}
+                    className="rounded-lg border border-border bg-surface p-1.5 text-muted-text transition-colors hover:border-red-400/40 hover:text-red-300"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
 
-        {picked.length > 0 && picked.length < 15 ? (
+        <AdminSelectionPicker
+          excludedFixtures={pickedFixtures}
+          onAdd={addPick}
+          disabled={pending}
+        />
+
+        {creationMode === 'AI' && picked.length > 0 && picked.length < 15 ? (
           <p className="mt-3 text-[10px] text-amber-200">
             Only {picked.length} fixtures pass the model gates right now. The generator targets 15
-            or more when the schedule allows.
+            or more when the schedule allows. Add more manually if needed.
           </p>
         ) : null}
 
@@ -341,8 +433,21 @@ export function AdminSlipGenerator({
           ) : (
             <Plus className="h-3.5 w-3.5" />
           )}
-          {pending ? 'Generating...' : 'Generate slip'}
+          {pending ? 'Publishing...' : creationMode === 'MANUAL' ? 'Create slip' : 'Publish slip'}
         </button>
+        {picked.length > 0 && creationMode === 'MANUAL' ? (
+          <button
+            type="button"
+            onClick={() => {
+              clearFeedback()
+              setPicked([])
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2.5 text-[11px] font-semibold text-muted-text transition-colors hover:border-red-400/40 hover:text-red-300"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear all
+          </button>
+        ) : null}
         {error ? (
           <span className="flex items-center gap-1.5 text-[11px] text-red-300">
             <CircleAlert className="h-3.5 w-3.5" />
@@ -355,7 +460,7 @@ export function AdminSlipGenerator({
         <div className="mt-4 rounded-xl border border-accent/30 bg-accent/10 p-3">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold text-accent">
             <CircleCheck className="h-3.5 w-3.5" />
-            Slip generated
+            Slip created
           </p>
           <p className="mt-2 text-xs text-main-text">
             Slip code:{' '}

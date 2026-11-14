@@ -38,6 +38,27 @@ interface BetPanelState {
 type Slot = 1 | 2
 
 const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
+
+function flightPoint(progress: number) {
+  const t = Math.min(1, Math.max(0, progress / 100))
+  return {
+    x: 48 + t * 500,
+    y: 246 - Math.pow(t, 1.28) * 196 - Math.sin(t * Math.PI) * 12,
+  }
+}
+
+function flightTrail(progress: number) {
+  if (progress <= 0.5) return ''
+  const steps = 28
+  const points: Array<{ x: number; y: number }> = []
+  for (let index = 0; index <= steps; index += 1) {
+    points.push(flightPoint((progress / steps) * index))
+  }
+  return points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+    .join(' ')
+}
+
 const SPORTS_NAV = [
   { href: '/bet/sports', label: 'Football' },
   { href: '/bet/sports?view=upcoming', label: 'Upcoming' },
@@ -329,48 +350,107 @@ export function AviatorGame() {
           </div>
         ) : null}
 
-        <div className="relative mt-6 flex h-60 items-center justify-center overflow-hidden rounded-2xl border border-white/5 bg-[#080b10]">
+        <div className="relative mt-6 h-64 overflow-hidden rounded-2xl border border-white/5 bg-[#05080d] sm:h-72">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_25%,rgba(200,255,67,0.14),transparent_45%)]" />
           <svg
             aria-hidden="true"
-            viewBox="0 0 600 260"
+            viewBox="0 0 600 280"
             preserveAspectRatio="none"
             className="absolute inset-0 h-full w-full"
           >
-            <path
-              d="M 24 225 C 135 210, 205 135, 310 120 C 420 104, 500 72, 585 28"
-              fill="none"
-              stroke="#C8FF43"
-              strokeOpacity="0.55"
-              strokeWidth="2"
-              strokeDasharray="7 9"
-            />
-            <path
-              d="M 24 225 C 135 210, 205 135, 310 120 C 420 104, 500 72, 585 28"
-              fill="none"
-              stroke="#C8FF43"
-              strokeOpacity="0.14"
-              strokeWidth="10"
-            />
+            {Array.from({ length: 8 }, (_, index) => (
+              <line
+                key={`h-${index}`}
+                x1="0"
+                y1={32 + index * 32}
+                x2="600"
+                y2={32 + index * 32}
+                stroke="#ffffff"
+                strokeOpacity="0.04"
+                strokeWidth="1"
+              />
+            ))}
+            {Array.from({ length: 12 }, (_, index) => (
+              <line
+                key={`v-${index}`}
+                x1={index * 55}
+                y1="0"
+                x2={index * 55}
+                y2="280"
+                stroke="#ffffff"
+                strokeOpacity="0.04"
+                strokeWidth="1"
+              />
+            ))}
+            {(() => {
+              const trail = flightTrail(progress)
+              const end = flightPoint(progress)
+              return (
+                <>
+                  {trail ? (
+                    <path
+                      d={`${trail} L ${end.x.toFixed(1)} 280 L 48 280 Z`}
+                      fill="#C8FF43"
+                      fillOpacity="0.08"
+                    />
+                  ) : null}
+                  <path
+                    d={trail || 'M 48 246'}
+                    fill="none"
+                    stroke="#C8FF43"
+                    strokeWidth="9"
+                    strokeOpacity="0.12"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d={trail || 'M 48 246'}
+                    fill="none"
+                    stroke="#C8FF43"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeOpacity={phase === 'CRASHED' ? 0.35 : 0.95}
+                  />
+                </>
+              )
+            })()}
           </svg>
-          <div className="absolute inset-x-6 bottom-8 h-px bg-white/10" />
+          <div className="absolute inset-x-8 bottom-9 h-px bg-white/10" />
           {loading ? (
-            <Loader2 className="h-8 w-8 animate-spin text-accent" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-accent" />
+            </div>
           ) : (
             <>
-              <div
-                className="absolute transition-all duration-500 ease-out"
-                style={{
-                  left: `${Math.min(86, 8 + progress * 0.76)}%`,
-                  bottom: `${Math.min(74, 14 + progress * 0.56)}%`,
-                }}
-              >
-                <Plane
-                  className={`h-9 w-9 -rotate-12 ${
-                    phase === 'CRASHED' ? 'text-red-400' : 'text-accent'
-                  }`}
-                />
-              </div>
-              <div className="relative text-center">
+              {(() => {
+                const point = flightPoint(progress)
+                const ahead = flightPoint(Math.min(100, progress + 2))
+                const angle =
+                  (Math.atan2(ahead.y - point.y, ahead.x - point.x) * 180) / Math.PI
+                return (
+                  <div
+                    className={`absolute transition-transform duration-150 ease-out ${
+                      phase === 'CRASHED' ? 'opacity-40' : 'opacity-100'
+                    }`}
+                    style={{
+                      left: `${(point.x / 600) * 100}%`,
+                      top: `${(point.y / 280) * 100}%`,
+                      transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 64 64"
+                      className={`h-12 w-12 drop-shadow-[0_0_14px_rgba(200,255,67,0.55)] ${
+                        phase === 'CRASHED' ? 'text-red-400' : 'text-accent'
+                      }`}
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M58.6 27.3 40.2 22 34.4 7.2c-.6-1.5-1.9-2.6-3.5-2.9l-2.3-.4c-1.4-.2-2.5 1.2-1.9 2.5l5.6 14.3-12.5-3.3-4.6-7.9c-.5-.9-1.4-1.4-2.4-1.5l-2.4-.2c-1.1-.1-1.9 1-1.6 2l3.3 12.6-5.6 2.1c-1.4.5-2.3 1.8-2.3 3.3v1.7c0 1.5.9 2.8 2.3 3.3l5.6 2.1-3.3 12.6c-.3 1 .5 2.1 1.6 2l2.4-.2c1-.1 1.9-.6 2.4-1.5l4.6-7.9 12.5-3.3-5.6 14.3c-.6 1.4.5 2.7 1.9 2.5l2.3-.4c1.6-.3 2.9-1.4 3.5-2.9l5.8-14.8 18.4-5.3c1.9-.5 3.2-2.2 3.2-4.1v-.5c0-1.9-1.3-3.6-3.2-4.1Z" />
+                    </svg>
+                  </div>
+                )
+              })()}
+              <div className="relative flex h-full flex-col items-center justify-center text-center">
                 <p
                   className={`font-display text-5xl font-bold tabular-nums sm:text-6xl ${
                     phase === 'CRASHED' ? 'text-red-400' : 'text-main-text'
@@ -382,10 +462,10 @@ export function AviatorGame() {
                   {phase === 'WAITING'
                     ? `Betting closes in ${(waitRemainingMs / 1000).toFixed(1)}s`
                     : phase === 'FLYING'
-                      ? 'Flying · cash out before it crashes'
+                      ? 'Flying - cash out before it crashes'
                       : `Crashed at ${formatMultiplier(
                           state?.round.crashAt ?? multiplier,
-                        )} · next round in ${(nextRoundMs / 1000).toFixed(1)}s`}
+                        )} - next round in ${(nextRoundMs / 1000).toFixed(1)}s`}
                 </p>
               </div>
             </>

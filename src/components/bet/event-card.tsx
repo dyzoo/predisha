@@ -16,7 +16,7 @@ export function EventCard({ event }: { event: BetEvent }) {
         <div className="min-w-0">
           <p className="truncate text-[11px] font-medium text-muted-text">{event.competition}</p>
           <p className="mt-0.5 text-[11px] text-muted-text/80">
-            {event.live ? 'In play' : event.kickoffLabel}
+            {event.live ? `${event.minute ?? 1}' in play` : event.kickoffLabel}
           </p>
         </div>
         <span

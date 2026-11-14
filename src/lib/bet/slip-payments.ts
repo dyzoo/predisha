@@ -8,6 +8,7 @@ import {
 } from '@/lib/billing/harakapay'
 import { BetError } from './errors'
 import { normalizeTzPhone } from './phone'
+import { creditWallet } from './wallet'
 import {
   getAdminBetSlipByCode,
   isSlipFrozen,
@@ -43,6 +44,24 @@ function appUrl(): string {
   return (process.env.APP_URL ?? process.env.AUTH_URL ?? 'http://localhost:3000')
     .trim()
     .replace(/\/+$/, '')
+}
+
+async function resolveEntryUserId(
+  userId: string | null | undefined,
+  phone: string,
+): Promise<string> {
+  if (userId) return userId
+
+  const guest = await prisma.user.upsert({
+    where: { email: `guest-${phone}@guest.predisha.invalid` },
+    update: {},
+    create: {
+      email: `guest-${phone}@guest.predisha.invalid`,
+      preferences: { create: {} },
+    },
+    select: { id: true },
+  })
+  return guest.id
 }
 
 function entryView(
@@ -134,10 +153,11 @@ export async function startSlipPayment(input: {
   }
 
   if (slip.mode === 'SANDBOX') {
+    const entryUserId = await resolveEntryUserId(input.userId, normalized.phone)
     const entry = await prisma.adminBetEntry.create({
       data: {
         slipId: record.id,
-        userId: input.userId ?? null,
+        userId: entryUserId,
         phone: normalized.phone,
         stakeMinor: record.stakeMinor,
         status: 'PAID',
@@ -145,9 +165,19 @@ export async function startSlipPayment(input: {
         paidAt: now,
       },
     })
-    if (input.userId) {
-      await placeAdminSlipBet({ entryId: entry.id, now })
+    if (!input.userId) {
+      await prisma.$transaction(tx =>
+        creditWallet(tx, {
+          userId: entryUserId,
+          amountMinor: record.stakeMinor,
+          type: 'DEPOSIT',
+          reference: `slip:${record.code}:entry:${entry.id}:sandbox-float`,
+          note: 'Sandbox guest stake',
+          metadata: { mode: 'SANDBOX' },
+        }),
+      )
     }
+    await placeAdminSlipBet({ entryId: entry.id, now })
     return { entry: await loadEntryView(entry.id), slip, mode: slip.mode }
   }
 
@@ -171,10 +201,11 @@ export async function startSlipPayment(input: {
     throw new BetError(order.error ?? 'Could not start the payment. Please try again.', 502, 'PAYMENT_FAILED')
   }
 
+  const entryUserId = await resolveEntryUserId(input.userId, normalized.phone)
   const entry = await prisma.adminBetEntry.create({
     data: {
       slipId: record.id,
-      userId: input.userId ?? null,
+      userId: entryUserId,
       phone: normalized.phone,
       stakeMinor: record.stakeMinor,
       status: 'PENDING',

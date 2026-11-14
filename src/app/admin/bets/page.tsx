@@ -68,6 +68,8 @@ export default async function AdminBetsPage() {
       status: entry.status,
       ticketId: entry.ticketId,
       ticketCode: entry.ticketCode,
+      ticketStatus: entry.ticketStatus,
+      ticketPayoutMinor: entry.ticketPayoutMinor,
       failureReason: entry.failureReason,
       paidAt: entry.paidAt,
       createdAt: entry.createdAt,

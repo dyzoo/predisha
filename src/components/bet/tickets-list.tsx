@@ -342,7 +342,6 @@ function SettledTicketBody({ ticket }: { ticket: BetTicketView }) {
                 {selection.finalScore ? (
                   <p className="mt-0.5 text-[10px] text-muted-text">
                     Final {selection.finalScore.home}–{selection.finalScore.away}
-                    {selection.demoResult ? ' · demo result' : ''}
                   </p>
                 ) : null}
               </div>
@@ -446,7 +445,7 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
           ? `Ticket ${ticket.code} cashed out for ${formatTzs(
               payload.ticket?.payoutMinor ?? 0,
             )}.`
-          : `Demo result applied. Ticket ${ticket.code} is ${(
+          : `Result applied. Ticket ${ticket.code} is ${(
               payload.ticket?.status ?? 'updated'
             ).toLowerCase()}.`,
       )
@@ -538,7 +537,9 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
                       <Banknote className="h-4 w-4" />
                     )}
                     Cash out
-                    {ticket.cashoutMinor !== null ? ` ${formatTzs(ticket.cashoutMinor)}` : ''}
+                    {ticket.cashoutOfferMinor !== null
+                      ? ` ${formatTzs(ticket.cashoutOfferMinor)}`
+                      : ''}
                   </button>
                 ) : null}
                 {ticket.demoEligible ? (
@@ -553,7 +554,7 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
                     ) : (
                       <FlaskConical className="h-4 w-4" />
                     )}
-                    Simulate demo result
+                    Resolve result
                   </button>
                 ) : null}
               </div>

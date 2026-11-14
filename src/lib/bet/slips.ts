@@ -2,6 +2,7 @@ import { Prisma, type AdminBetSlip } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
   computeTicketTotals,
+  forceWinTicket,
   generateTicketCode,
   insertTicket,
   toTicketView,
@@ -53,6 +54,8 @@ export interface AdminBetEntryView {
   providerOrderId: string | null
   ticketId: string | null
   ticketCode: string | null
+  ticketStatus: string | null
+  ticketPayoutMinor: number | null
   failureReason: string | null
   paidAt: string | null
   createdAt: string
@@ -116,6 +119,8 @@ function toEntryView(
     createdAt: Date
   },
   ticketCode: string | null = null,
+  ticketStatus: string | null = null,
+  ticketPayoutMinor: number | null = null,
 ): AdminBetEntryView {
   return {
     id: entry.id,
@@ -125,20 +130,35 @@ function toEntryView(
     providerOrderId: entry.providerOrderId,
     ticketId: entry.ticketId,
     ticketCode,
+    ticketStatus,
+    ticketPayoutMinor,
     failureReason: entry.failureReason,
     paidAt: entry.paidAt?.toISOString() ?? null,
     createdAt: entry.createdAt.toISOString(),
   }
 }
 
-async function ticketCodesById(ticketIds: Array<string | null>): Promise<Map<string, string>> {
+interface AdminTicketMeta {
+  code: string
+  status: string
+  payoutMinor: number
+}
+
+async function ticketMetaById(
+  ticketIds: Array<string | null>,
+): Promise<Map<string, AdminTicketMeta>> {
   const ids = ticketIds.filter((id): id is string => Boolean(id))
   if (ids.length === 0) return new Map()
   const tickets = await prisma.betTicket.findMany({
     where: { id: { in: ids } },
-    select: { id: true, code: true },
+    select: { id: true, code: true, status: true, payoutMinor: true },
   })
-  return new Map(tickets.map(ticket => [ticket.id, ticket.code]))
+  return new Map(
+    tickets.map(ticket => [
+      ticket.id,
+      { code: ticket.code, status: ticket.status, payoutMinor: ticket.payoutMinor },
+    ]),
+  )
 }
 
 export async function createAdminBetSlip(input: {
@@ -289,12 +309,13 @@ export async function listAdminBetSlips(now = new Date()): Promise<AdminBetSlipL
   })
 
   const ticketIds = slips.flatMap(slip => slip.entries.map(entry => entry.ticketId))
-  const codeByTicket = await ticketCodesById(ticketIds)
+  const metaByTicket = await ticketMetaById(ticketIds)
 
   return slips.map(slip => {
-    const entries = slip.entries.map(entry =>
-      toEntryView(entry, entry.ticketId ? codeByTicket.get(entry.ticketId) ?? null : null),
-    )
+    const entries = slip.entries.map(entry => {
+      const meta = entry.ticketId ? metaByTicket.get(entry.ticketId) : undefined
+      return toEntryView(entry, meta?.code ?? null, meta?.status ?? null, meta?.payoutMinor ?? null)
+    })
     return {
       ...toAdminSlipView(slip, now),
       entries,
@@ -450,10 +471,11 @@ export async function listAdminBetEntries(slipId: string): Promise<AdminBetEntry
     orderBy: { createdAt: 'desc' },
     take: 100,
   })
-  const codeByTicket = await ticketCodesById(entries.map(entry => entry.ticketId))
-  return entries.map(entry =>
-    toEntryView(entry, entry.ticketId ? codeByTicket.get(entry.ticketId) ?? null : null),
-  )
+  const metaByTicket = await ticketMetaById(entries.map(entry => entry.ticketId))
+  return entries.map(entry => {
+    const meta = entry.ticketId ? metaByTicket.get(entry.ticketId) : undefined
+    return toEntryView(entry, meta?.code ?? null, meta?.status ?? null, meta?.payoutMinor ?? null)
+  })
 }
 export async function placeAdminSlipBet(input: {
   entryId: string
@@ -527,6 +549,49 @@ export async function placeAdminSlipBet(input: {
       data: { status: 'FAILED', failureReason },
     })
     throw error
+  }
+}
+
+export async function simulateAdminSlipEntryWin(input: {
+  entryId: string
+  actorId: string
+  now?: Date
+}): Promise<{ entry: AdminBetEntryView; payoutMinor: number }> {
+  const now = input.now ?? new Date()
+  const entry = await prisma.adminBetEntry.findUnique({ where: { id: input.entryId } })
+  if (!entry) {
+    throw new BetError('That payment could not be found.', 404, 'ENTRY_NOT_FOUND')
+  }
+  if (entry.status !== 'PAID') {
+    throw new BetError('The payment must be confirmed before it can be settled.', 409, 'ENTRY_NOT_PAID')
+  }
+  if (!entry.ticketId) {
+    throw new BetError('Place the bet before settling this entry.', 409, 'ENTRY_NO_TICKET')
+  }
+
+  const ticket = await prisma.betTicket.findUnique({ where: { id: entry.ticketId } })
+  if (!ticket) {
+    throw new BetError('The ticket for this entry could not be found.', 404, 'TICKET_NOT_FOUND')
+  }
+
+  const settled = await forceWinTicket(ticket.id, now)
+  await prisma.adminAuditLog.create({
+    data: {
+      actorId: input.actorId,
+      action: 'admin.entry.simulate-win',
+      target: ticket.code,
+      metadata: {
+        entryId: entry.id,
+        slipId: entry.slipId,
+        payoutMinor: settled.payoutMinor,
+      },
+    },
+  })
+
+  const meta = { code: settled.code, status: settled.status, payoutMinor: settled.payoutMinor }
+  return {
+    entry: toEntryView(entry, meta.code, meta.status, meta.payoutMinor),
+    payoutMinor: settled.payoutMinor,
   }
 }
 

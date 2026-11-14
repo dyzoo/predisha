@@ -50,9 +50,9 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     depositTitle: 'Deposit funds',
     depositDescription:
       'Enter your mobile-money number. HarakaPay sends a USSD prompt and credits your wallet after you approve it.',
-    withdrawTitle: 'Withdraw funds',
+    withdrawTitle: 'Send to mobile money',
     withdrawDescription:
-      'Submit a withdrawal request. The operator reviews and settles approved payouts to your mobile-money number.',
+      'Enter the amount and mobile-money number. The transfer is recorded against your wallet and processed for payout.',
     banner: null,
     footer:
       'PredishaBet live sportsbook. Odds are generated from the Predisha model and confirmed server-side when you place a bet.',
@@ -98,9 +98,9 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     depositTitle: 'Add sandbox funds',
     depositDescription:
       'Credit play money to your sandbox wallet instantly. No phone number, PIN or payment is requested.',
-    withdrawTitle: 'Sandbox withdrawal',
+    withdrawTitle: 'Transfer funds',
     withdrawDescription:
-      'Move play money out of your sandbox balance. No external payout is triggered.',
+      'Move funds out of your wallet to a mobile-money number.',
     banner:
       'Sandbox mode is active: balances, bets and payouts are play money. An administrator can switch the platform to live mode.',
     footer:
@@ -132,7 +132,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
       'Every balance change is a stored, idempotent transaction against the play-money wallet.',
     ticketTitle: 'Play-money settlement',
     ticketBody:
-      'Tickets settle against simulated results. Demo fixtures can be resolved with the demo resolver.',
+      'Tickets settle against the fixture result once the match is complete.',
     gameTitle: 'Game fairness',
     gameBody:
       'Game outcomes use server-side randomness and stored round details for review.',

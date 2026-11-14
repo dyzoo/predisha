@@ -35,6 +35,7 @@ model User {
   betAviatorBets   BetAviatorBet[]
   adminBetEntries  AdminBetEntry[]
   betPaymentOrders BetPaymentOrder[]
+  aviatorTrials    AviatorTrial[]
 }
 
 enum Role {
@@ -604,6 +605,30 @@ enum BetAviatorBetStatus {
   ACTIVE
   CASHED_OUT
   LOST
+}
+
+model AviatorTrial {
+  id                    String    @id @default(cuid())
+  token                 String    @unique
+  shareCode             String?
+  entryId               String?   @unique
+  userId                String?
+  status                String    @default("GRANTED")
+  stakeMinor            Int       @default(1000)
+  prizeMinor            Int       @default(63000)
+  phone                 String?
+  withdrawalStatus      String    @default("NONE")
+  playedAt              DateTime?
+  claimedAt             DateTime?
+  withdrawalRequestedAt DateTime?
+  withdrawalEtaAt       DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([withdrawalStatus])
 }
 
 // Platform-wide key/value settings. The betting mode is stored under

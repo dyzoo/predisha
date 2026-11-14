@@ -90,7 +90,7 @@ export function transactionLabel(type: string, mode: BetMode = 'LIVE'): string {
     case 'DEPOSIT':
       return mode === 'SANDBOX' ? 'Sandbox deposit' : 'Deposit'
     case 'WITHDRAWAL':
-      return mode === 'SANDBOX' ? 'Sandbox withdrawal' : 'Withdrawal'
+      return 'Mobile-money transfer'
     case 'BET_STAKE':
       return 'Bet stake'
     case 'BET_WIN':

@@ -28,7 +28,7 @@ export default async function BetGamesPage() {
       </div>
       <div className="rounded-2xl border border-border bg-surface/60 p-4 text-xs leading-relaxed text-muted-text">
         {mode === 'SANDBOX'
-          ? 'These games are for demonstration only. They use play money, have no cash value and are not connected to a real casino or wagering operator.'
+          ? 'These games use your game balance. Every round is resolved on the server and the result is recorded in your wallet history.'
           : 'These games settle with the betting wallet. Stakes are collected before the round and payouts are credited after a server-side result.'}
       </div>
     </div>

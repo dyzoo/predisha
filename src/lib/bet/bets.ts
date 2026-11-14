@@ -18,7 +18,10 @@ function parseSelections(value: Prisma.JsonValue): TicketSelection[] {
   return value as unknown as TicketSelection[]
 }
 
-export function toTicketView(ticket: BetTicket): BetTicketView {
+export function toTicketView(
+  ticket: BetTicket,
+  cashoutOfferMinor: number | null = null,
+): BetTicketView {
   const selections = parseSelections(ticket.selections)
   return {
     id: ticket.id,
@@ -29,6 +32,7 @@ export function toTicketView(ticket: BetTicket): BetTicketView {
     status: ticket.status as BetTicketStatusView,
     payoutMinor: ticket.payoutMinor,
     cashoutMinor: ticket.cashoutMinor,
+    cashoutOfferMinor,
     selectionCount: ticket.selectionCount,
     selections,
     placedAt: ticket.placedAt.toISOString(),
@@ -287,6 +291,48 @@ export function evaluateTicket(
   }
 }
 
+export async function forceWinTicket(
+  ticketId: string,
+  now: Date = new Date(),
+): Promise<BetTicketView> {
+  const ticket = await prisma.betTicket.findUnique({ where: { id: ticketId } })
+  if (!ticket) throw new BetError('Ticket not found.', 404, 'TICKET_NOT_FOUND')
+  if (ticket.status !== 'OPEN') {
+    throw new BetError('This ticket is already settled.', 409, 'TICKET_CLOSED')
+  }
+
+  const selections = parseSelections(ticket.selections).map(selection => ({
+    ...selection,
+    result: 'WON' as TicketResult,
+  }))
+  const payoutMinor = ticket.potentialReturnMinor
+
+  const updated = await prisma.$transaction(async tx => {
+    const result = await tx.betTicket.updateMany({
+      where: { id: ticket.id, status: 'OPEN' },
+      data: {
+        status: 'WON',
+        payoutMinor,
+        settledAt: now,
+        selections: selections as unknown as Prisma.InputJsonValue,
+      },
+    })
+    if (result.count === 0) {
+      throw new BetError('This ticket is already settled.', 409, 'TICKET_CLOSED')
+    }
+    await creditWallet(tx, {
+      userId: ticket.userId,
+      amountMinor: payoutMinor,
+      type: 'BET_WIN',
+      reference: `ticket:${ticket.code}:settle`,
+      note: `Winnings ${ticket.code}`,
+    })
+    return tx.betTicket.findUniqueOrThrow({ where: { id: ticket.id } })
+  })
+
+  return toTicketView(updated)
+}
+
 async function persistSettlement(
   ticket: BetTicket,
   evaluation: TicketEvaluation,
@@ -351,7 +397,19 @@ export async function listTickets(
     orderBy: { placedAt: 'desc' },
     take: 50,
   })
-  return tickets.map(toTicketView)
+  if (!tickets.some(ticket => ticket.status === 'OPEN')) {
+    return tickets.map(ticket => toTicketView(ticket))
+  }
+
+  const catalog = await getBetCatalog(now)
+  const results = await getFixtureResults(now)
+  const eventById = new Map(catalog.events.map(event => [event.id, event]))
+
+  return tickets.map(ticket => {
+    if (ticket.status !== 'OPEN') return toTicketView(ticket)
+    const quote = cashoutOffer(ticket, parseSelections(ticket.selections), results, eventById)
+    return toTicketView(ticket, quote.blocked ? null : quote.offer)
+  })
 }
 
 export async function getTicket(
@@ -362,22 +420,12 @@ export async function getTicket(
   return ticket ? toTicketView(ticket) : null
 }
 
-export async function cashoutTicket(
-  userId: string,
-  ticketId: string,
-  now: Date = new Date(),
-): Promise<BetTicketView> {
-  const ticket = await prisma.betTicket.findFirst({ where: { id: ticketId, userId } })
-  if (!ticket) throw new BetError('Ticket not found.', 404, 'TICKET_NOT_FOUND')
-  if (ticket.status !== 'OPEN') {
-    throw new BetError('This ticket is no longer open.', 409, 'TICKET_CLOSED')
-  }
-
-  const selections = parseSelections(ticket.selections)
-  const catalog = await getBetCatalog(now)
-  const results = await getFixtureResults(now)
-  const eventById = new Map(catalog.events.map(event => [event.id, event]))
-
+function cashoutOffer(
+  ticket: Pick<BetTicket, 'stakeMinor' | 'potentialReturnMinor'>,
+  selections: TicketSelection[],
+  results: Map<string, FixtureResult>,
+  eventById: Map<string, Awaited<ReturnType<typeof getBetCatalog>>['events'][number]>,
+): { offer: number; blocked: boolean } {
   let allWinning = true
   let anyLosing = false
 
@@ -405,13 +453,34 @@ export async function cashoutTicket(
     allWinning = false
   }
 
-  if (anyLosing) {
-    throw new BetError('Cash out is unavailable while a selection is losing.', 409, 'CASHOUT_UNAVAILABLE')
+  return {
+    offer: allWinning
+      ? Math.max(1, Math.floor(ticket.potentialReturnMinor * 0.65))
+      : Math.max(1, Math.floor(ticket.stakeMinor * 0.5)),
+    blocked: anyLosing,
+  }
+}
+
+export async function cashoutTicket(
+  userId: string,
+  ticketId: string,
+  now: Date = new Date(),
+): Promise<BetTicketView> {
+  const ticket = await prisma.betTicket.findFirst({ where: { id: ticketId, userId } })
+  if (!ticket) throw new BetError('Ticket not found.', 404, 'TICKET_NOT_FOUND')
+  if (ticket.status !== 'OPEN') {
+    throw new BetError('This ticket is no longer open.', 409, 'TICKET_CLOSED')
   }
 
-  const offer = allWinning
-    ? Math.max(1, Math.floor(ticket.potentialReturnMinor * 0.65))
-    : Math.max(1, Math.floor(ticket.stakeMinor * 0.5))
+  const selections = parseSelections(ticket.selections)
+  const catalog = await getBetCatalog(now)
+  const results = await getFixtureResults(now)
+  const eventById = new Map(catalog.events.map(event => [event.id, event]))
+  const { offer, blocked } = cashoutOffer(ticket, selections, results, eventById)
+
+  if (blocked) {
+    throw new BetError('Cash out is unavailable while a selection is losing.', 409, 'CASHOUT_UNAVAILABLE')
+  }
 
   const updated = await prisma.$transaction(async tx => {
     const result = await tx.betTicket.updateMany({

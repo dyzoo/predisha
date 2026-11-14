@@ -42,6 +42,7 @@ export interface BetEvent {
   kickoffIso: string
   kickoffLabel: string
   score: { home: number; away: number } | null
+  minute: number | null
   markets: BetMarket[]
   probability: { home: number; draw: number; away: number } | null
   expectedGoals: { home: number; away: number } | null
@@ -97,6 +98,7 @@ export interface BetTicketView {
   status: BetTicketStatusView
   payoutMinor: number
   cashoutMinor: number | null
+  cashoutOfferMinor: number | null
   selectionCount: number
   selections: TicketSelection[]
   placedAt: string

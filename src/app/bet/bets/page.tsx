@@ -36,7 +36,7 @@ export default async function BetTicketsPage() {
       <SectionHeading
         eyebrow="Tickets"
         title="My bets"
-        description="Tickets settle automatically when the fixture feed reports a final score. Demo fixtures can be resolved manually."
+        description="Tickets settle automatically when the fixture feed reports a final score. Open tickets can be cashed out while a match is in play."
         action="Place another bet"
         actionHref="/bet/sports"
       />

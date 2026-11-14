@@ -38,6 +38,10 @@ export function buildBetEvent(analysis: MatchAnalysis, now: Date): BetEvent {
 
   const hasScore =
     typeof fixture.homeScore === 'number' && typeof fixture.awayScore === 'number'
+  const minute =
+    effectiveStatus === 'LIVE'
+      ? Math.min(120, Math.max(1, Math.floor((now.getTime() - fixture.kickoffUtc.getTime()) / 60_000)))
+      : null
 
   return {
     id: fixture.id,
@@ -65,6 +69,7 @@ export function buildBetEvent(analysis: MatchAnalysis, now: Date): BetEvent {
     kickoffIso: fixture.kickoffUtc.toISOString(),
     kickoffLabel: formatKickoffLabel(fixture.kickoffUtc.toISOString()),
     score: hasScore ? { home: fixture.homeScore as number, away: fixture.awayScore as number } : null,
+    minute,
     markets,
     probability,
     expectedGoals: prediction

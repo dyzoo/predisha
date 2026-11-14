@@ -78,7 +78,7 @@ export default async function BetHomePage() {
         </div>
       </section>
 
-      {!catalog.providerOk || catalog.demo ? (
+      {!catalog.providerOk ? (
         <div className="rounded-2xl border border-border bg-surface/60 px-4 py-3 text-xs text-muted-text">
           <span className="font-semibold text-main-text">Fixture feed:</span>{' '}
           {catalog.providerMessage}

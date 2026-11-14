@@ -54,6 +54,7 @@ export const depositSchema = z.object({
 
 export const withdrawSchema = z.object({
   amountMinor: z.number().int().min(1_000).max(1_000_000),
+  phone: z.string().trim().min(7).max(20),
   reference: referenceSchema.optional(),
 })
 
@@ -146,6 +147,10 @@ export const adminSlipCreateSchema = z.object({
 export const adminSlipActionSchema = z.object({
   action: z.enum(['freeze', 'unfreeze', 'close']),
   reason: z.string().trim().max(200).optional(),
+})
+
+export const adminEntryActionSchema = z.object({
+  action: z.enum(['retry', 'simulate-win']).default('retry'),
 })
 
 export const slipPaySchema = z.object({

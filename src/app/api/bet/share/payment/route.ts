@@ -1,12 +1,14 @@
 import { json } from '@/lib/api'
+import { getViewer } from '@/lib/auth/session'
 import { handleBetError } from '@/lib/bet/errors'
+import { guardMutation } from '@/lib/bet/security'
 import { startSlipPayment } from '@/lib/bet/slip-payments'
-import { requireViewer } from '@/lib/bet/security'
 import { shareCodeSchema } from '@/lib/bet/validation'
 
 export async function POST(request: Request) {
   try {
-    const viewer = await requireViewer()
+    guardMutation(request, 'share-slip-payment', 12, 60_000)
+    const viewer = await getViewer()
     const body = await request.json().catch(() => null)
     const parsed = shareCodeSchema.safeParse(body?.code)
     if (!parsed.success) {

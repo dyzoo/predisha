@@ -14,7 +14,10 @@ import {
   Smartphone,
 } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
+import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
 import type { BetSlipItem, TicketSelection } from '@/lib/bet/types'
+import { TeamBadge } from '@/components/teams/team-badge'
+import { AviatorPromoModal } from './aviator-promo-modal'
 import { useBetSlip } from './bet-slip-provider'
 
 type BetMode = 'LIVE' | 'SANDBOX'
@@ -50,6 +53,23 @@ interface SlipEntry {
   message: string
 }
 
+interface SharedTeam {
+  name: string
+  short: string
+  color: string
+  logoUrl?: string | null
+}
+
+interface SharedLiveMatch {
+  fixtureId: string
+  competition: string
+  kickoffIso: string
+  minute: number | null
+  score: { home: number; away: number } | null
+  home: SharedTeam
+  away: SharedTeam
+}
+
 interface ShareResponse {
   share?: {
     code: string
@@ -58,6 +78,7 @@ interface ShareResponse {
     stale: boolean
   }
   slip?: AdminSlip
+  live?: SharedLiveMatch[]
   error?: string
 }
 
@@ -93,6 +114,22 @@ function statusClass(status: SlipStatus): string {
   return 'border-red-400/30 bg-red-400/10 text-red-200'
 }
 
+function promoDismissed(key: string): boolean {
+  try {
+    return window.localStorage.getItem(key) === 'dismissed'
+  } catch {
+    return false
+  }
+}
+
+function dismissPromo(key: string): void {
+  try {
+    window.localStorage.setItem(key, 'dismissed')
+  } catch {
+    return
+  }
+}
+
 export function ShareLoader({ code }: { code: string }) {
   const { viewer, setItemsFromShare } = useBetSlip()
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -100,12 +137,16 @@ export function ShareLoader({ code }: { code: string }) {
   const [stale, setStale] = useState(false)
   const [count, setCount] = useState(0)
   const [slip, setSlip] = useState<AdminSlip | null>(null)
+  const [live, setLive] = useState<SharedLiveMatch[]>([])
   const [phone, setPhone] = useState('')
   const [paying, setPaying] = useState(false)
   const [entry, setEntry] = useState<SlipEntry | null>(null)
   const [payError, setPayError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [promo, setPromo] = useState<AviatorTrialView | null>(null)
+  const [promoOpen, setPromoOpen] = useState(false)
   const loaded = useRef(false)
+  const promoStarted = useRef(false)
 
   useEffect(() => {
     if (loaded.current) return
@@ -128,6 +169,7 @@ export function ShareLoader({ code }: { code: string }) {
           setSlip(payload.slip)
           setCount(payload.slip.selections.length)
         }
+        setLive(payload.live ?? [])
         if (payload.share) {
           const items = payload.share.selections.map(toSlipItem)
           setItemsFromShare(items)
@@ -169,6 +211,48 @@ export function ShareLoader({ code }: { code: string }) {
       clearInterval(timer)
     }
   }, [entry])
+
+  useEffect(() => {
+    if (!entry || entry.status !== 'PAID') return
+    if (promoStarted.current) return
+
+    const storageKey = `predisha.aviator-promo.${entry.id}`
+    if (promoDismissed(storageKey)) return
+
+    promoStarted.current = true
+    let cancelled = false
+
+    async function unlockTrial() {
+      try {
+        const response = await fetch('/api/bet/aviator-trial/start', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entryId: entry?.id }),
+        })
+        const payload = (await response.json().catch(() => ({}))) as {
+          trial?: AviatorTrialView
+          error?: string
+        }
+        if (cancelled || !response.ok || !payload.trial?.canPlay) return
+        setPromo(payload.trial)
+        setPromoOpen(true)
+      } catch {
+        setPromoOpen(false)
+      }
+    }
+
+    void unlockTrial()
+    return () => {
+      cancelled = true
+    }
+  }, [entry])
+
+  function closePromo() {
+    setPromoOpen(false)
+    if (!entry) return
+    dismissPromo(`predisha.aviator-promo.${entry.id}`)
+  }
 
   async function startPayment() {
     if (paying) return
@@ -361,6 +445,53 @@ export function ShareLoader({ code }: { code: string }) {
           </div>
         </div>
 
+        {live.length > 0 ? (
+          <div className="border-b border-border bg-background/30 p-4 sm:px-6">
+            <div className="flex items-center justify-between">
+              <h2 className="flex items-center gap-2 font-display text-sm font-bold text-main-text">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-400" />
+                </span>
+                Live now
+              </h2>
+              <span className="text-[10px] uppercase tracking-wide text-muted-text">
+                {live.length} in play
+              </span>
+            </div>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              {live.map(match => (
+                <li
+                  key={match.fixtureId}
+                  className="rounded-xl border border-red-400/20 bg-background/50 p-2.5"
+                >
+                  <p className="truncate text-[10px] text-muted-text">{match.competition}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <TeamBadge team={match.home} size="xs" />
+                      <span className="truncate text-[11px] font-semibold text-main-text">
+                        {match.home.name}
+                      </span>
+                    </div>
+                    <span className="shrink-0 rounded-md bg-background/70 px-2 py-1 text-sm font-bold tabular-nums text-main-text">
+                      {match.score ? `${match.score.home} - ${match.score.away}` : 'vs'}
+                    </span>
+                    <div className="flex min-w-0 items-center justify-end gap-2">
+                      <span className="truncate text-right text-[11px] font-semibold text-main-text">
+                        {match.away.name}
+                      </span>
+                      <TeamBadge team={match.away} size="xs" />
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-center text-[10px] font-semibold text-red-300">
+                    {match.minute ? `${match.minute}'` : 'In play'}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <div className="p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-sm font-bold text-main-text">Selections</h2>
@@ -464,83 +595,70 @@ export function ShareLoader({ code }: { code: string }) {
             </p>
 
             {!viewer.userId ? (
-              <div className="mt-4 rounded-xl border border-border bg-background/40 p-3 text-center">
-                <p className="text-xs text-muted-text">Sign in to take this slip.</p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-center">
-                  <Link
-                    href={`/sign-in?next=/bet/share/${slip.code}`}
-                    className="rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-background"
-                  >
-                    Sign in
-                  </Link>
-                  <Link
-                    href={`/sign-up?next=/bet/share/${slip.code}`}
-                    className="rounded-xl border border-border px-4 py-2 text-xs font-semibold text-main-text hover:border-accent/40"
-                  >
-                    Create account
-                  </Link>
-                </div>
+              <div className="mt-4 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-accent">
+                No account needed to take this slip. Pay as a guest, then create a quick account only
+                when you withdraw the Aviator trial prize.
               </div>
-            ) : (
-              <>
-                <label className="mt-4 block">
-                  <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
-                    Mobile number
-                  </span>
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    value={phone}
-                    onChange={event => setPhone(event.target.value)}
-                    placeholder="07XX XXX XXX"
-                    disabled={!canPay && !failed}
-                    className="w-full rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60 disabled:opacity-60"
-                  />
-                </label>
+            ) : null}
 
-                {pending ? (
-                  <div className="mt-4 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-accent">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Waiting for the mobile-money prompt on {entry?.phoneMasked ?? 'your phone'}...
-                  </div>
-                ) : null}
+            <label className="mt-4 block">
+              <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
+                Mobile number
+              </span>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={event => setPhone(event.target.value)}
+                placeholder="07XX XXX XXX"
+                disabled={!canPay && !failed}
+                className="w-full rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60 disabled:opacity-60"
+              />
+            </label>
 
-                {failed ? (
-                  <p className="mt-4 flex items-center gap-1.5 rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs text-red-300">
-                    <CircleAlert className="h-4 w-4" />
-                    {entry?.message ?? 'The payment did not complete. You can try again.'}
-                  </p>
-                ) : null}
+            {pending ? (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-accent">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Waiting for the mobile-money prompt on {entry?.phoneMasked ?? 'your phone'}...
+              </div>
+            ) : null}
 
-                {payError ? (
-                  <p className="mt-3 flex items-center gap-1.5 text-[11px] text-red-300">
-                    <CircleAlert className="h-3.5 w-3.5" />
-                    {payError}
-                  </p>
-                ) : null}
+            {failed ? (
+              <p className="mt-4 flex items-center gap-1.5 rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs text-red-300">
+                <CircleAlert className="h-4 w-4" />
+                {entry?.message ?? 'The payment did not complete. You can try again.'}
+              </p>
+            ) : null}
 
-                <button
-                  type="button"
-                  onClick={startPayment}
-                  disabled={!canPay || paying || frozen}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {paying ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Smartphone className="h-4 w-4" />
-                  )}
-                  {paying
-                    ? 'Starting payment...'
-                    : isSandbox
-                      ? `Confirm ${formatTzs(slip.stakeMinor)} slip`
-                      : `Pay ${formatTzs(slip.stakeMinor)}`}
-                </button>
-              </>
-            )}
+            {payError ? (
+              <p className="mt-3 flex items-center gap-1.5 text-[11px] text-red-300">
+                <CircleAlert className="h-3.5 w-3.5" />
+                {payError}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={startPayment}
+              disabled={!canPay || paying || frozen}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {paying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Smartphone className="h-4 w-4" />
+              )}
+              {paying
+                ? 'Starting payment...'
+                : isSandbox
+                  ? `Confirm ${formatTzs(slip.stakeMinor)} slip`
+                  : `Pay ${formatTzs(slip.stakeMinor)}`}
+            </button>
           </div>
         )}
       </section>
+
+      {promoOpen && promo ? <AviatorPromoModal trial={promo} onClose={closePromo} /> : null}
     </div>
   )
 }

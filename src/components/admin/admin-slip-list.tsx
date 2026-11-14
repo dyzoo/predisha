@@ -14,6 +14,7 @@ import {
   Search,
   Ticket,
   Trash2,
+  Trophy,
 } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
 
@@ -31,6 +32,8 @@ export interface AdminSlipEntryView {
   status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
   ticketId: string | null
   ticketCode: string | null
+  ticketStatus: string | null
+  ticketPayoutMinor: number | null
   failureReason: string | null
   paidAt: string | null
   createdAt: string
@@ -155,6 +158,40 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
       setError('Network error. Please try again.')
     } finally {
       setPendingCode(null)
+    }
+  }
+
+  async function simulateWin(entryId: string) {
+    if (pendingEntry) return
+    setPendingEntry(entryId)
+    setError(null)
+    setSuccess(null)
+    try {
+      const response = await fetch(
+        `/api/admin/bets/entries/${encodeURIComponent(entryId)}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'simulate-win' }),
+        },
+      )
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string
+        payoutMinor?: number
+      }
+      if (!response.ok) {
+        setError(payload.error ?? 'Could not settle this ticket as a winner.')
+        return
+      }
+      setSuccess(
+        `Ticket settled as won. ${formatTzs(payload.payoutMinor ?? 0)} credited to the wallet.`,
+      )
+      router.refresh()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setPendingEntry(null)
     }
   }
 
@@ -468,6 +505,10 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                   {slip.entries.map(entry => {
                     const canRetry =
                       !entry.ticketId && (entry.status === 'PAID' || entry.status === 'FAILED')
+                    const canSettle =
+                      entry.status === 'PAID' &&
+                      Boolean(entry.ticketId) &&
+                      entry.ticketStatus === 'OPEN'
                     const retrying = pendingEntry === entry.id
                     return (
                       <li
@@ -490,25 +531,58 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                           {entry.ticketCode ? (
                             <span className="font-mono text-accent">{entry.ticketCode}</span>
                           ) : null}
+                          {entry.ticketStatus ? (
+                            <span
+                              className={
+                                entry.ticketStatus === 'WON'
+                                  ? 'font-semibold text-accent'
+                                  : entry.ticketStatus === 'OPEN'
+                                    ? 'text-muted-text'
+                                    : 'font-semibold text-red-300'
+                              }
+                            >
+                              {entry.ticketStatus}
+                              {entry.ticketPayoutMinor
+                                ? ` ${formatTzs(entry.ticketPayoutMinor)}`
+                                : ''}
+                            </span>
+                          ) : null}
                           {entry.failureReason ? (
                             <span className="text-red-300">{entry.failureReason}</span>
                           ) : null}
                         </span>
-                        {canRetry ? (
-                          <button
-                            type="button"
-                            onClick={() => retryEntry(entry.id)}
-                            disabled={Boolean(pendingEntry)}
-                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1 text-[10px] font-semibold text-main-text transition-colors hover:border-accent/40 disabled:opacity-60"
-                          >
-                            {retrying ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="h-3 w-3" />
-                            )}
-                            Retry placement
-                          </button>
-                        ) : null}
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          {canSettle ? (
+                            <button
+                              type="button"
+                              onClick={() => simulateWin(entry.id)}
+                              disabled={Boolean(pendingEntry)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/40 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-300/60 disabled:opacity-60"
+                            >
+                              {retrying ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Trophy className="h-3 w-3" />
+                              )}
+                              Settle as won
+                            </button>
+                          ) : null}
+                          {canRetry ? (
+                            <button
+                              type="button"
+                              onClick={() => retryEntry(entry.id)}
+                              disabled={Boolean(pendingEntry)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1 text-[10px] font-semibold text-main-text transition-colors hover:border-accent/40 disabled:opacity-60"
+                            >
+                              {retrying ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                              Retry placement
+                            </button>
+                          ) : null}
+                        </span>
                       </li>
                     )
                   })}
