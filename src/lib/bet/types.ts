@@ -153,6 +153,14 @@ export interface AviatorBetView {
   status: 'ACTIVE' | 'CASHED_OUT' | 'LOST'
 }
 
+export interface AviatorPlayerView {
+  name: string
+  mine: boolean
+  stakeMinor: number
+  cashedOutAt: number | null
+  status: AviatorBetView['status']
+}
+
 export interface AviatorRoundView {
   roundId: string
   index: number

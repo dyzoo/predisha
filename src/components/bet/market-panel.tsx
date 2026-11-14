@@ -8,7 +8,7 @@ export function MarketPanel({ event }: { event: BetEvent }) {
         <section key={market.id} className="rounded-2xl border border-border bg-surface/80 p-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold">{market.name}</h3>
-            <span className="text-[10px] text-muted-text">Simulated</span>
+            <span className="text-[10px] text-muted-text">Model odds</span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {market.selections.map(selection => (

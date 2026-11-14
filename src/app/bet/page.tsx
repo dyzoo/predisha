@@ -12,7 +12,7 @@ import { getBetMode, type BetMode } from '@/lib/bet/mode'
 export const metadata: Metadata = {
   title: 'PredishaBet · sportsbook',
   description:
-    'Browse live and upcoming fixtures with transparent simulated odds, build a bet slip, deposit funds and place a bet.',
+    'Browse live and upcoming fixtures with transparent model odds, build a bet slip, deposit funds and place a bet.',
 }
 
 export default async function BetHomePage() {
@@ -42,8 +42,8 @@ export default async function BetHomePage() {
             <span className="text-accent">Betting stakes.</span>
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-text sm:text-base">
-            PredishaBet turns the Predisha model into a transparent book. Every price is simulated,
-            every settlement runs server-side, and wallet funding runs through mobile money.
+            PredishaBet turns the Predisha model into a transparent book. Every price comes from the
+            model, every settlement runs server-side, and wallet funding runs through mobile money.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -90,7 +90,7 @@ export default async function BetHomePage() {
           <SectionHeading
             eyebrow="In play"
             title="Live now"
-            description="Scores update from the fixture feed. Odds remain simulated."
+            description="Scores update from the fixture feed. Odds are model-priced."
             action="All live"
             actionHref="/bet/live"
           />

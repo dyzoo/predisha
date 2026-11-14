@@ -8,7 +8,12 @@ import {
 import { BetError, isUniqueConstraintError } from './errors'
 import { hashString, mulberry32 } from './random'
 import { creditWallet, debitWallet, getWalletView } from './wallet'
-import type { AviatorBetView, AviatorRoundView, BetWalletView } from './types'
+import type {
+  AviatorBetView,
+  AviatorPlayerView,
+  AviatorRoundView,
+  BetWalletView,
+} from './types'
 
 export function crashPointFor(
   roundId: string,
@@ -77,6 +82,11 @@ function toAviatorBetView(bet: BetAviatorBet): AviatorBetView {
 function roundIndexFromId(roundId: string): number {
   const parsed = Number.parseInt(roundId.replace('av-', ''), 10)
   return Number.isFinite(parsed) ? parsed : -1
+}
+
+function maskedPlayerName(name: string | null): string {
+  const initial = (name ?? '').trim().replace(/[^a-zA-Z0-9]/g, '').slice(0, 1).toUpperCase()
+  return `${initial || 'P'}***`
 }
 
 export async function placeAviatorBet(
@@ -248,6 +258,7 @@ export async function settleAviatorForUser(
 export interface AviatorState {
   round: AviatorRoundView
   bets: AviatorBetView[]
+  players: AviatorPlayerView[]
   history: Array<{ roundId: string; crashAt: number }>
   wallet: BetWalletView
   config: AviatorConfig
@@ -260,13 +271,27 @@ export async function getAviatorState(
   const config = await getAviatorConfig()
   await settleAviatorForUser(userId, now, config)
   const round = aviatorRoundAt(now, config)
-  const [bets, wallet] = await Promise.all([
+  const [playerBets, bets, wallet] = await Promise.all([
     prisma.betAviatorBet.findMany({
-      where: { userId, roundId: round.roundId },
+      where: { roundId: round.roundId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: { user: { select: { name: true } } },
+    }),
+    prisma.betAviatorBet.findMany({
+      where: { roundId: round.roundId, userId },
       orderBy: { slot: 'asc' },
     }),
     getWalletView(userId),
   ])
+
+  const players: AviatorPlayerView[] = playerBets.map(bet => ({
+    name: bet.userId === userId ? 'You' : maskedPlayerName(bet.user.name),
+    mine: bet.userId === userId,
+    stakeMinor: bet.stakeMinor,
+    cashedOutAt: bet.cashedOutAt,
+    status: bet.status,
+  }))
 
   const history = Array.from({ length: 10 }, (_, offset) => {
     const index = round.index - 1 - offset
@@ -277,6 +302,7 @@ export async function getAviatorState(
   return {
     round,
     bets: bets.map(toAviatorBetView),
+    players,
     history,
     wallet,
     config,

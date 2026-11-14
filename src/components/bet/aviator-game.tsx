@@ -1,15 +1,22 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { formatMultiplier, formatTzs } from '@/lib/bet/format'
-import type { AviatorBetView, AviatorRoundView, BetWalletView } from '@/lib/bet/types'
+import type {
+  AviatorBetView,
+  AviatorPlayerView,
+  AviatorRoundView,
+  BetWalletView,
+} from '@/lib/bet/types'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 
 interface AviatorState {
   round: AviatorRoundView
   bets: AviatorBetView[]
+  players: AviatorPlayerView[]
   history: Array<{ roundId: string; crashAt: number }>
   wallet: BetWalletView
   config: import('@/lib/bet/aviator-config').AviatorConfig
@@ -41,6 +48,7 @@ export function AviatorGame() {
   })
   const [busySlot, setBusySlot] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
   const paintAviator = useCallback((data: AviatorState) => {
@@ -48,7 +56,8 @@ export function AviatorGame() {
     const multiplier = data.round.multiplier
     const crash = data.round.crashAt
     const waitLeft = data.round.waitRemainingMs
-    const betCount = data.bets.filter(bet => bet.status === 'ACTIVE').length
+    const players = data.players ?? []
+    const betCount = players.filter(player => player.status === 'ACTIVE').length
     const history = data.history.map(item => item.crashAt)
 
     const sky = skyRef.current
@@ -96,15 +105,15 @@ export function AviatorGame() {
         .join('')
     }
 
-    const players = playersRef.current
-    if (players) {
-      players.innerHTML = data.bets
-        .map(bet => {
-          const mine = bet.slot === 1 || bet.slot === 2 ? 'mine' : ''
-          return `<div class="av-row ${mine}"><span>Bet ${bet.slot}</span><span>${formatTzs(bet.stakeMinor)}</span><b>${bet.status === 'CASHED_OUT' && bet.cashedOutAt ? bet.cashedOutAt.toFixed(2) + 'x' : '—'}</b></div>`
+    const playersEl = playersRef.current
+    if (playersEl) {
+      playersEl.innerHTML = players
+        .map(player => {
+          const mine = player.mine ? 'mine' : ''
+          return `<div class="av-row ${mine}"><span>${player.name}</span><span>${formatTzs(player.stakeMinor)}</span><b>${player.status === 'CASHED_OUT' && player.cashedOutAt ? player.cashedOutAt.toFixed(2) + 'x' : '—'}</b></div>`
         })
         .join('')
-      if (data.bets.length === 0) players.innerHTML = '<p class="hint">Waiting for bets</p>'
+      if (players.length === 0) playersEl.innerHTML = '<p class="hint">Waiting for bets</p>'
     }
   }, [])
 
@@ -117,14 +126,17 @@ export function AviatorGame() {
       const payload = (await response.json().catch(() => ({}))) as {
         state?: AviatorState
         error?: string
+        code?: string
       }
 
       if (!cancelled) {
         if (response.ok && payload.state) {
           setState(payload.state)
           setError(null)
+          setErrorCode(null)
         } else if (response.status !== 401) {
           setError(payload.error ?? 'Could not load the Aviator round.')
+          setErrorCode(payload.code ?? null)
         }
       }
 
@@ -152,10 +164,15 @@ export function AviatorGame() {
     const payload = (await response.json().catch(() => ({}))) as {
       state?: AviatorState
       error?: string
+      code?: string
     }
     if (response.ok && payload.state) {
       setState(payload.state)
       setError(null)
+      setErrorCode(null)
+    } else {
+      setError(payload.error ?? 'Could not load the Aviator round.')
+      setErrorCode(payload.code ?? null)
     }
   }, [])
 
@@ -163,6 +180,7 @@ export function AviatorGame() {
     const panel = panels[slot]
     setBusySlot(slot)
     setError(null)
+    setErrorCode(null)
     setSuccess(null)
 
     try {
@@ -179,10 +197,12 @@ export function AviatorGame() {
       const payload = (await response.json().catch(() => ({}))) as {
         bet?: AviatorBetView
         error?: string
+        code?: string
       }
 
       if (!response.ok) {
         setError(payload.error ?? 'Could not place the Aviator bet.')
+        setErrorCode(payload.code ?? null)
         return
       }
 
@@ -201,6 +221,7 @@ export function AviatorGame() {
   const cashout = async (betId: string) => {
     setBusySlot(1)
     setError(null)
+    setErrorCode(null)
     setSuccess(null)
 
     try {
@@ -212,10 +233,12 @@ export function AviatorGame() {
       const payload = (await response.json().catch(() => ({}))) as {
         bet?: AviatorBetView
         error?: string
+        code?: string
       }
 
       if (!response.ok) {
         setError(payload.error ?? 'Cash out failed.')
+        setErrorCode(payload.code ?? null)
         return
       }
 
@@ -252,8 +275,19 @@ export function AviatorGame() {
   return (
     <section className="av-page">
       {error ? (
-        <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs text-red-200">
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs text-red-200"
+        >
           <span>{error}</span>
+          {errorCode === 'INSUFFICIENT_FUNDS' ? (
+            <Link
+              href="/bet/deposit"
+              className="ml-auto inline-flex shrink-0 items-center rounded-lg bg-accent px-3 py-1.5 text-[11px] font-bold text-background"
+            >
+              Deposit
+            </Link>
+          ) : null}
         </div>
       ) : null}
       {success ? (

@@ -4,8 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
   ClipboardList,
   Gamepad2,
   Gift,
@@ -67,47 +65,52 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
       ) : null}
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2 sm:h-16 sm:gap-3 sm:px-6 sm:py-0">
           <Link href="/bet" className="flex shrink-0 items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-sm font-black text-background">
               PB
             </span>
-            <span className="font-display text-lg font-semibold tracking-tight">
+            <span className="hidden font-display text-lg font-semibold tracking-tight sm:inline">
               Predisha<span className="text-accent">Bet</span>
             </span>
           </Link>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
             {viewer.userId ? (
               <>
                 <Link
                   href="/bet/account"
-                  aria-label="Wallet balance"
-                  className="flex items-center gap-2 rounded-xl border border-border bg-surface px-2.5 py-2 text-sm font-semibold text-main-text transition-colors hover:border-accent/40 sm:px-3"
+                  aria-label={`Wallet balance ${
+                    walletLoading && !wallet ? 'loading' : formatTzs(wallet?.balanceMinor ?? 0)
+                  }`}
+                  className="flex min-w-0 flex-col items-end rounded-xl border border-border bg-surface px-1.5 py-1.5 text-main-text transition-colors hover:border-accent/40 sm:flex-row sm:items-center sm:gap-2 sm:px-3 sm:py-2"
                 >
-                  <Wallet className="h-4 w-4 text-accent" />
-                  <span className="hidden tabular-nums sm:inline">
-                    {walletLoading && !wallet ? '…' : formatTzs(wallet?.balanceMinor ?? 0)}
+                  <span className="text-[9px] font-medium uppercase leading-none tracking-wide text-muted-text">
+                    Balance
+                  </span>
+                  <span className="mt-0.5 flex items-center gap-1 sm:mt-0 sm:gap-1.5">
+                    <Wallet className="h-3.5 w-3.5 shrink-0 text-accent sm:h-4 sm:w-4" />
+                    <span className="whitespace-nowrap text-[11px] font-bold tabular-nums sm:text-sm">
+                      {walletLoading && !wallet ? '…' : formatTzs(wallet?.balanceMinor ?? 0)}
+                    </span>
                   </span>
                 </Link>
                 <Link
                   href="/bet/deposit"
-                  className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-accent px-2.5 text-xs font-bold text-background transition-opacity hover:opacity-90 sm:px-3"
+                  className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-xl bg-accent px-2 text-[10px] font-bold text-background transition-opacity hover:opacity-90 sm:h-10 sm:px-3 sm:text-xs"
                 >
-                  <ArrowDownToLine className="h-4 w-4" />
-                  <span className="hidden sm:inline">Deposit</span>
+                  Deposit
                 </Link>
                 <Link
                   href="/bet/withdraw"
-                  className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 text-xs font-semibold text-main-text transition-colors hover:border-accent/40 sm:px-3"
+                  className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-xl border border-border bg-surface px-2 text-[10px] font-semibold text-main-text transition-colors hover:border-accent/40 sm:h-10 sm:px-3 sm:text-xs"
                 >
-                  <ArrowUpFromLine className="h-4 w-4" />
-                  <span className="hidden sm:inline">Withdraw</span>
+                  Withdraw
                 </Link>
                 <Link
                   href="/bet/account"
                   aria-label="Account"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-muted-text transition-colors hover:text-main-text"
+                  className="hidden h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-muted-text transition-colors hover:text-main-text sm:flex"
                 >
                   <UserRound className="h-4 w-4" />
                 </Link>

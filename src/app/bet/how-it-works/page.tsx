@@ -7,7 +7,7 @@ import type { BetMode } from '@/lib/bet/mode'
 
 export const metadata: Metadata = {
   title: 'How it works',
-  description: 'How PredishaBet generates simulated odds and settles tickets and games.',
+  description: 'How PredishaBet generates model odds and settles tickets and games.',
 }
 
 export default async function BetHowItWorksPage() {
@@ -75,8 +75,7 @@ export default async function BetHowItWorksPage() {
         <p className="font-semibold">Limits</p>
         <p className="mt-1 text-accent/80">
           Stakes are limited to 500 to 500,000 TZS per ticket, payouts to 20,000,000 TZS, and tickets to
-          20 selections. Share codes expire after 24 hours. These limits are platform controls, not
-          real wagering terms.
+          20 selections. Share codes expire after 24 hours. These limits apply to every ticket.
         </p>
       </div>
 

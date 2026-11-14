@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!event) return { title: 'Fixture not found' }
   return {
     title: `${event.home.name} vs ${event.away.name}`,
-    description: `Simulated odds for ${event.home.name} vs ${event.away.name} in ${event.competition}.`,
+    description: `Model odds for ${event.home.name} vs ${event.away.name} in ${event.competition}.`,
   }
 }
 
@@ -64,7 +64,7 @@ export default async function BetMatchPage({ params }: { params: Params }) {
             <p className="font-display text-3xl font-bold tabular-nums sm:text-5xl">
               {event.score ? `${event.score.home}–${event.score.away}` : 'vs'}
             </p>
-            <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-text">Simulated odds</p>
+            <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-text">Model odds</p>
           </div>
           <div className="flex min-w-0 flex-col items-center text-center">
             <TeamBadge team={event.away} size="lg" />

@@ -67,11 +67,11 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     homeEyebrow: 'Live sportsbook',
     homeAccent: 'Betting stakes.',
     homeDescription:
-      'PredishaBet turns the Predisha model into a transparent book. Prices are simulated, settlements are server-side and wallet funding runs through mobile money.',
+      'PredishaBet turns the Predisha model into a transparent book. Prices come from the model, settlements are server-side and wallet funding runs through mobile money.',
     walletsTitle: 'Server-owned wallets',
     walletsBody:
       'Betting wallets hold stakes and payouts. Balances, debits and credits live in PostgreSQL behind authenticated, rate-limited endpoints.',
-    oddsTitle: 'Simulated odds',
+    oddsTitle: 'Model odds',
     oddsBody:
       'Prices are derived from model probabilities. Each outcome probability is converted to decimal odds and a book margin is applied.',
     frozenTitle: 'Frozen prices',
@@ -104,7 +104,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     banner:
       'Sandbox mode is active: balances, bets and payouts are play money. An administrator can switch the platform to live mode.',
     footer:
-      'PredishaBet sandbox is a practice sportsbook. Odds are simulated from the Predisha model and are not live market prices.',
+      'PredishaBet sandbox is a practice sportsbook. Odds are generated from the Predisha model and are not live market prices.',
     gamesTitle: 'Sandbox games',
     gamesDescription:
       'Fast rounds with server-side randomness and play-money stakes. No real-money wagering.',
@@ -117,16 +117,16 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     homeEyebrow: 'Sandbox sportsbook',
     homeAccent: 'Play-money stakes.',
     homeDescription:
-      'PredishaBet turns the Predisha model into a transparent book. Prices are simulated, settlements are server-side and every balance is play money.',
+      'PredishaBet turns the Predisha model into a transparent book. Prices come from the model, settlements are server-side and every balance is play money.',
     walletsTitle: 'Play-money wallets',
     walletsBody:
       'Every balance, stake, promo and payout is play money. Deposits and withdrawals are ledger entries inside the app.',
-    oddsTitle: 'Simulated odds',
+    oddsTitle: 'Model odds',
     oddsBody:
-      'Prices are derived from model probabilities and are simulated for practice. They carry no cash value.',
+      'Prices are derived from model probabilities. Sandbox balances carry no cash value.',
     frozenTitle: 'Frozen prices',
     frozenBody:
-      'A selection is frozen at the price shown when you place the bet; odds are simulated for practice.',
+      'A selection is frozen at the price shown when you place the bet.',
     serverTitle: 'Play-money ledgers',
     serverBody:
       'Every balance change is a stored, idempotent transaction against the play-money wallet.',
