@@ -7,7 +7,7 @@ import {
   type Viewer,
 } from './entitlements'
 
-export const SESSION_COOKIE = 'predisha_session'
+export const SESSION_COOKIE = 'spotibet_session'
 const SESSION_DAYS = 30
 
 export function isAuthConfigured(): boolean {

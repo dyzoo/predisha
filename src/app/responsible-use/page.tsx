@@ -10,7 +10,7 @@ export default function ResponsibleUsePage() {
     <PageShell
       eyebrow="Responsible use"
       title="Use analysis as context, not certainty"
-      intro="Predisha publishes statistical estimates for informational purposes. It is not a bookmaker and does not accept bets, deposits, or wagers."
+      intro="Spotibet publishes statistical estimates for informational purposes. It is not a bookmaker and does not accept bets, deposits, or wagers."
     >
       <section>
         <h2 className="font-display text-lg font-semibold text-main-text">Probabilities are not promises</h2>

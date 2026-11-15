@@ -16,7 +16,7 @@ function demoSeedingEnabled() {
 }
 
 function demoPassword() {
-  const password = process.env.SEED_USER_PASSWORD ?? 'PredishaTest123!'
+  const password = process.env.SEED_USER_PASSWORD ?? 'SpotibetTest123!'
   if (password.length < 12) {
     throw new Error('SEED_USER_PASSWORD must be at least 12 characters.')
   }
@@ -126,7 +126,7 @@ const DEMO_PLANS = {
 const DEMO_USERS = [
   {
     key: 'admin',
-    email: 'admin@predisha.test',
+    email: 'admin@spotibet.test',
     name: 'Ada Admin',
     role: 'ADMIN',
     timezone: 'UTC',
@@ -134,7 +134,7 @@ const DEMO_USERS = [
   },
   {
     key: 'premium',
-    email: 'premium@predisha.test',
+    email: 'premium@spotibet.test',
     name: 'Priya Premium',
     role: 'USER',
     plan: 'monthly',
@@ -144,7 +144,7 @@ const DEMO_USERS = [
   },
   {
     key: 'trial',
-    email: 'trial@predisha.test',
+    email: 'trial@spotibet.test',
     name: 'Tariq Trial',
     role: 'USER',
     plan: 'weekly',
@@ -154,7 +154,7 @@ const DEMO_USERS = [
   },
   {
     key: 'free',
-    email: 'free@predisha.test',
+    email: 'free@spotibet.test',
     name: 'Farah Free',
     role: 'USER',
     timezone: 'UTC',
@@ -162,7 +162,7 @@ const DEMO_USERS = [
   },
   {
     key: 'preview',
-    email: 'preview@predisha.test',
+    email: 'preview@spotibet.test',
     name: 'Pendo Preview',
     role: 'USER',
     timezone: 'Africa/Dar_es_Salaam',
@@ -171,7 +171,7 @@ const DEMO_USERS = [
   },
   {
     key: 'pastdue',
-    email: 'pastdue@predisha.test',
+    email: 'pastdue@spotibet.test',
     name: 'Paul Pastdue',
     role: 'USER',
     plan: 'monthly',
@@ -181,7 +181,7 @@ const DEMO_USERS = [
   },
   {
     key: 'canceled',
-    email: 'canceled@predisha.test',
+    email: 'canceled@spotibet.test',
     name: 'Cara Canceled',
     role: 'USER',
     plan: 'monthly',
@@ -192,7 +192,7 @@ const DEMO_USERS = [
   },
   {
     key: 'unpaid',
-    email: 'unpaid@predisha.test',
+    email: 'unpaid@spotibet.test',
     name: 'Uma Unpaid',
     role: 'USER',
     plan: 'weekly',

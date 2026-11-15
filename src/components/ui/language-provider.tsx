@@ -14,7 +14,7 @@ const LanguageContext = createContext<LanguageContextValue>({
   setLang: () => undefined,
 })
 
-const STORAGE_KEY = 'predisha-lang'
+const STORAGE_KEY = 'spotibet-lang'
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Language>(() => {

@@ -7,7 +7,7 @@ import { maskTzPhone, normalizeTzPhone } from './phone'
 import { creditWallet, debitWallet, getWalletView } from './wallet'
 import type { BetWalletView } from './types'
 
-export const AVIATOR_TRIAL_COOKIE = 'predisha_aviator_trial'
+export const AVIATOR_TRIAL_COOKIE = 'spotibet_aviator_trial'
 export const TRIAL_STAKE_MINOR = 1000
 export const TRIAL_PRIZE_MULTIPLIER = 63
 export const TRIAL_PRIZE_MINOR = TRIAL_STAKE_MINOR * TRIAL_PRIZE_MULTIPLIER

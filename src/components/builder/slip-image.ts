@@ -4,7 +4,7 @@ import { BRAND_LOGO_ASPECT, loadBrandLogo } from '@/lib/brand/logo-image'
 
 const WIDTH = 1080
 const MIN_HEIGHT = 1440
-const ACCENT = '#C8FF43'
+const ACCENT = '#E41827'
 const INK = '#F5F7FA'
 const MUTED = '#A5AFBD'
 const BG = '#101318'
@@ -129,7 +129,7 @@ function drawBrand(
     if (draw) ctx.drawImage(logo, x, top, height * BRAND_LOGO_ASPECT, height)
     return top + height
   }
-  return writeText(ctx, 'PREDISHA', x, top + height, { size: 92, weight: 700, color: ACCENT }, draw)
+  return writeText(ctx, 'SPOTIBET', x, top + height, { size: 92, weight: 700, color: ACCENT }, draw)
 }
 
 function layoutSelection(

@@ -4,12 +4,12 @@
   --background: #101318;
   --surface: #1D232C;
   --elevated-surface: #252C36;
-  --accent: #C8FF43;
+  --accent: #E41827;
   --main-text: #F5F7FA;
   --muted-text: #A5AFBD;
   --border: rgba(255, 255, 255, 0.09);
   --gold-2: #F0D52E;
-  --teal: #1BD093;
+  --teal: #E41827;
   --gold: #F0D52E;
   --card: #141A21;
   --line: rgba(255, 255, 255, 0.09);
@@ -223,7 +223,7 @@ button, a { cursor: pointer; }
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background:
-    radial-gradient(120% 80% at 100% 0%, rgba(200, 255, 67, 0.07), transparent 55%),
+    radial-gradient(120% 80% at 100% 0%, rgba(228, 24, 39, 0.07), transparent 55%),
     linear-gradient(180deg, #252c36 0%, #1a2029 100%);
   box-shadow: 0 18px 40px -32px rgba(0, 0, 0, 0.9);
 }
@@ -268,7 +268,7 @@ button, a { cursor: pointer; }
 .av-pill.is-open,
 .av-pill.is-win {
   color: var(--accent);
-  background: rgba(200, 255, 67, 0.09);
+  background: rgba(228, 24, 39, 0.09);
 }
 
 .av-pill.is-live {
@@ -327,7 +327,7 @@ button, a { cursor: pointer; }
 
 .av-stake:focus-within,
 .av-auto:focus-within {
-  border-color: rgba(200, 255, 67, 0.6);
+  border-color: rgba(228, 24, 39, 0.6);
   background: rgba(9, 12, 16, 0.75);
 }
 
@@ -406,13 +406,13 @@ button, a { cursor: pointer; }
 }
 
 .av-chip:hover {
-  border-color: rgba(200, 255, 67, 0.45);
+  border-color: rgba(228, 24, 39, 0.45);
   color: var(--main-text);
 }
 
 .av-chip.is-active {
-  border-color: rgba(200, 255, 67, 0.7);
-  background: rgba(200, 255, 67, 0.13);
+  border-color: rgba(228, 24, 39, 0.7);
+  background: rgba(228, 24, 39, 0.13);
   color: var(--accent);
 }
 
@@ -426,12 +426,12 @@ button, a { cursor: pointer; }
   border: 0;
   border-radius: 15px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, #f0d52e, #c8ff43);
+  background: linear-gradient(135deg, #f0d52e, #E41827);
   color: #13170c;
   font-size: 1.05rem;
   font-weight: 900;
   letter-spacing: -0.01em;
-  box-shadow: 0 12px 24px -16px rgba(200, 255, 67, 0.7);
+  box-shadow: 0 12px 24px -16px rgba(228, 24, 39, 0.7);
   transition:
     transform 0.12s,
     filter 0.12s,
@@ -448,9 +448,9 @@ button, a { cursor: pointer; }
 }
 
 .av-cta.is-cash {
-  background: linear-gradient(135deg, #1bd093, #8fffd2);
+  background: linear-gradient(135deg, #E41827, #E41827);
   color: #062018;
-  box-shadow: 0 12px 24px -16px rgba(27, 208, 147, 0.8);
+  box-shadow: 0 12px 24px -16px rgba(228, 24, 39, 0.8);
 }
 
 .av-cta.is-wait,
@@ -604,10 +604,10 @@ button, a { cursor: pointer; }
   --main-text: #2a2118;
   --muted-text: #7a6953;
   --border: rgba(74, 54, 28, 0.18);
-  --accent: #1f5d3e;
+  --accent: #E41827;
   --gold-2: #9a6514;
   --gold: #9a6514;
-  --teal: #1f5d3e;
+  --teal: #E41827;
   --line: rgba(74, 54, 28, 0.16);
   --panel: #fbf7ee;
   color: var(--main-text);

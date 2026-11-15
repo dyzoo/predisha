@@ -147,7 +147,7 @@ export function DiceGame() {
           step={1}
           value={target}
           onChange={event => setTarget(Number(event.target.value))}
-          className="mt-2 w-full accent-[#C8FF43]"
+          className="mt-2 w-full accent-[#E41827]"
         />
 
         <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-background/40 p-3 text-center text-xs">

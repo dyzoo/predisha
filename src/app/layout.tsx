@@ -25,8 +25,8 @@ const chivo = Chivo({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Predisha — AI-assisted football analysis',
-    template: '%s · Predisha',
+    default: 'Spotibet — AI-assisted football analysis',
+    template: '%s · Spotibet',
   },
   description:
     'Statistically grounded football predictions with transparent probabilities, data timestamps, and honest performance tracking. Not a bookmaker.',

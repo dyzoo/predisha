@@ -3,7 +3,7 @@ import { PageShell } from '@/components/page-shell'
 
 export const metadata: Metadata = {
   title: 'Methodology',
-  description: 'How Predisha generates and evaluates football predictions.',
+  description: 'How Spotibet generates and evaluates football predictions.',
 }
 
 export default function MethodologyPage() {
@@ -68,7 +68,7 @@ export default function MethodologyPage() {
         <h2 className="font-display text-lg font-semibold text-main-text">Limitations</h2>
         <p className="mt-2">
           Football is low-scoring and noisy. A high probability is not a guarantee, and no model can
-          eliminate uncertainty. Predisha does not accept bets, hold funds, or promise profitability.
+          eliminate uncertainty. Spotibet does not accept bets, hold funds, or promise profitability.
         </p>
       </section>
     </PageShell>

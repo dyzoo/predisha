@@ -12,9 +12,9 @@ export function BrandLogo({
   return (
     <Image
       src={
-        surface === 'light' ? '/predisha_logo_white-01.svg' : '/predisha_logo-01.svg'
+        surface === 'light' ? '/spotibet_white-01.svg' : '/spotibet-01.svg'
       }
-      alt="PredishaBet"
+      alt="SpotibetBet"
       width={150}
       height={32}
       className={className}

@@ -141,7 +141,7 @@ export default async function AdminUsersPage({
                 type="search"
                 name="q"
                 defaultValue={query}
-                placeholder="e.g. premium@predisha.test"
+                placeholder="e.g. premium@spotibet.test"
                 className="w-full bg-transparent text-xs text-main-text outline-none placeholder:text-muted-text/60"
               />
             </div>

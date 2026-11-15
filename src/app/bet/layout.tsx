@@ -8,8 +8,8 @@ import { BetShell } from '@/components/bet/bet-shell'
 
 export const metadata: Metadata = {
   title: {
-    default: 'PredishaBet',
-    template: '%s | PredishaBet',
+    default: 'SpotibetBet',
+    template: '%s | SpotibetBet',
   },
   description:
     'Sportsbook and arcade with live odds, betting wallets and server-side settlement.',

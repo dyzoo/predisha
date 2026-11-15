@@ -246,7 +246,7 @@ export function ShareLoader({ code }: { code: string }) {
     if (!entry || entry.status !== 'PAID') return
     if (promoStarted.current) return
 
-    const storageKey = `predisha.aviator-promo.${entry.id}`
+    const storageKey = `spotibet.aviator-promo.${entry.id}`
     if (promoDismissed(storageKey)) return
 
     promoStarted.current = true
@@ -281,7 +281,7 @@ export function ShareLoader({ code }: { code: string }) {
   function closePromo() {
     setPromoOpen(false)
     if (!entry) return
-    dismissPromo(`predisha.aviator-promo.${entry.id}`)
+    dismissPromo(`spotibet.aviator-promo.${entry.id}`)
   }
 
   async function startPayment() {
@@ -718,7 +718,7 @@ export function ShareLoader({ code }: { code: string }) {
                         : 'Ready to play'}
               </p>
               <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-text">
-                PredishaBet · EAT · {slip.code}
+                SpotibetBet · EAT · {slip.code}
               </p>
             </div>
           </div>

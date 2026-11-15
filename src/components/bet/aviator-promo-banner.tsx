@@ -9,7 +9,7 @@ import { useBetSlip } from './bet-slip-provider'
 function crashTone(value: number): string {
   if (value < 2) return 'text-red-300'
   if (value < 10) return 'text-[#f0d52e]'
-  return 'text-[#c8ff43]'
+  return 'text-[#E41827]'
 }
 
 function liveCopy(pulse: AviatorPulseView | null): { title: string; detail: string } {

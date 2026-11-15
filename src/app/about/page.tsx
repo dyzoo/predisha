@@ -5,7 +5,7 @@ import { PageShell } from '@/components/page-shell'
 
 export const metadata: Metadata = {
   title: 'About',
-  description: 'What Predisha is, what it refuses to do, and how the product is being built.',
+  description: 'What Spotibet is, what it refuses to do, and how the product is being built.',
 }
 
 export default function AboutPage() {
@@ -13,7 +13,7 @@ export default function AboutPage() {
     <PageShell
       eyebrow="About"
       title="Sports analysis without the casino"
-      intro="Predisha is an informational sports analytics product. We publish statistically grounded estimates, show the data behind them, and never accept bets or promise outcomes."
+      intro="Spotibet is an informational sports analytics product. We publish statistically grounded estimates, show the data behind them, and never accept bets or promise outcomes."
     >
       <section>
         <h2 className="font-display text-lg font-semibold text-main-text">What this is</h2>

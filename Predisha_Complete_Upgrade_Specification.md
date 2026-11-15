@@ -1,6 +1,6 @@
-# Predisha --- Complete Upgrade Specification for the Coding Agent
+# Spotibet --- Complete Upgrade Specification for the Coding Agent
 
-**Purpose:** Upgrade the existing Predisha football prediction platform
+**Purpose:** Upgrade the existing Spotibet football prediction platform
 to provide broader fixture coverage, configurable prediction generation,
 transparent odds/probability analysis, better explanations, reliable
 performance evaluation, and a polished user experience.
@@ -16,19 +16,19 @@ is necessary and explained.
 
 ## 1. Product positioning and boundaries
 
-Predisha is an AI-assisted football prediction and analysis platform. It
+Spotibet is an AI-assisted football prediction and analysis platform. It
 helps users discover, compare and understand statistically evaluated
 football predictions.
 
-Predisha is **not a bookmaker**. It must not receive or hold betting
+Spotibet is **not a bookmaker**. It must not receive or hold betting
 funds, provide betting wallets, place or settle bets, or claim
 guaranteed wins or profits. Users independently decide whether to use an
-external betting provider. Any stake entered in Predisha is a calculator
+external betting provider. Any stake entered in Spotibet is a calculator
 input only.
 
 Suggested positioning:
 
-> Predisha helps users discover, compare and understand statistically
+> Spotibet helps users discover, compare and understand statistically
 > evaluated football predictions, with transparent probabilities,
 > potential odds and risk analysis.
 
@@ -251,7 +251,7 @@ For decimal odds:
 
 `Potential net return = potential gross return − stake`
 
-These are hypothetical calculator outputs only. Predisha does not accept
+These are hypothetical calculator outputs only. Spotibet does not accept
 or place bets. If odds are missing or stale, do not calculate a fake
 combined price or return.
 
@@ -275,7 +275,7 @@ calculates.
 
 ## 11. UX and interface
 
-Preserve Predisha's existing dark, premium, neon-lime visual direction
+Preserve Spotibet's existing dark, premium, neon-lime visual direction
 and design system. Extend it rather than replacing it with a generic
 template.
 
@@ -505,7 +505,7 @@ decisions, destructive operations or genuine user approval.
 ## 18. Master prompt
 
 You are a senior full-stack engineer, football data engineer and applied
-machine-learning engineer working on the existing Predisha platform.
+machine-learning engineer working on the existing Spotibet platform.
 
 Read this entire specification and all relevant repository documentation
 before changing code. Upgrade the existing application; do not rebuild
@@ -545,7 +545,7 @@ and seven pass quality checks, return seven and explain why. Use actual
 backend counts, never fake progress. Never fabricate odds, statistics or
 news.
 
-Predisha is not a bookmaker. Do not add wallets, deposits, bet
+Spotibet is not a bookmaker. Do not add wallets, deposits, bet
 placement, settlement or custody of funds. Stake is only a calculator
 input. Never promise wins or profits.
 
@@ -564,7 +564,7 @@ approximation - No eligible selections found
 Avoid: - Guaranteed win - Sure odds - 100% prediction - Risk-free
 profit - Guaranteed income - This bet will win - AI knows the result
 
-**Final principle:** Predisha should help users make better-informed
+**Final principle:** Spotibet should help users make better-informed
 decisions by showing what the model estimates, what data supports it,
 what remains uncertain, and how the platform has performed over a
 clearly defined historical sample.

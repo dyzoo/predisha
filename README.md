@@ -1,6 +1,6 @@
-# Predisha — AI Sports Predictions Platform
+# Spotibet — AI Sports Predictions Platform
 
-An international sports analytics subscription platform. Predisha does **not** accept bets, hold
+An international sports analytics subscription platform. Spotibet does **not** accept bets, hold
 betting funds, or operate as a bookmaker. A high model probability is never a guaranteed result.
 
 ## Stack
@@ -40,19 +40,19 @@ is hardcoded and no fake payment succeeds.
 ### Development test accounts
 
 Outside production, `npm run db:seed` also creates verified test accounts with varied access. The
-shared password defaults to `PredishaTest123!` and can be changed with `SEED_USER_PASSWORD`. Set
+shared password defaults to `SpotibetTest123!` and can be changed with `SEED_USER_PASSWORD`. Set
 `SEED_DEMO_USERS=false` to skip them.
 
 | Email | Access |
 | --- | --- |
-| `admin@predisha.test` | Admin role (full access) |
-| `premium@predisha.test` | Active monthly subscription |
-| `trial@predisha.test` | Trialing weekly subscription |
-| `free@predisha.test` | Free account, preview unused |
-| `preview@predisha.test` | Free account, preview already used |
-| `pastdue@predisha.test` | Past-due subscription |
-| `canceled@predisha.test` | Canceled subscription |
-| `unpaid@predisha.test` | Unpaid subscription |
+| `admin@spotibet.test` | Admin role (full access) |
+| `premium@spotibet.test` | Active monthly subscription |
+| `trial@spotibet.test` | Trialing weekly subscription |
+| `free@spotibet.test` | Free account, preview unused |
+| `preview@spotibet.test` | Free account, preview already used |
+| `pastdue@spotibet.test` | Past-due subscription |
+| `canceled@spotibet.test` | Canceled subscription |
+| `unpaid@spotibet.test` | Unpaid subscription |
 
 These accounts skip email verification for local testing only. Never enable demo seeding in
 production with a shared password.
@@ -116,7 +116,7 @@ A self-contained, play-money sportsbook cloned from paribet.co.tz and hardened:
   for a mobile-money PIN and never calls an external withdrawal service.
 - Server-owned sessions, wallets and rate limits; all mutations require the signed-in cookie and a
   same-origin request.
-- Odds are derived from the Predisha model with a 6% margin and labelled as simulated, never as live
+- Odds are derived from the Spotibet model with a 6% margin and labelled as simulated, never as live
   market prices.
 - Fixtures come from the same provider feed as the analysis product; arcade games use server-side
   randomness.

@@ -13,7 +13,7 @@ import type { ClientViewer } from '@/lib/auth/entitlements'
 import type { BetSlipItem, BetTicketView, BetWalletView } from '@/lib/bet/types'
 import { MAX_SELECTIONS, MIN_STAKE_MINOR } from '@/lib/bet/types'
 
-const STORAGE_KEY = 'predisha.bet.slip.v1'
+const STORAGE_KEY = 'spotibet.bet.slip.v1'
 const DEFAULT_STAKE = 1_000
 
 interface PlaceBetResult {

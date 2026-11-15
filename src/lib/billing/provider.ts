@@ -81,7 +81,7 @@ export class HarakaPayBillingProvider implements BillingProvider {
       phone,
       amountMinor: plan.amountMinor,
       currency: plan.currency,
-      description: `Predisha ${plan.interval.toLowerCase()} premium subscription`,
+      description: `Spotibet ${plan.interval.toLowerCase()} premium subscription`,
       webhookUrl: `${appUrl}/api/webhooks/${HARAKAPAY_PROVIDER_NAME}`,
     })
     if (!order.success || !order.orderId) return null

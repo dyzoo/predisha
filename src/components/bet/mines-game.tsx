@@ -272,7 +272,7 @@ export function MinesGame() {
                   max={24}
                   value={mines}
                   onChange={event => setMines(Number(event.target.value))}
-                  className="mt-2 w-full accent-[#C8FF43]"
+                  className="mt-2 w-full accent-[#E41827]"
                 />
 
                 <button

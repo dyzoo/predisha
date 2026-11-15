@@ -30,11 +30,11 @@ export function safeNextPath(value: string | string[] | undefined): string | nul
 
   let url: URL
   try {
-    url = new URL(raw, 'http://predisha.local')
+    url = new URL(raw, 'http://spotibet.local')
   } catch {
     return null
   }
-  if (url.origin !== 'http://predisha.local') return null
+  if (url.origin !== 'http://spotibet.local') return null
 
   const path = `${url.pathname}${url.search}${url.hash}`
   const lower = path.toLowerCase()

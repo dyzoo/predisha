@@ -1,8 +1,8 @@
-# Predisha System Architecture & Model
+# Spotibet System Architecture & Model
 
 ## 1. Overview
 
-Predisha is an AI-assisted sports analytics subscription platform built on Next.js App Router + TypeScript (strict). It provides transparent statistical predictions (Elo + Poisson baseline), a prediction builder (slip generator), historical evaluation, user accounts/subscriptions, and an optional third-party bookmaker link layer. The platform does **not** accept bets, hold funds, or operate as a bookmaker.
+Spotibet is an AI-assisted sports analytics subscription platform built on Next.js App Router + TypeScript (strict). It provides transparent statistical predictions (Elo + Poisson baseline), a prediction builder (slip generator), historical evaluation, user accounts/subscriptions, and an optional third-party bookmaker link layer. The platform does **not** accept bets, hold funds, or operate as a bookmaker.
 
 ## 2. Technology Stack
 
@@ -147,7 +147,7 @@ API endpoints include `GET /api/fixtures`, `/api/predictions`, `/api/results`, `
 
 ## 11. UI & Design System
 
-- Dark premium sports analytics theme; restrained neon-lime accent (`#C8FF43`).
+- Dark premium sports analytics theme; restrained neon-lime accent (`#E41827`).
 - Tokens: Background `#101318`, Surface `#1D232C`, Elevated `#252C36`, Main text `#F5F7FA`, Muted `#A5AFBD`, Border `rgba(255,255,255,0.09)`.
 - Accessible: `prefers-reduced-motion`, keyboard navigation, visible focus, semantic HTML, touch targets, text alternatives for charts, reduced-motion mode support.
 - Responsive: desktop sidebar/top nav, mobile bottom bar; match cards, probability bars, skeleton loaders, empty/error/retry states.
@@ -162,7 +162,7 @@ API endpoints include `GET /api/fixtures`, `/api/predictions`, `/api/results`, `
 
 ## 13. Milestones Completed
 
-Per `Predisha_MD.md` (622 lines):
+Per `Spotibet_MD.md` (622 lines):
 
 - **M0 Audit:** Completed; stack reported; database schema inspected; existing features documented.
 - **M1 Data Quality & Provenance:** Schema updated (`Fixture` provenance fields); `src/lib/sports/data-quality.ts` service created.

@@ -20,7 +20,7 @@ export default async function BetTicketsPage() {
     return (
       <AuthRequired
         title="Sign in to see your tickets"
-        description="Tickets, settlements and cash-out values are tied to your Predisha account."
+        description="Tickets, settlements and cash-out values are tied to your Spotibet account."
         nextPath="/bet/bets"
       />
     )

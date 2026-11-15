@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 async function main() {
   const stamp = Date.now()
-  const email = `smoke+${stamp}@predisha.local`
+  const email = `smoke+${stamp}@spotibet.local`
   const user = await prisma.user.create({
     data: { email, name: 'Smoke Test' },
   })

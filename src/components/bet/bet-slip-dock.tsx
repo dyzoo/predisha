@@ -364,7 +364,7 @@ export function BetSlipDock() {
                   {success ? 'Bet accepted' : items.length === 0 ? 'Add selections' : 'Good luck'}
                 </p>
                 <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-text">
-                  PredishaBet · EAT
+                  SpotibetBet · EAT
                 </p>
               </div>
             </div>

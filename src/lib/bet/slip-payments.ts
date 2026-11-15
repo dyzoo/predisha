@@ -53,10 +53,10 @@ async function resolveEntryUserId(
   if (userId) return userId
 
   const guest = await prisma.user.upsert({
-    where: { email: `guest-${phone}@guest.predisha.invalid` },
+    where: { email: `guest-${phone}@guest.spotibet.invalid` },
     update: {},
     create: {
-      email: `guest-${phone}@guest.predisha.invalid`,
+      email: `guest-${phone}@guest.spotibet.invalid`,
       preferences: { create: {} },
     },
     select: { id: true },
@@ -193,7 +193,7 @@ export async function startSlipPayment(input: {
     phone: normalized.phone,
     amountMinor: record.stakeMinor,
     currency: 'TZS',
-    description: `PredishaBet slip ${record.code}`,
+    description: `SpotibetBet slip ${record.code}`,
     webhookUrl: `${appUrl()}/api/webhooks/${HARAKAPAY_PROVIDER_NAME}`,
   })
 

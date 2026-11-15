@@ -29,14 +29,14 @@ export interface DemoDataset {
 const TEAMS: DemoTeam[] = [
   { id: 'demo-northbridge', name: 'Northbridge FC', shortName: 'NBR', color: '#5B8CFF', strength: 1.28, providerId: 'demo-northbridge' },
   { id: 'demo-atlas', name: 'Atlas United', shortName: 'ATL', color: '#FF7A59', strength: 1.12, providerId: 'demo-atlas' },
-  { id: 'demo-harbor', name: 'Harbor City', shortName: 'HBR', color: '#2FD3A5', strength: 1.05, providerId: 'demo-harbor' },
+  { id: 'demo-harbor', name: 'Harbor City', shortName: 'HBR', color: '#E41827', strength: 1.05, providerId: 'demo-harbor' },
   { id: 'demo-meridian', name: 'Meridian Rovers', shortName: 'MER', color: '#F5C542', strength: 0.98, providerId: 'demo-meridian' },
-  { id: 'demo-kingsport', name: 'Kingsport Athletic', shortName: 'KPA', color: '#C8FF43', strength: 1.18, providerId: 'demo-kingsport' },
+  { id: 'demo-kingsport', name: 'Kingsport Athletic', shortName: 'KPA', color: '#E41827', strength: 1.18, providerId: 'demo-kingsport' },
   { id: 'demo-vale', name: 'Vale Sporting', shortName: 'VLS', color: '#9B8CFF', strength: 0.9, providerId: 'demo-vale' },
   { id: 'demo-eastgate', name: 'Eastgate FC', shortName: 'EGT', color: '#FF5CA8', strength: 1.14, providerId: 'demo-eastgate' },
   { id: 'demo-summit', name: 'Summit Wanderers', shortName: 'SMW', color: '#4FD1FF', strength: 1.08, providerId: 'demo-summit' },
   { id: 'demo-redcliff', name: 'Redcliff Town', shortName: 'RCT', color: '#FFB35C', strength: 0.94, providerId: 'demo-redcliff' },
-  { id: 'demo-aurora', name: 'Aurora FC', shortName: 'AUR', color: '#79E0A3', strength: 1.02, providerId: 'demo-aurora' },
+  { id: 'demo-aurora', name: 'Aurora FC', shortName: 'AUR', color: '#E41827', strength: 1.02, providerId: 'demo-aurora' },
   { id: 'demo-quarry', name: 'Quarry Lane', shortName: 'QRL', color: '#E0C46A', strength: 0.88, providerId: 'demo-quarry' },
   { id: 'demo-lumen', name: 'Lumen Park', shortName: 'LMP', color: '#8FB4FF', strength: 1.22, providerId: 'demo-lumen' },
 ]

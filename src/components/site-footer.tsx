@@ -26,7 +26,7 @@ export function SiteFooter() {
       <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div className="max-w-sm">
-            <Link href="/" className="flex items-center" aria-label="Predisha home">
+            <Link href="/" className="flex items-center" aria-label="Spotibet home">
               <BrandLogo className="h-14 w-auto sm:h-16" />
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted-text">
@@ -74,7 +74,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 text-xs text-muted-text sm:flex-row sm:items-center sm:justify-between">
-          <p>© Predisha. Informational analysis only — not betting advice.</p>
+          <p>© Spotibet. Informational analysis only — not betting advice.</p>
           <p>Predictions are probabilities, not certainties. 18+ where applicable.</p>
         </div>
       </div>

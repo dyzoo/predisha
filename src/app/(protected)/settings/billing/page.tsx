@@ -61,7 +61,7 @@ export default async function BillingSettingsPage() {
     <PageShell
       eyebrow="Settings"
       title="Billing"
-      intro="Subscription status and payment controls. No card details are stored or displayed by Predisha."
+      intro="Subscription status and payment controls. No card details are stored or displayed by Spotibet."
     >
       <SettingsNav active="/settings/billing" />
 
@@ -114,7 +114,7 @@ export default async function BillingSettingsPage() {
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
               <p>
                 {provider === 'harakapay'
-                  ? 'HarakaPay collects premium subscriptions through a USSD push to the phone number you provide. Approve the payment on your handset; Predisha does not store or handle card details.'
+                  ? 'HarakaPay collects premium subscriptions through a USSD push to the phone number you provide. Approve the payment on your handset; Spotibet does not store or handle card details.'
                   : 'Test billing is enabled on this deployment. Activating a plan grants premium immediately without taking a real payment.'}
               </p>
             </div>
