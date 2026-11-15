@@ -544,10 +544,7 @@ export function ShareLoader({ code }: { code: string }) {
                 <span className="text-[11px] text-muted-text">One result per match</span>
               </div>
 
-              <ul
-                className={`mt-3 space-y-2 ${paid ? '' : 'pointer-events-none select-none blur-sm'}`}
-                aria-hidden={!paid}
-              >
+              <ul className="mt-3 space-y-2">
                 {slip.selections.map((selection, index) => {
                   return (
                     <li
@@ -561,19 +558,29 @@ export function ShareLoader({ code }: { code: string }) {
                         <p className="truncate text-sm font-semibold text-main-text">
                           {selection.fixtureLabel}
                         </p>
-                        <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-text">
-                          {selection.competition}
-                        </p>
-                        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-                          <span className="font-semibold text-accent">{selection.marketName}</span>
-                          <span className="text-muted-text">{selection.selectionLabel}</span>
-                        </p>
-                        <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-muted-text">
-                          <Clock className="h-3 w-3" />
-                          {kickoffLabel(selection)}
-                        </p>
+                        <div
+                          className={paid ? '' : 'pointer-events-none select-none blur-sm'}
+                          aria-hidden={!paid}
+                        >
+                          <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-text">
+                            {selection.competition}
+                          </p>
+                          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                            <span className="font-semibold text-accent">{selection.marketName}</span>
+                            <span className="text-muted-text">{selection.selectionLabel}</span>
+                          </p>
+                          <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-muted-text">
+                            <Clock className="h-3 w-3" />
+                            {kickoffLabel(selection)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex shrink-0 flex-col items-center justify-center rounded-xl border border-accent/35 bg-accent/10 px-3 py-1.5 text-center">
+                      <div
+                        className={`flex shrink-0 flex-col items-center justify-center rounded-xl border border-accent/35 bg-accent/10 px-3 py-1.5 text-center ${
+                          paid ? '' : 'pointer-events-none select-none blur-sm'
+                        }`}
+                        aria-hidden={!paid}
+                      >
                         <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-text">
                           Odds
                         </span>
@@ -588,7 +595,7 @@ export function ShareLoader({ code }: { code: string }) {
 
               {!paid ? (
                 <p className="mt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-text">
-                  Selections unlock after payment
+                  Teams shown; picks and odds unlock after payment
                 </p>
               ) : null}
 
