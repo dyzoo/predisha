@@ -14,7 +14,7 @@ export function loadBrandLogo(surface: LogoSurface = 'dark'): Promise<HTMLImageE
     const image = new window.Image()
     image.onload = () => resolve(image)
     image.onerror = () => resolve(null)
-    image.src = surface === 'light' ? '/spotibet_white-01.svg' : '/spotibet-01.svg'
+    image.src = surface === 'dark' ? '/spotibet_white-01.svg' : '/spotibet_01.svg'
   })
 
   logoCache.set(surface, promise)

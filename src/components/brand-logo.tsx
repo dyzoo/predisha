@@ -12,7 +12,7 @@ export function BrandLogo({
   return (
     <Image
       src={
-        surface === 'light' ? '/spotibet_white-01.svg' : '/spotibet-01.svg'
+        surface === 'dark' ? '/spotibet_white-01.svg' : '/spotibet_01.svg'
       }
       alt="SpotibetBet"
       width={150}
