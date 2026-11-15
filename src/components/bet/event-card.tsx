@@ -3,6 +3,7 @@ import { ArrowUpRight, Radio } from 'lucide-react'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { statusLabel } from '@/lib/bet/format'
 import type { BetEvent } from '@/lib/bet/types'
+import { EventMoreMarkets } from './event-more-markets'
 import { OddsButton } from './odds-button'
 
 export function EventCard({ event }: { event: BetEvent }) {
@@ -73,6 +74,8 @@ export function EventCard({ event }: { event: BetEvent }) {
           <OddsButton key={selection.id} event={event} selection={selection} />
         ))}
       </div>
+
+      <EventMoreMarkets event={event} />
 
       <div className="mt-3 flex items-center justify-between gap-3">
         <span className="text-[10px] text-muted-text">Match odds</span>

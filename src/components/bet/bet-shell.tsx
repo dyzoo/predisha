@@ -4,8 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef, type ReactNode } from 'react'
 import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
   ClipboardList,
   Gamepad2,
   Gift,
@@ -15,7 +13,6 @@ import {
   Ticket,
   Trophy,
   UserRound,
-  Wallet,
 } from 'lucide-react'
 import type { ClientViewer } from '@/lib/auth/entitlements'
 import { formatTzs } from '@/lib/bet/format'
@@ -25,6 +22,7 @@ import { BetSlipProvider, useBetSlip } from './bet-slip-provider'
 import { BetModeProvider, useBetMode } from './bet-mode-context'
 import { betModeCopy } from '@/lib/bet/mode-copy'
 import { BrandLogo } from '@/components/brand-logo'
+import { WalletQuickActions } from './wallet-quick-actions'
 
 const NAV = [
   { href: '/bet', label: 'Home', icon: Home },
@@ -283,46 +281,13 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
         </div>
       </nav>
 
-      <div className="fixed right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col items-end gap-2 sm:right-4">
-        <Link
-          href={walletHref}
-          title="Wallet"
-          aria-label={
-            viewer.userId
-              ? `Wallet balance ${walletDisplay}`
-              : 'Sign in or create an account to use your wallet'
-          }
-          className="group flex h-11 items-center gap-2 rounded-full border border-border bg-background/95 px-2.5 text-main-text shadow-lg shadow-black/10 backdrop-blur transition-all hover:-translate-x-0.5 hover:border-accent/40 hover:bg-surface sm:px-3"
-        >
-          <Wallet className="h-4 w-4 shrink-0 text-accent" />
-          <span className="hidden text-xs font-semibold sm:inline">Wallet</span>
-          <span className="hidden font-mono text-[11px] font-bold tabular-nums text-muted-text lg:inline">
-            {walletDisplay}
-          </span>
-        </Link>
-        <Link
-          href={depositHref}
-          title="Deposit"
-          aria-label={
-            viewer.userId ? 'Deposit funds' : 'Sign in or create an account to deposit funds'
-          }
-          className="group flex h-11 items-center gap-2 rounded-full border border-accent/30 bg-accent px-2.5 text-background shadow-lg shadow-accent/20 transition-all hover:-translate-x-0.5 hover:opacity-90 sm:px-3"
-        >
-          <ArrowDownToLine className="h-4 w-4 shrink-0" />
-          <span className="hidden text-xs font-semibold sm:inline">Deposit</span>
-        </Link>
-        <Link
-          href={withdrawHref}
-          title="Withdraw"
-          aria-label={
-            viewer.userId ? 'Withdraw funds' : 'Sign in or create an account to withdraw funds'
-          }
-          className="group flex h-11 items-center gap-2 rounded-full border border-border bg-background/95 px-2.5 text-main-text shadow-lg shadow-black/10 backdrop-blur transition-all hover:-translate-x-0.5 hover:border-accent/40 hover:bg-surface sm:px-3"
-        >
-          <ArrowUpFromLine className="h-4 w-4 shrink-0 text-muted-text" />
-          <span className="hidden text-xs font-semibold sm:inline">Withdraw</span>
-        </Link>
-      </div>
+      <WalletQuickActions
+        signedIn={Boolean(viewer.userId)}
+        walletDisplay={walletDisplay}
+        walletHref={walletHref}
+        depositHref={depositHref}
+        withdrawHref={withdrawHref}
+      />
 
       {isGamePage ? null : <BetSlipDock />}
     </div>
