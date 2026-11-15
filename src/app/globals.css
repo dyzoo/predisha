@@ -631,7 +631,6 @@ button, a { cursor: pointer; }
 }
 
 .receipt-dock {
-  position: relative;
   border: 1px solid rgba(74, 54, 28, 0.18);
   border-bottom: 0;
   border-bottom-left-radius: 0;
