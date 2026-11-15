@@ -1,6 +1,6 @@
 export type LogoSurface = 'dark' | 'light'
 
-export const BRAND_LOGO_ASPECT = 150 / 32
+export const BRAND_LOGO_ASPECT = 282.24 / 96.48
 
 const logoCache = new Map<LogoSurface, Promise<HTMLImageElement | null>>()
 
@@ -14,7 +14,7 @@ export function loadBrandLogo(surface: LogoSurface = 'dark'): Promise<HTMLImageE
     const image = new window.Image()
     image.onload = () => resolve(image)
     image.onerror = () => resolve(null)
-    image.src = surface === 'dark' ? '/spotibet_white-01.svg' : '/spotibet_01.svg'
+    image.src = surface === 'dark' ? '/Spotibetone_white-01.svg' : '/Spotibetone-01.svg'
   })
 
   logoCache.set(surface, promise)
