@@ -7,7 +7,7 @@ import type { BetMode } from '@/lib/bet/mode'
 
 export const metadata: Metadata = {
   title: 'How it works',
-  description: 'How PredishaBet generates model odds and settles tickets and games.',
+  description: 'How PredishaBet settles tickets and games.',
 }
 
 export default async function BetHowItWorksPage() {
@@ -41,7 +41,7 @@ export default async function BetHowItWorksPage() {
           {
             icon: Scale,
             title: 'Auditable prices',
-            body: 'Model probabilities plus a published margin, frozen per request.',
+            body: 'Prices include a published margin and are locked per request.',
           },
           {
             icon: Wallet,

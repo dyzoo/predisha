@@ -6,7 +6,7 @@ import { getBetCatalog } from '@/lib/bet/catalog'
 
 export const metadata: Metadata = {
   title: 'Live',
-  description: 'In-play fixtures with model odds and server-side settlement.',
+  description: 'In-play fixtures with server-side settlement.',
 }
 
 export default async function BetLivePage() {
@@ -19,7 +19,7 @@ export default async function BetLivePage() {
       <SectionHeading
         eyebrow="In play"
         title="Live fixtures"
-        description="Scores come from the fixture feed. Model prices are frozen when you place a bet."
+        description="Scores come from the fixture feed. Prices are locked when you place a bet."
         action="All sports"
         actionHref="/bet/sports"
       />

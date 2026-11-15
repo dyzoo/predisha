@@ -75,7 +75,7 @@ export function EventCard({ event }: { event: BetEvent }) {
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-[10px] text-muted-text">Model odds</span>
+        <span className="text-[10px] text-muted-text">Match odds</span>
         <Link
           href={`/bet/match/${event.id}`}
           className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline"

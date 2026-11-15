@@ -545,7 +545,6 @@ export function ShareLoader({ code }: { code: string }) {
 
               <ul className="mt-3 space-y-2">
                 {slip.selections.map((selection, index) => {
-                  const probability = Math.round(selection.probability * 100)
                   return (
                     <li
                       key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
@@ -568,7 +567,6 @@ export function ShareLoader({ code }: { code: string }) {
                         <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-muted-text">
                           <Clock className="h-3 w-3" />
                           {kickoffLabel(selection)}
-                          {probability > 0 ? <span>| Model {probability}%</span> : null}
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-center justify-center rounded-xl border border-accent/35 bg-accent/10 px-3 py-1.5 text-center">

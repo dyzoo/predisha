@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: '%s | PredishaBet',
   },
   description:
-    'Sportsbook and arcade with transparent model-generated odds, betting wallets and server-side settlement.',
+    'Sportsbook and arcade with live odds, betting wallets and server-side settlement.',
 }
 
 export default async function BetLayout({ children }: { children: ReactNode }) {

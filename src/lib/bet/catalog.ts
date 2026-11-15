@@ -78,7 +78,7 @@ export function buildBetEvent(analysis: MatchAnalysis, now: Date): BetEvent {
     modelVersion: prediction?.modelVersion ?? null,
     simulated: true,
     oddsAsOf: now.toISOString(),
-    sourceLabel: 'Fixture feed · model-implied odds',
+    sourceLabel: 'Fixture feed',
   }
 }
 

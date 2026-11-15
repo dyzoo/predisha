@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!event) return { title: 'Fixture not found' }
   return {
     title: `${event.home.name} vs ${event.away.name}`,
-    description: `Model odds for ${event.home.name} vs ${event.away.name} in ${event.competition}.`,
+    description: `Odds for ${event.home.name} vs ${event.away.name} in ${event.competition}.`,
   }
 }
 
@@ -64,7 +64,7 @@ export default async function BetMatchPage({ params }: { params: Params }) {
             <p className="font-display text-3xl font-bold tabular-nums sm:text-5xl">
               {event.score ? `${event.score.home}–${event.score.away}` : 'vs'}
             </p>
-            <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-text">Model odds</p>
+            <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-text">Match odds</p>
           </div>
           <div className="flex min-w-0 flex-col items-center text-center">
             <TeamBadge team={event.away} size="lg" />
@@ -89,18 +89,15 @@ export default async function BetMatchPage({ params }: { params: Params }) {
           </div>
         ) : null}
 
-        <p className="mt-4 text-[11px] text-muted-text">
-          {event.sourceLabel}
-          {event.modelVersion ? ` · model ${event.modelVersion}` : ''}
-        </p>
+        <p className="mt-4 text-[11px] text-muted-text">{event.sourceLabel}</p>
       </section>
 
       <MarketPanel event={event} />
 
       <p className="text-[11px] leading-relaxed text-muted-text">
-        Prices are generated from model probabilities with a 6% book margin. A selection is frozen
-        at the price shown when you place the bet; if the model price has moved by more than 0.02,
-        the API asks you to review the slip instead of accepting a stale price.
+        Prices include a 6% book margin. A selection is frozen at the price shown when you place the
+        bet; if the price has moved by more than 0.02, the API asks you to review the slip instead of
+        accepting a stale price.
       </p>
     </div>
   )

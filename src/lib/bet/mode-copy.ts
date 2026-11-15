@@ -55,7 +55,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
       'Enter the amount and mobile-money number. The transfer is recorded against your wallet and processed for payout.',
     banner: null,
     footer:
-      'PredishaBet live sportsbook. Odds are generated from the Predisha model and confirmed server-side when you place a bet.',
+      'PredishaBet live sportsbook. Prices are confirmed server-side when you place a bet.',
     gamesTitle: 'Games',
     gamesDescription: 'Every round is settled server-side against your betting wallet.',
     promosTitle: 'Bonuses',
@@ -67,13 +67,13 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     homeEyebrow: 'Live sportsbook',
     homeAccent: 'Betting stakes.',
     homeDescription:
-      'PredishaBet turns the Predisha model into a transparent book. Prices come from the model, settlements are server-side and wallet funding runs through mobile money.',
+      'PredishaBet brings live and upcoming fixtures together with a fast bet slip, server-side settlement and mobile-money funding.',
     walletsTitle: 'Server-owned wallets',
     walletsBody:
       'Betting wallets hold stakes and payouts. Balances, debits and credits live in PostgreSQL behind authenticated, rate-limited endpoints.',
-    oddsTitle: 'Model odds',
+    oddsTitle: 'Fixed prices',
     oddsBody:
-      'Prices are derived from model probabilities. Each outcome probability is converted to decimal odds and a book margin is applied.',
+      'Prices include a book margin and are locked when you place the bet.',
     frozenTitle: 'Frozen prices',
     frozenBody:
       'A selection is frozen at the price shown when you place the bet; the API rechecks it at placement and rejects stale prices.',
@@ -104,7 +104,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     banner:
       'Sandbox mode is active: balances, bets and payouts are play money. An administrator can switch the platform to live mode.',
     footer:
-      'PredishaBet sandbox is a practice sportsbook. Odds are generated from the Predisha model and are not live market prices.',
+      'PredishaBet sandbox is a practice sportsbook. All balances and payouts are play money.',
     gamesTitle: 'Sandbox games',
     gamesDescription:
       'Fast rounds with server-side randomness and play-money stakes. No real-money wagering.',
@@ -117,13 +117,13 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     homeEyebrow: 'Sandbox sportsbook',
     homeAccent: 'Play-money stakes.',
     homeDescription:
-      'PredishaBet turns the Predisha model into a transparent book. Prices come from the model, settlements are server-side and every balance is play money.',
+      'PredishaBet sandbox brings fixtures, a fast bet slip and play-money settlement together in one place.',
     walletsTitle: 'Play-money wallets',
     walletsBody:
       'Every balance, stake, promo and payout is play money. Deposits and withdrawals are ledger entries inside the app.',
-    oddsTitle: 'Model odds',
+    oddsTitle: 'Fixed prices',
     oddsBody:
-      'Prices are derived from model probabilities. Sandbox balances carry no cash value.',
+      'Prices include a book margin. Sandbox balances carry no cash value.',
     frozenTitle: 'Frozen prices',
     frozenBody:
       'A selection is frozen at the price shown when you place the bet.',
