@@ -422,7 +422,7 @@ export function ShareLoader({ code }: { code: string }) {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <BrandLogo surface="light" className="h-8 w-auto" />
-                <h1 className="mt-1 truncate font-display text-2xl font-semibold text-main-text">
+                <h1 className="mt-1 truncate font-display text-2xl font-bold italic text-main-text">
                   {slip.title ?? (isSandbox ? 'Sandbox bet slip' : 'Shared bet slip')}
                 </h1>
                 <p className="mt-1 font-mono text-sm tracking-[0.24em] text-accent">{slip.code}</p>
@@ -473,19 +473,19 @@ export function ShareLoader({ code }: { code: string }) {
             <div className="mt-4 grid grid-cols-3 gap-2">
               <div className="rounded-xl border border-border bg-white/50 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Stake</p>
-                <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-main-text">
+                <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-main-text">
                   {formatTzs(slip.stakeMinor)}
                 </p>
               </div>
               <div className="rounded-xl border border-accent/35 bg-accent/10 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Total odds</p>
-                <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-accent">
+                <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-accent">
                   {formatOdds(slip.totalOdds)}
                 </p>
               </div>
               <div className="rounded-xl border border-border bg-white/50 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Payout</p>
-                <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-main-text">
+                <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-main-text">
                   {formatTzs(slip.potentialReturnMinor)}
                 </p>
               </div>
@@ -574,7 +574,7 @@ export function ShareLoader({ code }: { code: string }) {
                         <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-text">
                           Odds
                         </span>
-                        <span className="font-mono text-base font-bold tabular-nums text-accent">
+                        <span className="font-mono text-base font-black tabular-nums text-accent">
                           {formatOdds(selection.odds)}
                         </span>
                       </div>
