@@ -596,3 +596,151 @@ button, a { cursor: pointer; }
     font-size: 40px;
   }
 }
+
+.receipt-paper {
+  --background: #f6efdf;
+  --surface: #fbf7ee;
+  --elevated-surface: #efe5d2;
+  --main-text: #2a2118;
+  --muted-text: #7a6953;
+  --border: rgba(74, 54, 28, 0.18);
+  --accent: #1f5d3e;
+  --gold-2: #9a6514;
+  --gold: #9a6514;
+  --teal: #1f5d3e;
+  --line: rgba(74, 54, 28, 0.16);
+  --panel: #fbf7ee;
+  color: var(--main-text);
+  background-color: #f6efdf;
+  background-image:
+    radial-gradient(circle at 16% 8%, rgba(255, 255, 255, 0.7), transparent 34%),
+    radial-gradient(circle at 88% 92%, rgba(170, 142, 96, 0.15), transparent 42%),
+    repeating-linear-gradient(0deg, rgba(74, 54, 28, 0.035) 0 1px, transparent 1px 28px);
+}
+
+.receipt-sheet {
+  position: relative;
+  border: 1px solid rgba(74, 54, 28, 0.16);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 26px 44px -22px rgba(0, 0, 0, 0.58);
+}
+
+.receipt-sheet .receipt-tear {
+  filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.35));
+}
+
+.receipt-dock {
+  position: relative;
+  border: 1px solid rgba(74, 54, 28, 0.18);
+  border-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: 0 20px 34px -18px rgba(0, 0, 0, 0.58);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.receipt-dock:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 24px 38px -18px rgba(0, 0, 0, 0.66);
+}
+
+.receipt-dock::after {
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.32));
+}
+
+.receipt-tear,
+.receipt-dock::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: -10px;
+  height: 11px;
+  background: #f6efdf;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 32%,
+    96% 76%,
+    92% 36%,
+    88% 88%,
+    84% 42%,
+    80% 70%,
+    76% 30%,
+    72% 92%,
+    68% 38%,
+    64% 68%,
+    60% 28%,
+    56% 86%,
+    52% 40%,
+    48% 74%,
+    44% 32%,
+    40% 90%,
+    36% 38%,
+    32% 66%,
+    28% 30%,
+    24% 84%,
+    20% 42%,
+    16% 72%,
+    12% 34%,
+    8% 88%,
+    4% 40%,
+    0 72%
+  );
+  pointer-events: none;
+}
+
+.receipt-rule {
+  border-top: 1px dashed rgba(74, 54, 28, 0.22);
+}
+
+.receipt-item {
+  border: 1px solid rgba(74, 54, 28, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.38);
+  padding: 12px;
+}
+
+.receipt-summary {
+  border-top: 1px dashed rgba(74, 54, 28, 0.22);
+  border-bottom: 1px dashed rgba(74, 54, 28, 0.22);
+  padding: 12px 0;
+}
+
+.receipt-barcode {
+  height: 34px;
+  border-radius: 2px;
+  opacity: 0.8;
+  background-image: repeating-linear-gradient(
+    90deg,
+    #2a2118 0 2px,
+    transparent 2px 4px,
+    #2a2118 4px 5px,
+    transparent 5px 8px,
+    #2a2118 8px 11px,
+    transparent 11px 13px,
+    #2a2118 13px 14px,
+    transparent 14px 18px
+  );
+}
+
+.receipt-wordmark {
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.receipt-sheet ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.receipt-sheet ::-webkit-scrollbar-thumb {
+  border-color: #f6efdf;
+  background: rgba(74, 54, 28, 0.28);
+}
