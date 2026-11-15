@@ -23,6 +23,7 @@ type SearchParams = Promise<{
   sport?: string
   day?: string
   status?: string
+  page?: string
 }>
 
 export default async function BetHomePage({ searchParams }: { searchParams: SearchParams }) {
@@ -34,6 +35,7 @@ export default async function BetHomePage({ searchParams }: { searchParams: Sear
     day: params.day ?? 'all',
     status: params.status ?? 'all',
   }
+  const page = Math.max(1, Math.floor(Number(params.page) || 1))
   const [catalog, mode] = await Promise.all([getBetCatalog(), getBetMode()])
   const live = catalog.events.filter(event => event.live)
   const upcoming = catalog.events.filter(event => event.effectiveStatus === 'SCHEDULED')
@@ -91,6 +93,7 @@ export default async function BetHomePage({ searchParams }: { searchParams: Sear
         basePath="/bet"
         events={catalog.events}
         filters={filters}
+        page={page}
         providerMessage={catalog.providerOk ? catalog.providerMessage : undefined}
       />
 

@@ -12,6 +12,7 @@ export interface SportsbookFilters {
 
 const EAT_OFFSET_MS = 3 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
+const PAGE_SIZE = 9
 
 function startOfEatDay(date: Date): number {
   const shifted = new Date(date.getTime() + EAT_OFFSET_MS)
@@ -24,6 +25,7 @@ function hrefWithFilters(
   basePath: string,
   filters: SportsbookFilters,
   patch: Partial<SportsbookFilters>,
+  page = 1,
 ): string {
   const next = { ...filters, ...patch }
   const params = new URLSearchParams()
@@ -31,19 +33,35 @@ function hrefWithFilters(
   if (next.sport) params.set('sport', next.sport)
   if (next.day !== 'all') params.set('day', next.day)
   if (next.status !== 'all') params.set('status', next.status)
+  if (page > 1) params.set('page', String(page))
   const query = params.toString()
   return query ? `${basePath}?${query}` : basePath
+}
+
+function paginationItems(currentPage: number, totalPages: number): Array<number | 'gap'> {
+  const numbers = [...new Set([1, currentPage - 1, currentPage, currentPage + 1, totalPages])]
+    .filter(page => page >= 1 && page <= totalPages)
+    .sort((left, right) => left - right)
+  const items: Array<number | 'gap'> = []
+  for (const [index, page] of numbers.entries()) {
+    const previous = numbers[index - 1]
+    if (previous !== undefined && page - previous > 1) items.push('gap')
+    items.push(page)
+  }
+  return items
 }
 
 export function SportsbookBrowser({
   basePath,
   events,
   filters,
+  page = 1,
   providerMessage,
 }: {
   basePath: string
   events: BetEvent[]
   filters: SportsbookFilters
+  page?: number
   providerMessage?: string
 }) {
   const sportsById = new Map<string, { id: string; name: string; count: number }>()
@@ -83,6 +101,13 @@ export function SportsbookBrowser({
   const activeFilters = Boolean(
     filters.q || filters.sport || filters.day !== 'all' || filters.status !== 'all',
   )
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const requestedPage = Number.isFinite(page) ? Math.floor(page) : 1
+  const currentPage = Math.min(Math.max(1, requestedPage), totalPages)
+  const startIndex = (currentPage - 1) * PAGE_SIZE
+  const endIndex = Math.min(startIndex + PAGE_SIZE, filtered.length)
+  const pageEvents = filtered.slice(startIndex, startIndex + PAGE_SIZE)
+  const pageLinks = paginationItems(currentPage, totalPages)
 
   return (
     <div className="space-y-4">
@@ -193,7 +218,9 @@ export function SportsbookBrowser({
 
       <div className="flex items-center justify-between gap-3 text-xs text-muted-text">
         <span>
-          {filtered.length} fixture{filtered.length === 1 ? '' : 's'}
+          {filtered.length === 0
+            ? '0 fixtures'
+            : `Showing ${startIndex + 1}-${endIndex} of ${filtered.length} fixtures`}
         </span>
         {providerMessage ? (
           <span className="max-w-[60%] truncate text-right">{providerMessage}</span>
@@ -201,10 +228,67 @@ export function SportsbookBrowser({
       </div>
 
       <EventGrid
-        events={filtered}
+        events={pageEvents}
         emptyTitle="No fixtures match those filters"
         emptyMessage="Try another sport, day or search term."
       />
+
+      {totalPages > 1 ? (
+        <nav
+          className="flex flex-wrap items-center justify-center gap-1 border-t border-border pt-4"
+          aria-label="Fixture pagination"
+        >
+          {currentPage > 1 ? (
+            <Link
+              href={hrefWithFilters(basePath, filters, {}, currentPage - 1)}
+              className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-muted-text transition-colors hover:border-accent/40 hover:text-main-text"
+            >
+              Previous
+            </Link>
+          ) : (
+            <span className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-surface/40 px-3 text-xs font-semibold text-muted-text/40">
+              Previous
+            </span>
+          )}
+
+          {pageLinks.map((item, index) =>
+            item === 'gap' ? (
+              <span
+                key={`gap-${index}`}
+                className="px-1 text-xs font-semibold text-muted-text/60"
+              >
+                ...
+              </span>
+            ) : (
+              <Link
+                key={item}
+                href={hrefWithFilters(basePath, filters, {}, item)}
+                aria-current={item === currentPage ? 'page' : undefined}
+                className={`inline-flex h-9 min-w-9 items-center justify-center rounded-xl border px-3 text-xs font-semibold transition-colors ${
+                  item === currentPage
+                    ? 'border-accent bg-accent text-background'
+                    : 'border-border bg-surface text-muted-text hover:border-accent/40 hover:text-main-text'
+                }`}
+              >
+                {item}
+              </Link>
+            ),
+          )}
+
+          {currentPage < totalPages ? (
+            <Link
+              href={hrefWithFilters(basePath, filters, {}, currentPage + 1)}
+              className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-muted-text transition-colors hover:border-accent/40 hover:text-main-text"
+            >
+              Next
+            </Link>
+          ) : (
+            <span className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-surface/40 px-3 text-xs font-semibold text-muted-text/40">
+              Next
+            </span>
+          )}
+        </nav>
+      ) : null}
     </div>
   )
 }

@@ -17,6 +17,7 @@ type SearchParams = Promise<{
   sport?: string
   day?: string
   status?: string
+  page?: string
 }>
 
 export default async function BetSportsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -28,6 +29,7 @@ export default async function BetSportsPage({ searchParams }: { searchParams: Se
     day: params.day ?? 'all',
     status: params.status ?? 'all',
   }
+  const page = Math.max(1, Math.floor(Number(params.page) || 1))
   const catalog = await getBetCatalog()
 
   return (
@@ -44,6 +46,7 @@ export default async function BetSportsPage({ searchParams }: { searchParams: Se
         basePath="/bet/sports"
         events={catalog.events}
         filters={filters}
+        page={page}
         providerMessage={catalog.providerMessage}
       />
     </div>
