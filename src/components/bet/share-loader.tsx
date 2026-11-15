@@ -109,8 +109,8 @@ function kickoffLabel(selection: TicketSelection): string {
 
 function statusClass(status: SlipStatus): string {
   if (status === 'OPEN') return 'border-accent/30 bg-accent/10 text-accent'
-  if (status === 'FROZEN') return 'border-amber-400/30 bg-amber-400/10 text-amber-200'
-  return 'border-red-400/30 bg-red-400/10 text-red-200'
+  if (status === 'FROZEN') return 'border-amber-700/30 bg-amber-700/10 text-amber-900'
+  return 'border-red-700/30 bg-red-700/10 text-red-800'
 }
 
 function promoDismissed(key: string): boolean {
@@ -415,287 +415,316 @@ export function ShareLoader({ code }: { code: string }) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <section className="mx-auto max-w-2xl overflow-hidden rounded-3xl border border-border bg-surface/80">
-        <div className="border-b border-border bg-gradient-to-br from-accent/15 via-surface to-surface p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-                {isSandbox ? 'Sandbox bet slip' : 'Shared bet slip'}
-              </p>
-              <h1 className="mt-1 font-display text-2xl font-semibold text-main-text">
-                {slip.title ?? 'Multi-bet slip'}
-              </h1>
-              <p className="mt-1 font-mono text-sm tracking-[0.24em] text-accent">{slip.code}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${statusClass(slip.status)}`}
-              >
-                {slip.status}
-              </span>
-              <button
-                type="button"
-                onClick={copyLink}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-2.5 py-1 text-[10px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:text-main-text"
-              >
-                {copied ? (
-                  <CircleCheck className="h-3 w-3 text-accent" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
-                {copied ? 'Copied' : 'Share'}
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-muted-text">
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="h-3.5 w-3.5 text-accent" />
-              Created {formatDateTimeLabel(slip.createdAt)}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-accent" />
-              Closes {formatDateTimeLabel(slip.autoFreezeAt)}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Share2 className="h-3.5 w-3.5 text-accent" />
-              {slip.selections.length} selections
-            </span>
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <div className="rounded-xl border-2 border-border bg-background/50 px-3 py-2 text-center">
-              <p className="text-[10px] uppercase tracking-wide text-muted-text">Stake</p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums text-main-text">
-                {formatTzs(slip.stakeMinor)}
-              </p>
-            </div>
-            <div className="rounded-xl border-2 border-accent/35 bg-accent/5 px-3 py-2 text-center">
-              <p className="text-[10px] uppercase tracking-wide text-muted-text">Total odds</p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums text-accent">
-                {formatOdds(slip.totalOdds)}
-              </p>
-            </div>
-            <div className="rounded-xl border-2 border-border bg-background/50 px-3 py-2 text-center">
-              <p className="text-[10px] uppercase tracking-wide text-muted-text">Payout</p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums text-main-text">
-                {formatTzs(slip.potentialReturnMinor)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {live.length > 0 ? (
-          <div className="border-b border-border bg-background/30 p-4 sm:px-6">
-            <div className="flex items-center justify-between">
-              <h2 className="flex items-center gap-2 font-display text-sm font-bold text-main-text">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-400" />
-                </span>
-                Live now
-              </h2>
-              <span className="text-[10px] uppercase tracking-wide text-muted-text">
-                {live.length} in play
-              </span>
-            </div>
-            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-              {live.map(match => (
-                <li
-                  key={match.fixtureId}
-                  className="rounded-xl border border-red-400/20 bg-background/50 p-2.5"
-                >
-                  <p className="truncate text-[10px] text-muted-text">{match.competition}</p>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <TeamBadge team={match.home} size="xs" />
-                      <span className="truncate text-[11px] font-semibold text-main-text">
-                        {match.home.name}
-                      </span>
-                    </div>
-                    <span className="shrink-0 rounded-md bg-background/70 px-2 py-1 text-sm font-bold tabular-nums text-main-text">
-                      {match.score ? `${match.score.home} - ${match.score.away}` : 'vs'}
-                    </span>
-                    <div className="flex min-w-0 items-center justify-end gap-2">
-                      <span className="truncate text-right text-[11px] font-semibold text-main-text">
-                        {match.away.name}
-                      </span>
-                      <TeamBadge team={match.away} size="xs" />
-                    </div>
-                  </div>
-                  <p className="mt-1.5 text-center text-[10px] font-semibold text-red-300">
-                    {match.minute ? `${match.minute}'` : 'In play'}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <div className="p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-sm font-bold text-main-text">Selections</h2>
-            <span className="text-[11px] text-muted-text">One result per match</span>
-          </div>
-
-          <ul className="mt-3 space-y-2">
-            {slip.selections.map((selection, index) => {
-              const probability = Math.round(selection.probability * 100)
-              return (
-                <li
-                  key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
-                  className="flex items-stretch gap-3 rounded-xl border border-border bg-background/40 p-3"
-                >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-full border border-border bg-surface text-[11px] font-bold tabular-nums text-muted-text">
-                    {index + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-main-text">
-                      {selection.fixtureLabel}
-                    </p>
-                    <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-text">
-                      {selection.competition}
-                    </p>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-                      <span className="font-semibold text-accent">{selection.marketName}</span>
-                      <span className="text-muted-text">{selection.selectionLabel}</span>
-                    </p>
-                    <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-muted-text">
-                      <Clock className="h-3 w-3" />
-                      {kickoffLabel(selection)}
-                      {probability > 0 ? <span>| Model {probability}%</span> : null}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-center justify-center rounded-xl border-2 border-accent/35 bg-accent/5 px-3 py-1.5 text-center">
-                    <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-text">
-                      Odds
-                    </span>
-                    <span className="text-base font-bold tabular-nums text-accent">
-                      {formatOdds(selection.odds)}
-                    </span>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-
-          {frozen ? (
-            <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
-              <Lock className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>
-                {slip.frozenReason ??
-                  'Betting is closed for this slip because a match has started or an administrator paused it.'}
-              </span>
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-2xl rounded-3xl border border-border bg-surface/80 p-6">
-        {paid ? (
-          <div className="text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
-              <CircleCheck className="h-6 w-6" />
-            </div>
-            <h2 className="mt-3 font-display text-xl font-semibold">Bet confirmed</h2>
-            <p className="mt-1 text-sm text-muted-text">{entry?.message}</p>
-            {entry?.ticketCode ? (
-              <div className="mx-auto mt-4 max-w-xs rounded-xl border-2 border-accent/30 bg-accent/10 px-3 py-2 text-sm text-main-text">
-                <p className="text-[10px] uppercase tracking-wide text-muted-text">Ticket code</p>
-                <p className="font-mono text-base font-bold tracking-[0.18em] text-accent">
-                  {entry.ticketCode}
+      <section className="mx-auto max-w-2xl">
+        <div className="receipt-paper receipt-sheet">
+          <div className="px-5 pb-8 pt-5 sm:px-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="receipt-wordmark">Predisha</p>
+                <h1 className="mt-1 truncate font-display text-2xl font-semibold text-main-text">
+                  {slip.title ?? (isSandbox ? 'Sandbox bet slip' : 'Shared bet slip')}
+                </h1>
+                <p className="mt-1 font-mono text-sm tracking-[0.24em] text-accent">{slip.code}</p>
+                <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-text">
+                  {isSandbox ? 'Sandbox bet receipt' : 'Official shared bet receipt'}
                 </p>
               </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                    paid ? 'border-accent/30 bg-accent/10 text-accent' : statusClass(slip.status)
+                  }`}
+                >
+                  {paid ? 'PAID' : slip.status}
+                </span>
+                <button
+                  type="button"
+                  onClick={copyLink}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/50 px-2.5 py-1 text-[10px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:bg-white/70 hover:text-main-text"
+                >
+                  {copied ? (
+                    <CircleCheck className="h-3 w-3 text-accent" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                  {copied ? 'Copied' : 'Share'}
+                </button>
+              </div>
+            </div>
+
+            <div className="receipt-rule my-4" />
+
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-[11px] text-muted-text">
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5 text-accent" />
+                Created {formatDateTimeLabel(slip.createdAt)}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-accent" />
+                Closes {formatDateTimeLabel(slip.autoFreezeAt)}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Share2 className="h-3.5 w-3.5 text-accent" />
+                {slip.selections.length} selections
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-xl border border-border bg-white/50 px-3 py-2 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-muted-text">Stake</p>
+                <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-main-text">
+                  {formatTzs(slip.stakeMinor)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-accent/35 bg-accent/10 px-3 py-2 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-muted-text">Total odds</p>
+                <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-accent">
+                  {formatOdds(slip.totalOdds)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-white/50 px-3 py-2 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-muted-text">Payout</p>
+                <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-main-text">
+                  {formatTzs(slip.potentialReturnMinor)}
+                </p>
+              </div>
+            </div>
+
+            {live.length > 0 ? (
+              <div className="receipt-rule mt-4 pt-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="flex items-center gap-2 font-display text-sm font-bold text-main-text">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-600 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600" />
+                    </span>
+                    Live now
+                  </h2>
+                  <span className="text-[10px] uppercase tracking-wide text-muted-text">
+                    {live.length} in play
+                  </span>
+                </div>
+                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {live.map(match => (
+                    <li
+                      key={match.fixtureId}
+                      className="rounded-xl border border-red-700/20 bg-red-700/5 p-2.5"
+                    >
+                      <p className="truncate text-[10px] text-muted-text">{match.competition}</p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <TeamBadge team={match.home} size="xs" />
+                          <span className="truncate text-[11px] font-semibold text-main-text">
+                            {match.home.name}
+                          </span>
+                        </div>
+                        <span className="shrink-0 rounded-md bg-white/60 px-2 py-1 font-mono text-sm font-bold tabular-nums text-main-text">
+                          {match.score ? `${match.score.home} - ${match.score.away}` : 'vs'}
+                        </span>
+                        <div className="flex min-w-0 items-center justify-end gap-2">
+                          <span className="truncate text-right text-[11px] font-semibold text-main-text">
+                            {match.away.name}
+                          </span>
+                          <TeamBadge team={match.away} size="xs" />
+                        </div>
+                      </div>
+                      <p className="mt-1.5 text-center text-[10px] font-semibold text-red-700">
+                        {match.minute ? `${match.minute}'` : 'In play'}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Link
-                href="/bet/bets"
-                className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-background"
-              >
-                View my bets
-              </Link>
-              <Link
-                href="/bet/sports"
-                className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-main-text hover:border-accent/40"
-              >
-                Keep browsing
-              </Link>
+
+            <div className="receipt-rule mt-4 pt-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-sm font-bold text-main-text">Selections</h2>
+                <span className="text-[11px] text-muted-text">One result per match</span>
+              </div>
+
+              <ul className="mt-3 space-y-2">
+                {slip.selections.map((selection, index) => {
+                  const probability = Math.round(selection.probability * 100)
+                  return (
+                    <li
+                      key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
+                      className="receipt-item flex items-stretch gap-3"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-full border border-border bg-white/60 text-[11px] font-bold tabular-nums text-muted-text">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-main-text">
+                          {selection.fixtureLabel}
+                        </p>
+                        <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-text">
+                          {selection.competition}
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                          <span className="font-semibold text-accent">{selection.marketName}</span>
+                          <span className="text-muted-text">{selection.selectionLabel}</span>
+                        </p>
+                        <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-muted-text">
+                          <Clock className="h-3 w-3" />
+                          {kickoffLabel(selection)}
+                          {probability > 0 ? <span>| Model {probability}%</span> : null}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-center justify-center rounded-xl border border-accent/35 bg-accent/10 px-3 py-1.5 text-center">
+                        <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-text">
+                          Odds
+                        </span>
+                        <span className="font-mono text-base font-bold tabular-nums text-accent">
+                          {formatOdds(selection.odds)}
+                        </span>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+
+              {frozen ? (
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-xs text-amber-900">
+                  <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    {slip.frozenReason ??
+                      'Betting is closed for this slip because a match has started or an administrator paused it.'}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="receipt-rule mt-5 pt-5">
+              {paid ? (
+                <div className="text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
+                    <CircleCheck className="h-6 w-6" />
+                  </div>
+                  <h2 className="mt-3 font-display text-xl font-semibold">Bet confirmed</h2>
+                  <p className="mt-1 text-sm text-muted-text">{entry?.message}</p>
+                  {entry?.ticketCode ? (
+                    <div className="mx-auto mt-4 max-w-xs rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-main-text">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-text">
+                        Ticket code
+                      </p>
+                      <p className="font-mono text-base font-bold tracking-[0.18em] text-accent">
+                        {entry.ticketCode}
+                      </p>
+                    </div>
+                  ) : null}
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                    <Link
+                      href="/bet/bets"
+                      className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-background"
+                    >
+                      View my bets
+                    </Link>
+                    <Link
+                      href="/bet/sports"
+                      className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-main-text hover:border-accent/40"
+                    >
+                      Keep browsing
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+                    <Smartphone className="h-4 w-4 text-accent" />
+                    {isSandbox ? 'Confirm your number' : 'Confirm and pay'}
+                  </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-text">
+                    {isSandbox
+                      ? 'Enter the mobile number for this play-money slip to lock it in.'
+                      : 'Enter the mobile-money number. You will get a prompt to approve the payment, then the bet is placed automatically.'}
+                  </p>
+
+                  {!viewer.userId ? (
+                    <div className="mt-4 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-accent">
+                      No account needed to take this slip. Pay as a guest, then create a quick
+                      account only when you withdraw the Aviator trial prize.
+                    </div>
+                  ) : null}
+
+                  <label className="mt-4 block">
+                    <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
+                      Mobile number
+                    </span>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      value={phone}
+                      onChange={event => setPhone(event.target.value)}
+                      placeholder="07XX XXX XXX"
+                      disabled={!canPay && !failed}
+                      className="w-full rounded-xl border border-border bg-white/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60 disabled:opacity-60"
+                    />
+                  </label>
+
+                  {pending ? (
+                    <div className="mt-4 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-accent">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Waiting for the mobile-money prompt on {entry?.phoneMasked ?? 'your phone'}...
+                    </div>
+                  ) : null}
+
+                  {failed ? (
+                    <p className="mt-4 flex items-center gap-1.5 rounded-xl border border-red-700/25 bg-red-700/10 px-3 py-2 text-xs text-red-800">
+                      <CircleAlert className="h-4 w-4" />
+                      {entry?.message ?? 'The payment did not complete. You can try again.'}
+                    </p>
+                  ) : null}
+
+                  {payError ? (
+                    <p className="mt-3 flex items-center gap-1.5 text-[11px] text-red-700">
+                      <CircleAlert className="h-3.5 w-3.5" />
+                      {payError}
+                    </p>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={startPayment}
+                    disabled={!canPay || paying || frozen}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {paying ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Smartphone className="h-4 w-4" />
+                    )}
+                    {paying
+                      ? 'Starting payment...'
+                      : isSandbox
+                        ? `Confirm ${formatTzs(slip.stakeMinor)} slip`
+                        : `Pay ${formatTzs(slip.stakeMinor)}`}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="receipt-rule mt-5" />
+            <div className="pb-1 pt-3 text-center">
+              <div className="receipt-barcode" aria-hidden />
+              <p className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-accent">
+                {paid
+                  ? 'Bet accepted'
+                  : frozen
+                    ? 'Betting closed'
+                    : pending
+                      ? 'Awaiting payment'
+                      : failed
+                        ? 'Payment failed'
+                        : 'Ready to play'}
+              </p>
+              <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-text">
+                PredishaBet · EAT · {slip.code}
+              </p>
             </div>
           </div>
-        ) : (
-          <div>
-            <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
-              <Smartphone className="h-4 w-4 text-accent" />
-              {isSandbox ? 'Confirm your number' : 'Confirm and pay'}
-            </h2>
-            <p className="mt-1 text-xs leading-relaxed text-muted-text">
-              {isSandbox
-                ? 'Enter the mobile number for this play-money slip to lock it in.'
-                : 'Enter the mobile-money number. You will get a prompt to approve the payment, then the bet is placed automatically.'}
-            </p>
-
-            {!viewer.userId ? (
-              <div className="mt-4 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-accent">
-                No account needed to take this slip. Pay as a guest, then create a quick account only
-                when you withdraw the Aviator trial prize.
-              </div>
-            ) : null}
-
-            <label className="mt-4 block">
-              <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
-                Mobile number
-              </span>
-              <input
-                type="tel"
-                inputMode="tel"
-                value={phone}
-                onChange={event => setPhone(event.target.value)}
-                placeholder="07XX XXX XXX"
-                disabled={!canPay && !failed}
-                className="w-full rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60 disabled:opacity-60"
-              />
-            </label>
-
-            {pending ? (
-              <div className="mt-4 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-accent">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Waiting for the mobile-money prompt on {entry?.phoneMasked ?? 'your phone'}...
-              </div>
-            ) : null}
-
-            {failed ? (
-              <p className="mt-4 flex items-center gap-1.5 rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-xs text-red-300">
-                <CircleAlert className="h-4 w-4" />
-                {entry?.message ?? 'The payment did not complete. You can try again.'}
-              </p>
-            ) : null}
-
-            {payError ? (
-              <p className="mt-3 flex items-center gap-1.5 text-[11px] text-red-300">
-                <CircleAlert className="h-3.5 w-3.5" />
-                {payError}
-              </p>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={startPayment}
-              disabled={!canPay || paying || frozen}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {paying ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Smartphone className="h-4 w-4" />
-              )}
-              {paying
-                ? 'Starting payment...'
-                : isSandbox
-                  ? `Confirm ${formatTzs(slip.stakeMinor)} slip`
-                  : `Pay ${formatTzs(slip.stakeMinor)}`}
-            </button>
-          </div>
-        )}
+          <span aria-hidden className="receipt-tear" />
+        </div>
       </section>
 
       {liveGames.length > 0 ? (
