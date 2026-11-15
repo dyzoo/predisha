@@ -47,6 +47,10 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+function guestAuthHref(next: string): string {
+  return `/sign-in?next=${encodeURIComponent(next)}`
+}
+
 function ShellInner({ viewer, children }: { viewer: ClientViewer; children: ReactNode }) {
   const pathname = usePathname()
   const navRef = useRef<HTMLElement | null>(null)
@@ -54,6 +58,14 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
   const { mode } = useBetMode()
   const copy = betModeCopy(mode)
   const isGamePage = pathname.startsWith('/bet/games/')
+  const walletDisplay = viewer.userId
+    ? walletLoading && !wallet
+      ? '…'
+      : formatTzs(wallet?.balanceMinor ?? 0)
+    : 'Sign in'
+  const walletHref = viewer.userId ? '/bet/account' : guestAuthHref('/bet/account')
+  const depositHref = viewer.userId ? '/bet/deposit' : guestAuthHref('/bet/deposit')
+  const withdrawHref = viewer.userId ? '/bet/withdraw' : guestAuthHref('/bet/withdraw')
 
   useEffect(() => {
     const nav = navRef.current
@@ -271,42 +283,46 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
         </div>
       </nav>
 
-      {viewer.userId ? (
-        <div className="fixed right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col items-end gap-2 sm:right-4">
-          <Link
-            href="/bet/account"
-            title="Wallet"
-            aria-label={`Wallet balance ${
-              walletLoading && !wallet ? 'loading' : formatTzs(wallet?.balanceMinor ?? 0)
-            }`}
-            className="group flex h-11 items-center gap-2 rounded-full border border-border bg-background/95 px-2.5 text-main-text shadow-lg shadow-black/10 backdrop-blur transition-all hover:-translate-x-0.5 hover:border-accent/40 hover:bg-surface sm:px-3"
-          >
-            <Wallet className="h-4 w-4 shrink-0 text-accent" />
-            <span className="hidden text-xs font-semibold sm:inline">Wallet</span>
-            <span className="hidden font-mono text-[11px] font-bold tabular-nums text-muted-text lg:inline">
-              {walletLoading && !wallet ? '…' : formatTzs(wallet?.balanceMinor ?? 0)}
-            </span>
-          </Link>
-          <Link
-            href="/bet/deposit"
-            title="Deposit"
-            aria-label="Deposit funds"
-            className="group flex h-11 items-center gap-2 rounded-full border border-accent/30 bg-accent px-2.5 text-background shadow-lg shadow-accent/20 transition-all hover:-translate-x-0.5 hover:opacity-90 sm:px-3"
-          >
-            <ArrowDownToLine className="h-4 w-4 shrink-0" />
-            <span className="hidden text-xs font-semibold sm:inline">Deposit</span>
-          </Link>
-          <Link
-            href="/bet/withdraw"
-            title="Withdraw"
-            aria-label="Withdraw funds"
-            className="group flex h-11 items-center gap-2 rounded-full border border-border bg-background/95 px-2.5 text-main-text shadow-lg shadow-black/10 backdrop-blur transition-all hover:-translate-x-0.5 hover:border-accent/40 hover:bg-surface sm:px-3"
-          >
-            <ArrowUpFromLine className="h-4 w-4 shrink-0 text-muted-text" />
-            <span className="hidden text-xs font-semibold sm:inline">Withdraw</span>
-          </Link>
-        </div>
-      ) : null}
+      <div className="fixed right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col items-end gap-2 sm:right-4">
+        <Link
+          href={walletHref}
+          title="Wallet"
+          aria-label={
+            viewer.userId
+              ? `Wallet balance ${walletDisplay}`
+              : 'Sign in or create an account to use your wallet'
+          }
+          className="group flex h-11 items-center gap-2 rounded-full border border-border bg-background/95 px-2.5 text-main-text shadow-lg shadow-black/10 backdrop-blur transition-all hover:-translate-x-0.5 hover:border-accent/40 hover:bg-surface sm:px-3"
+        >
+          <Wallet className="h-4 w-4 shrink-0 text-accent" />
+          <span className="hidden text-xs font-semibold sm:inline">Wallet</span>
+          <span className="hidden font-mono text-[11px] font-bold tabular-nums text-muted-text lg:inline">
+            {walletDisplay}
+          </span>
+        </Link>
+        <Link
+          href={depositHref}
+          title="Deposit"
+          aria-label={
+            viewer.userId ? 'Deposit funds' : 'Sign in or create an account to deposit funds'
+          }
+          className="group flex h-11 items-center gap-2 rounded-full border border-accent/30 bg-accent px-2.5 text-background shadow-lg shadow-accent/20 transition-all hover:-translate-x-0.5 hover:opacity-90 sm:px-3"
+        >
+          <ArrowDownToLine className="h-4 w-4 shrink-0" />
+          <span className="hidden text-xs font-semibold sm:inline">Deposit</span>
+        </Link>
+        <Link
+          href={withdrawHref}
+          title="Withdraw"
+          aria-label={
+            viewer.userId ? 'Withdraw funds' : 'Sign in or create an account to withdraw funds'
+          }
+          className="group flex h-11 items-center gap-2 rounded-full border border-border bg-background/95 px-2.5 text-main-text shadow-lg shadow-black/10 backdrop-blur transition-all hover:-translate-x-0.5 hover:border-accent/40 hover:bg-surface sm:px-3"
+        >
+          <ArrowUpFromLine className="h-4 w-4 shrink-0 text-muted-text" />
+          <span className="hidden text-xs font-semibold sm:inline">Withdraw</span>
+        </Link>
+      </div>
 
       {isGamePage ? null : <BetSlipDock />}
     </div>
