@@ -421,7 +421,7 @@ export function ShareLoader({ code }: { code: string }) {
           <div className="px-5 pb-8 pt-5 sm:px-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <BrandLogo surface="light" className="h-4 w-auto" />
+                <BrandLogo surface="light" className="h-8 w-auto" />
                 <h1 className="mt-1 truncate font-display text-2xl font-semibold text-main-text">
                   {slip.title ?? (isSandbox ? 'Sandbox bet slip' : 'Shared bet slip')}
                 </h1>

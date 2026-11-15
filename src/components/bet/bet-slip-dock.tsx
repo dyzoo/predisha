@@ -144,7 +144,7 @@ export function BetSlipDock() {
             <div className="min-h-0 flex-1 overflow-y-auto rounded-t-[19px] px-4 pb-8 pt-4 sm:px-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <BrandLogo surface="light" className="h-4 w-auto" />
+                  <BrandLogo surface="light" className="h-8 w-auto" />
                   <h2 className="mt-1 truncate font-display text-xl font-semibold">
                     {success ? 'Bet accepted' : 'Bet slip'}
                   </h2>

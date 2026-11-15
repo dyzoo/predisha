@@ -144,10 +144,10 @@ function layoutReceipt(
   }
 
   if (logo) {
-    if (draw) ctx.drawImage(logo, 72, cursor, 46 * BRAND_LOGO_ASPECT, 46)
-    cursor += 72
+    if (draw) ctx.drawImage(logo, 72, cursor, 92 * BRAND_LOGO_ASPECT, 92)
+    cursor += 118
   } else {
-    cursor = drawText('PREDISHA', { size: 46, weight: 700, color: ACCENT })
+    cursor = drawText('PREDISHA', { size: 92, weight: 700, color: ACCENT })
     cursor += 14
   }
   cursor = drawText(receiptSubtitle, { size: 24, weight: 600, color: INK })

@@ -124,12 +124,12 @@ function drawBrand(
   draw: boolean,
   logo: HTMLImageElement | null,
 ): number {
-  const height = 46
+  const height = 92
   if (logo) {
     if (draw) ctx.drawImage(logo, x, top, height * BRAND_LOGO_ASPECT, height)
     return top + height
   }
-  return writeText(ctx, 'PREDISHA', x, top + height, { size: 46, weight: 700, color: ACCENT }, draw)
+  return writeText(ctx, 'PREDISHA', x, top + height, { size: 92, weight: 700, color: ACCENT }, draw)
 }
 
 function layoutSelection(

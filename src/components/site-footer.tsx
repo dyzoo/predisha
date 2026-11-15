@@ -27,7 +27,7 @@ export function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div className="max-w-sm">
             <Link href="/" className="flex items-center" aria-label="Predisha home">
-              <BrandLogo className="h-7 w-auto sm:h-8" />
+              <BrandLogo className="h-14 w-auto sm:h-16" />
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted-text">
               Statistically grounded football analysis with transparent probabilities and honest

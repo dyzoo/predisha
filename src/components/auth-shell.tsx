@@ -181,7 +181,7 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
 
       <div className="w-full max-w-md">
         <Link href="/" className="mx-auto flex w-fit items-center" aria-label="Predisha home">
-          <BrandLogo priority className="h-8 w-auto sm:h-9" />
+          <BrandLogo priority className="h-16 w-auto sm:h-20" />
         </Link>
 
         <div className="mt-6 rounded-3xl border border-border bg-surface/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">

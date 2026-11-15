@@ -131,7 +131,7 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
             className="flex shrink-0 items-center"
             aria-label="PredishaBet home"
           >
-            <BrandLogo priority className="h-4 w-auto sm:h-6 lg:h-7" />
+            <BrandLogo priority className="h-8 w-auto sm:h-12 lg:h-14" />
           </Link>
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
