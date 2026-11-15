@@ -11,12 +11,12 @@ import {
   Loader2,
   Lock,
   Mail,
-  Sparkles,
   User,
 } from 'lucide-react'
 import { signInSchema, signUpSchema, zodFieldErrors } from '@/lib/auth/credentials'
 import { safeNextPath, withNextPath } from '@/lib/auth/redirect'
 import { useViewer } from '@/components/ui/viewer-provider'
+import { BrandLogo } from '@/components/brand-logo'
 
 interface AuthShellProps {
   mode: 'sign-in' | 'sign-up'
@@ -180,13 +180,8 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
       </div>
 
       <div className="w-full max-w-md">
-        <Link href="/" className="mx-auto flex w-fit items-center gap-2.5" aria-label="Predisha home">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-background shadow-[0_0_24px_rgba(200,255,67,0.35)]">
-            <Sparkles className="h-5 w-5" strokeWidth={2.4} />
-          </span>
-          <span className="text-lg font-semibold tracking-tight">
-            Predisha<span className="text-accent">.</span>
-          </span>
+        <Link href="/" className="mx-auto flex w-fit items-center" aria-label="Predisha home">
+          <BrandLogo priority className="h-8 w-auto sm:h-9" />
         </Link>
 
         <div className="mt-6 rounded-3xl border border-border bg-surface/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">

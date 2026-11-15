@@ -17,6 +17,7 @@ import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
 import type { BetEvent, BetSlipItem, TicketSelection } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
+import { BrandLogo } from '@/components/brand-logo'
 import { AviatorPromoModal } from './aviator-promo-modal'
 import { useBetSlip } from './bet-slip-provider'
 import { EventGrid } from './event-grid'
@@ -420,7 +421,7 @@ export function ShareLoader({ code }: { code: string }) {
           <div className="px-5 pb-8 pt-5 sm:px-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="receipt-wordmark">Predisha</p>
+                <BrandLogo surface="light" className="h-4 w-auto" />
                 <h1 className="mt-1 truncate font-display text-2xl font-semibold text-main-text">
                   {slip.title ?? (isSandbox ? 'Sandbox bet slip' : 'Shared bet slip')}
                 </h1>

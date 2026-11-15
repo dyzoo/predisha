@@ -1,5 +1,6 @@
 import type { BuilderResult, BuilderSelection } from '@/lib/predictions/builder-types'
 import { BUILDER_RISK_CONFIG, percent } from '@/lib/predictions/builder-types'
+import { BRAND_LOGO_ASPECT, loadBrandLogo } from '@/lib/brand/logo-image'
 
 const WIDTH = 1080
 const MIN_HEIGHT = 1440
@@ -116,6 +117,21 @@ function writeText(
   return y + lines.length * lineHeight
 }
 
+function drawBrand(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  top: number,
+  draw: boolean,
+  logo: HTMLImageElement | null,
+): number {
+  const height = 46
+  if (logo) {
+    if (draw) ctx.drawImage(logo, x, top, height * BRAND_LOGO_ASPECT, height)
+    return top + height
+  }
+  return writeText(ctx, 'PREDISHA', x, top + height, { size: 46, weight: 700, color: ACCENT }, draw)
+}
+
 function layoutSelection(
   ctx: CanvasRenderingContext2D,
   selection: BuilderSelection,
@@ -209,6 +225,7 @@ function layout(
   result: BuilderResult,
   height: number,
   draw: boolean,
+  logo: HTMLImageElement | null,
 ): number {
   if (draw) {
     ctx.fillStyle = BG
@@ -222,8 +239,8 @@ function layout(
     ctx.stroke()
   }
 
-  let y = 120
-  y = writeText(ctx, 'PREDISHA', LEFT, y, { size: 46, weight: 700, color: ACCENT }, draw)
+  let y = 96
+  y = drawBrand(ctx, LEFT, y, draw, logo)
   y = writeText(
     ctx,
     'AI PREDICTION BET SLIP',
@@ -312,7 +329,8 @@ function layout(
   return y
 }
 
-export function renderSlipImage(result: BuilderResult): string {
+export async function renderSlipImage(result: BuilderResult): Promise<string> {
+  const logo = await loadBrandLogo('dark')
   const canvas = document.createElement('canvas')
   canvas.width = WIDTH
   canvas.height = MIN_HEIGHT
@@ -320,14 +338,14 @@ export function renderSlipImage(result: BuilderResult): string {
   let ctx = canvas.getContext('2d')
   if (!ctx) return ''
 
-  const contentBottom = layout(ctx, result, MIN_HEIGHT, false)
+  const contentBottom = layout(ctx, result, MIN_HEIGHT, false, logo)
   const height = Math.max(MIN_HEIGHT, Math.ceil(contentBottom + 80))
 
   canvas.height = height
   ctx = canvas.getContext('2d')
   if (!ctx) return ''
 
-  layout(ctx, result, height, true)
+  layout(ctx, result, height, true, logo)
 
   return canvas.toDataURL('image/png')
 }

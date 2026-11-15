@@ -196,7 +196,7 @@ export function BetBuilder({
       stopStageTimer()
       setStage(ANALYSIS_STAGES.length - 1)
       setResult(payload.data)
-      setReceipt(renderSlipImage(payload.data))
+      setReceipt(await renderSlipImage(payload.data))
       setStatus('done')
     } catch {
       stopStageTimer()

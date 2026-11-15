@@ -726,15 +726,6 @@ button, a { cursor: pointer; }
   );
 }
 
-.receipt-wordmark {
-  color: var(--accent);
-  font-family: var(--font-display);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-}
-
 .receipt-sheet ::-webkit-scrollbar-track {
   background: transparent;
 }

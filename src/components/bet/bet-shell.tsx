@@ -22,6 +22,7 @@ import { BetSlipDock } from './bet-slip-dock'
 import { BetSlipProvider, useBetSlip } from './bet-slip-provider'
 import { BetModeProvider, useBetMode } from './bet-mode-context'
 import { betModeCopy } from '@/lib/bet/mode-copy'
+import { BrandLogo } from '@/components/brand-logo'
 
 const NAV = [
   { href: '/bet', label: 'Home', icon: Home },
@@ -125,13 +126,12 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2 sm:h-16 sm:gap-3 sm:px-6 sm:py-0">
-          <Link href="/bet" className="flex shrink-0 items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-sm font-black text-background">
-              PB
-            </span>
-            <span className="hidden font-display text-lg font-semibold tracking-tight sm:inline">
-              Predisha<span className="text-accent">Bet</span>
-            </span>
+          <Link
+            href="/bet"
+            className="flex shrink-0 items-center"
+            aria-label="PredishaBet home"
+          >
+            <BrandLogo priority className="h-4 w-auto sm:h-6 lg:h-7" />
           </Link>
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2">

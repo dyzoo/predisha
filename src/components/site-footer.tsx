@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { Sparkles } from 'lucide-react'
 import { SiteFooterAccount } from '@/components/site-footer-account'
+import { BrandLogo } from '@/components/brand-logo'
 
 const productLinks = [
   { href: '/matches', label: 'Matches' },
@@ -26,13 +26,8 @@ export function SiteFooter() {
       <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div className="max-w-sm">
-            <Link href="/" className="flex items-center gap-2.5" aria-label="Predisha home">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-background">
-                <Sparkles className="h-5 w-5" strokeWidth={2.4} />
-              </span>
-              <span className="text-lg font-semibold tracking-tight">
-                Predisha<span className="text-accent">.</span>
-              </span>
+            <Link href="/" className="flex items-center" aria-label="Predisha home">
+              <BrandLogo className="h-7 w-auto sm:h-8" />
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted-text">
               Statistically grounded football analysis with transparent probabilities and honest

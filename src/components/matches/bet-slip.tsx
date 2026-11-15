@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { CircleAlert, Download, Lock, Sparkles } from 'lucide-react'
 import type { MatchView } from '@/lib/sports/view-model'
 import { useLanguage, type Language } from '@/components/ui/language-provider'
+import { BRAND_LOGO_ASPECT, loadBrandLogo } from '@/lib/brand/logo-image'
 
 const ACCENT = '#C8FF43'
 const INK = '#F5F7FA'
@@ -98,6 +99,7 @@ function layoutReceipt(
   params: ReceiptParams,
   height: number,
   draw: boolean,
+  logo: HTMLImageElement | null,
 ): number {
   const { match, outcome, lang } = params
   const outcomeLabel = lang === 'sw' ? labelFor(outcome.key, lang) : outcome.label
@@ -110,7 +112,7 @@ function layoutReceipt(
     : 'Receipts use the same transparent model outputs shown on the page. Probabilities are estimates, not odds, guarantees, or betting advice. No bet is placed and no funds are held by Predisha. Use the receipt with any provider you trust.'
 
   const maxWidth = 936
-  let cursor = 96
+  let cursor = 56
 
   if (draw) {
     ctx.fillStyle = BG
@@ -141,7 +143,13 @@ function layoutReceipt(
     return cursor + lines.length * lineHeight
   }
 
-  cursor = drawText('PREDISHA', { size: 46, weight: 700, color: ACCENT })
+  if (logo) {
+    if (draw) ctx.drawImage(logo, 72, cursor, 46 * BRAND_LOGO_ASPECT, 46)
+    cursor += 72
+  } else {
+    cursor = drawText('PREDISHA', { size: 46, weight: 700, color: ACCENT })
+    cursor += 14
+  }
   cursor = drawText(receiptSubtitle, { size: 24, weight: 600, color: INK })
   if (draw) {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)'
@@ -168,7 +176,8 @@ function layoutReceipt(
   return cursor
 }
 
-function buildReceiptImage(params: ReceiptParams): string {
+async function buildReceiptImage(params: ReceiptParams): Promise<string> {
+  const logo = await loadBrandLogo('dark')
   const canvas = document.createElement('canvas')
   canvas.width = 1080
   canvas.height = 1080
@@ -176,14 +185,14 @@ function buildReceiptImage(params: ReceiptParams): string {
   let ctx = canvas.getContext('2d')
   if (!ctx) return ''
 
-  const contentBottom = layoutReceipt(ctx, params, 1080, false)
+  const contentBottom = layoutReceipt(ctx, params, 1080, false, logo)
   const height = Math.max(1080, Math.ceil(contentBottom + 40))
 
   canvas.height = height
   ctx = canvas.getContext('2d')
   if (!ctx) return ''
 
-  layoutReceipt(ctx, params, height, true)
+  layoutReceipt(ctx, params, height, true, logo)
 
   return canvas.toDataURL('image/png')
 }
@@ -225,12 +234,12 @@ export function BetSlip({ match, premium }: BetSlipProps) {
 
   const outcome = bestOutcome(match, lang)
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (!outcome) {
       setError(t.errorInvalid)
       return
     }
-    const dataUrl = buildReceiptImage({ match, outcome, lang })
+    const dataUrl = await buildReceiptImage({ match, outcome, lang })
     if (!dataUrl) {
       setError(t.errorInvalid)
       return

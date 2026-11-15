@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
 import { MIN_STAKE_MINOR, type BetTicketView } from '@/lib/bet/types'
+import { BrandLogo } from '@/components/brand-logo'
 import { useBetSlip } from './bet-slip-provider'
 
 const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
@@ -143,7 +144,7 @@ export function BetSlipDock() {
             <div className="min-h-0 flex-1 overflow-y-auto rounded-t-[19px] px-4 pb-8 pt-4 sm:px-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="receipt-wordmark">Predisha</p>
+                  <BrandLogo surface="light" className="h-4 w-auto" />
                   <h2 className="mt-1 truncate font-display text-xl font-semibold">
                     {success ? 'Bet accepted' : 'Bet slip'}
                   </h2>

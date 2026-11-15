@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '@/components/ui/language-provider'
 import { useViewer } from '@/components/ui/viewer-provider'
+import { BrandLogo } from '@/components/brand-logo'
 
 const links = [
   { href: '/builder', label: 'Bet Builder' },
@@ -188,13 +189,8 @@ export function SiteHeader() {
       }`}
     >
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:h-20 sm:px-6 lg:px-8">
-        <Link href="/" className="group flex items-center gap-2.5" aria-label="Predisha home">
-          <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-background shadow-[0_0_24px_rgba(200,255,67,0.35)]">
-            <Sparkles className="h-5 w-5" strokeWidth={2.4} />
-          </span>
-          <span className="text-lg font-semibold tracking-tight">
-            Predisha<span className="text-accent">.</span>
-          </span>
+        <Link href="/" className="group flex items-center" aria-label="Predisha home">
+          <BrandLogo priority className="h-7 w-auto sm:h-8" />
         </Link>
 
         <nav className="hidden items-center gap-0.5 lg:flex" aria-label="Main navigation">
