@@ -36,11 +36,13 @@ model User {
   adminBetEntries  AdminBetEntry[]
   betPaymentOrders BetPaymentOrder[]
   aviatorTrials    AviatorTrial[]
+  betWinnerSlips   BetWinnerSlip[]
 }
 
 enum Role {
   USER
   ADMIN
+  SUPER_ADMIN
 }
 
 model Account {
@@ -706,6 +708,29 @@ enum AdminBetEntryStatus {
   PAID
   FAILED
   CANCELLED
+}
+
+model BetWinnerSlip {
+  id               String    @id @default(cuid())
+  code             String    @unique
+  userId           String
+  title            String?
+  selections       Json
+  stakeMinor       Int
+  totalOdds        Float
+  grossPayoutMinor Int
+  vatMinor         Int
+  netPayoutMinor   Int
+  ticketId         String?   @unique
+  createdBy        String?
+  creditedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 // HarakaPay collection orders for wallet deposits. The webhook resolves the

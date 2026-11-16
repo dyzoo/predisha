@@ -4,6 +4,7 @@ import {
   canViewAdmin,
   canViewPremium,
   entitlementFor,
+  isSuperAdmin,
   previewLimit,
   shouldClaimFreePreview,
   toClientViewer,
@@ -19,6 +20,8 @@ describe('entitlements', () => {
   it('derives access from server-side role and subscription status', () => {
     expect(entitlementFor('ADMIN', null)).toBe('ADMIN')
     expect(entitlementFor('ADMIN', 'ACTIVE')).toBe('ADMIN')
+    expect(entitlementFor('SUPER_ADMIN', null)).toBe('ADMIN')
+    expect(entitlementFor('SUPER_ADMIN', 'ACTIVE')).toBe('ADMIN')
     expect(entitlementFor('USER', 'ACTIVE')).toBe('PREMIUM')
     expect(entitlementFor('USER', 'TRIALING')).toBe('PREMIUM')
     expect(entitlementFor('USER', 'PAST_DUE')).toBe('FREE')
@@ -29,9 +32,16 @@ describe('entitlements', () => {
 
   it('requires both role and entitlement for admin access', () => {
     expect(canViewAdmin(viewer('ADMIN', 'ADMIN'))).toBe(true)
+    expect(canViewAdmin(viewer('ADMIN', 'SUPER_ADMIN'))).toBe(true)
     expect(canViewAdmin(viewer('PREMIUM', 'USER'))).toBe(false)
     expect(canViewAdmin(viewer('FREE', 'USER'))).toBe(false)
     expect(canViewAdmin(viewer('ADMIN', 'USER'))).toBe(false)
+  })
+
+  it('reserves super-admin actions for the super-admin role', () => {
+    expect(isSuperAdmin(viewer('ADMIN', 'SUPER_ADMIN'))).toBe(true)
+    expect(isSuperAdmin(viewer('ADMIN', 'ADMIN'))).toBe(false)
+    expect(isSuperAdmin(viewer('ADMIN', 'USER'))).toBe(false)
   })
 
   it('limits free previews but unlocks demo and premium', () => {

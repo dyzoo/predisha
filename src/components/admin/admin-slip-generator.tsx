@@ -19,6 +19,7 @@ import type {
   AdminSlipRecommendation,
 } from '@/lib/bet/recommendation'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
+import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
 import { AdminSelectionPicker } from './admin-selection-picker'
 
 type PickedSelection = Omit<AdminRecommendationPick, 'odds'> & {
@@ -38,6 +39,8 @@ interface CreateResponse {
     stakeMinor: number
     totalOdds: number
     potentialReturnMinor: number
+    vatMinor: number
+    netPayoutMinor: number
   }
   shareUrl?: string
 }
@@ -95,6 +98,7 @@ export function AdminSlipGenerator({
     Number.isFinite(stakeMinor) && stakeMinor > 0 && totalOdds > 0
       ? Math.floor(stakeMinor * totalOdds)
       : 0
+  const vatPreview = applyVat(potentialReturnMinor)
   const pickedFixtures = new Set(picked.map(item => item.fixtureId))
 
   function clearFeedback() {
@@ -412,7 +416,7 @@ export function AdminSlipGenerator({
           </p>
         ) : null}
 
-        <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
+        <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 text-center sm:grid-cols-4">
           <div>
             <dt className="text-[10px] uppercase tracking-wide text-muted-text">Stake</dt>
             <dd className="mt-0.5 text-xs font-semibold tabular-nums text-main-text">
@@ -426,12 +430,21 @@ export function AdminSlipGenerator({
             </dd>
           </div>
           <div>
-            <dt className="text-[10px] uppercase tracking-wide text-muted-text">Payout</dt>
-            <dd className="mt-0.5 text-xs font-semibold tabular-nums text-accent">
+            <dt className="text-[10px] uppercase tracking-wide text-muted-text">Gross</dt>
+            <dd className="mt-0.5 text-xs font-semibold tabular-nums text-main-text">
               {potentialReturnMinor > 0 ? formatTzs(potentialReturnMinor) : '-'}
             </dd>
           </div>
+          <div>
+            <dt className="text-[10px] uppercase tracking-wide text-muted-text">Net payout</dt>
+            <dd className="mt-0.5 text-xs font-semibold tabular-nums text-accent">
+              {potentialReturnMinor > 0 ? formatTzs(vatPreview.netPayoutMinor) : '-'}
+            </dd>
+          </div>
         </dl>
+        <p className="mt-1.5 text-center text-[10px] text-muted-text">
+          Less {VAT_PERCENT}% VAT: {formatTzs(vatPreview.vatMinor)} deducted from the gross return.
+        </p>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -486,10 +499,14 @@ export function AdminSlipGenerator({
             <span className="font-semibold tabular-nums text-main-text">
               {formatOdds(result.slip.totalOdds)}
             </span>{' '}
-            | Payout{' '}
+            | Net payout{' '}
             <span className="font-semibold tabular-nums text-accent">
-              {formatTzs(result.slip.potentialReturnMinor)}
+              {formatTzs(result.slip.netPayoutMinor)}
             </span>
+          </p>
+          <p className="mt-1 text-[10px] text-muted-text">
+            Gross {formatTzs(result.slip.potentialReturnMinor)} | VAT 10%{' '}
+            {formatTzs(result.slip.vatMinor)}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <code className="max-w-full truncate rounded-lg border border-border bg-background/60 px-2 py-1 text-[10px] text-muted-text">

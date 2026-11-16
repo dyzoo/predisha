@@ -96,9 +96,9 @@ export function WalletAmountForm({
           ? 'That request was already processed. Your balance is unchanged.'
           : isDeposit
             ? `Added ${formatTzs(amountMinor)} to your wallet.`
-            : `${formatTzs(amountMinor)} is on its way to ${
+            : `${formatTzs(amountMinor)} withdrawal successful. The money was sent to ${
                 payload.transfer?.phoneMasked ?? phone
-              }. The transfer is processing.`,
+              }.`,
       )
       await refreshWallet()
       router.refresh()
@@ -113,15 +113,15 @@ export function WalletAmountForm({
     <form onSubmit={onSubmit} className="rounded-3xl border border-border bg-surface/80 p-5 sm:p-6">
       <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
         <ShieldCheck className="h-4 w-4" />
-        {isDeposit ? copy.depositTitle : 'Mobile-money transfer'}
+        {isDeposit ? copy.depositTitle : 'Mobile-money withdrawal'}
       </div>
       <h2 className="mt-2 font-display text-2xl font-semibold">
-        {isDeposit ? copy.addFunds : 'Send to mobile money'}
+        {isDeposit ? copy.addFunds : 'Withdraw to mobile money'}
       </h2>
       <p className="mt-1 text-sm leading-relaxed text-muted-text">
         {isDeposit
           ? copy.depositDescription
-          : 'Enter the amount and the mobile-money number. The transfer is recorded against your wallet and processed for payout.'}
+          : 'Enter the amount and the mobile-money number. Withdrawals are approved instantly and sent to this number without a payment prompt.'}
       </p>
 
       <div className="mt-5 rounded-xl bg-background/40 p-3 text-sm">
@@ -181,7 +181,7 @@ export function WalletAmountForm({
           <p className="mt-2 text-[11px] text-muted-text">
             {isDeposit
               ? 'Approve the prompt on your phone to credit your wallet instantly.'
-              : 'Transfer requests are reviewed and settled to this number.'}
+              : 'The withdrawal is sent to this number instantly.'}
           </p>
         </>
       ) : null}
@@ -215,11 +215,11 @@ export function WalletAmountForm({
           ? 'Working'
           : isDeposit
             ? `Deposit ${formatTzs(amountMinor)}`
-            : `Send ${formatTzs(amountMinor)}`}
+            : `Withdraw ${formatTzs(amountMinor)}`}
       </button>
 
       <div className="mt-3 flex items-center justify-between text-[11px] text-muted-text">
-        <span>{isDeposit ? 'Mobile-money deposits' : 'Mobile-money transfers'}</span>
+        <span>{isDeposit ? 'Mobile-money deposits' : 'Instant mobile-money withdrawals'}</span>
         <Link href="/bet/account" className="font-semibold text-accent hover:underline">
           Wallet
         </Link>

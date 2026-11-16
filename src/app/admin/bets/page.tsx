@@ -59,6 +59,8 @@ export default async function AdminBetsPage() {
     stakeMinor: slip.stakeMinor,
     totalOdds: slip.totalOdds,
     potentialReturnMinor: slip.potentialReturnMinor,
+    vatMinor: slip.vatMinor,
+    netPayoutMinor: slip.netPayoutMinor,
     entryCount: slip.entryCount,
     paidCount: slip.paidCount,
     entries: slip.entries.map(entry => ({

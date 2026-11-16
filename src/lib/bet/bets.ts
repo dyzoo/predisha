@@ -4,6 +4,7 @@ import { getBetCatalog, getFixtureResults, type FixtureResult } from './catalog'
 import { BetError, isUniqueConstraintError } from './errors'
 import { combineOdds, findSelection, settleMarket } from './odds'
 import { hashString, mulberry32, randomCode } from './random'
+import { applyVat, VAT_PERCENT } from './vat'
 import { creditWallet, debitWallet } from './wallet'
 import {
   type BetSelectionInput,
@@ -305,14 +306,14 @@ export async function forceWinTicket(
     ...selection,
     result: 'WON' as TicketResult,
   }))
-  const payoutMinor = ticket.potentialReturnMinor
+  const vat = applyVat(ticket.potentialReturnMinor)
 
   const updated = await prisma.$transaction(async tx => {
     const result = await tx.betTicket.updateMany({
       where: { id: ticket.id, status: 'OPEN' },
       data: {
         status: 'WON',
-        payoutMinor,
+        payoutMinor: vat.netPayoutMinor,
         settledAt: now,
         selections: selections as unknown as Prisma.InputJsonValue,
       },
@@ -322,10 +323,15 @@ export async function forceWinTicket(
     }
     await creditWallet(tx, {
       userId: ticket.userId,
-      amountMinor: payoutMinor,
+      amountMinor: vat.netPayoutMinor,
       type: 'BET_WIN',
       reference: `ticket:${ticket.code}:settle`,
-      note: `Winnings ${ticket.code}`,
+      note: `Winnings ${ticket.code} (${VAT_PERCENT}% VAT deducted)`,
+      metadata: {
+        grossPayoutMinor: vat.grossMinor,
+        vatMinor: vat.vatMinor,
+        vatPercent: VAT_PERCENT,
+      },
     })
     return tx.betTicket.findUniqueOrThrow({ where: { id: ticket.id } })
   })
@@ -338,6 +344,9 @@ async function persistSettlement(
   evaluation: TicketEvaluation,
   now: Date,
 ): Promise<BetTicket | null> {
+  const vat = evaluation.status === 'WON' ? applyVat(evaluation.payoutMinor) : null
+  const payoutMinor = vat ? vat.netPayoutMinor : evaluation.payoutMinor
+
   return prisma.$transaction(async tx => {
     const current = await tx.betTicket.findUnique({ where: { id: ticket.id } })
     if (!current || current.status !== 'OPEN') return null
@@ -346,19 +355,29 @@ async function persistSettlement(
       where: { id: ticket.id },
       data: {
         status: evaluation.status,
-        payoutMinor: evaluation.payoutMinor,
+        payoutMinor,
         settledAt: evaluation.status === 'OPEN' ? null : now,
         selections: evaluation.selections as unknown as Prisma.InputJsonValue,
       },
     })
 
-    if (evaluation.payoutMinor > 0) {
+    if (payoutMinor > 0) {
       await creditWallet(tx, {
         userId: ticket.userId,
-        amountMinor: evaluation.payoutMinor,
+        amountMinor: payoutMinor,
         type: evaluation.status === 'VOID' ? 'ADJUSTMENT' : 'BET_WIN',
         reference: `ticket:${ticket.code}:settle`,
-        note: evaluation.status === 'VOID' ? `Void refund ${ticket.code}` : `Winnings ${ticket.code}`,
+        note:
+          evaluation.status === 'VOID'
+            ? `Void refund ${ticket.code}`
+            : `Winnings ${ticket.code} (${VAT_PERCENT}% VAT deducted)`,
+        metadata: vat
+          ? {
+              grossPayoutMinor: vat.grossMinor,
+              vatMinor: vat.vatMinor,
+              vatPercent: VAT_PERCENT,
+            }
+          : undefined,
       })
     }
 

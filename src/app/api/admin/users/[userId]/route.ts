@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { apiError, json } from '@/lib/api'
 import { getAdminAccess } from '@/lib/auth/admin'
+import { isSuperAdmin } from '@/lib/auth/entitlements'
 import { isSameOrigin } from '@/lib/auth/origin'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -62,8 +63,14 @@ export async function PATCH(
 
   try {
     if (parsed.data.role && parsed.data.role !== target.role) {
-      if (target.id === actorId && parsed.data.role === 'USER') {
-        return apiError('You cannot remove your own admin access.', 400)
+      if (!isSuperAdmin(access.viewer)) {
+        return apiError('Only a super admin can change user roles.', 403)
+      }
+      if (target.role === 'SUPER_ADMIN') {
+        return apiError('Super admin access cannot be changed from this panel.', 400)
+      }
+      if (target.id === actorId) {
+        return apiError('You cannot change your own role.', 400)
       }
       await prisma.user.update({
         where: { id: target.id },
@@ -72,7 +79,10 @@ export async function PATCH(
       await prisma.adminAuditLog.create({
         data: {
           actorId,
-          action: 'user.role.update',
+          action:
+            target.role === 'USER' && parsed.data.role === 'ADMIN'
+              ? 'admin.create'
+              : 'user.role.update',
           target: target.email,
           ipAddress,
           metadata: { from: target.role, to: parsed.data.role },

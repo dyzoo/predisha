@@ -6,9 +6,10 @@ import type { Prisma, SubscriptionStatus } from '@prisma/client'
 import { CircleCheck, Filter, Search, ShieldCheck, Users } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
+import { AdminCreateAdmin } from '@/components/admin/admin-create-admin'
 import { AdminNav } from '@/components/admin/admin-nav'
 import { AdminUserActions } from '@/components/admin/admin-user-actions'
-import { canViewAdmin } from '@/lib/auth/entitlements'
+import { canViewAdmin, isSuperAdmin } from '@/lib/auth/entitlements'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 import { prisma } from '@/lib/prisma'
 
@@ -58,7 +59,9 @@ export default async function AdminUsersPage({
 
   const { q, role } = await searchParams
   const query = (q ?? '').trim()
-  const roleFilter = role === 'ADMIN' || role === 'USER' ? role : undefined
+  const roleFilter =
+    role === 'ADMIN' || role === 'USER' || role === 'SUPER_ADMIN' ? role : undefined
+  const superAdmin = isSuperAdmin(viewer)
 
   const where: Prisma.UserWhereInput = {}
   if (query) {
@@ -94,7 +97,7 @@ export default async function AdminUsersPage({
       },
     }),
     prisma.user.count(),
-    prisma.user.count({ where: { role: 'ADMIN' } }),
+    prisma.user.count({ where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] } } }),
     prisma.user.count({ where: { subscription: { is: { status: { in: PREMIUM_STATUSES } } } } }),
     prisma.user.count({ where: { emailVerified: null } }),
   ])
@@ -103,9 +106,11 @@ export default async function AdminUsersPage({
     <PageShell
       eyebrow="Admin"
       title="Users"
-      intro="Review accounts and adjust role or subscription access. Every change is written to the audit log."
+      intro="Review accounts, create admins and adjust subscription access. Every change is written to the audit log."
     >
       <AdminNav active="/admin/users" />
+
+      {superAdmin ? <AdminCreateAdmin /> : null}
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
@@ -156,6 +161,7 @@ export default async function AdminUsersPage({
               <option value="">All roles</option>
               <option value="USER">User</option>
               <option value="ADMIN">Admin</option>
+              <option value="SUPER_ADMIN">Super admin</option>
             </select>
           </label>
           <button
@@ -201,7 +207,13 @@ export default async function AdminUsersPage({
                     <p className="truncate text-xs text-muted-text">{user.email}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-full border border-border bg-background/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-text">
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        user.role === 'SUPER_ADMIN'
+                          ? 'border-violet-300/35 bg-violet-300/10 text-violet-200'
+                          : 'border-border bg-background/40 text-muted-text'
+                      }`}
+                    >
                       {user.role}
                     </span>
                     <span
@@ -251,6 +263,7 @@ export default async function AdminUsersPage({
                   status={subscriptionStatus}
                   planId={user.subscription?.planId ?? null}
                   isSelf={user.id === viewer.userId}
+                  canManageRoles={superAdmin}
                 />
               </article>
             )

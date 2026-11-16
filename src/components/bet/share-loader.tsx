@@ -40,6 +40,8 @@ interface AdminSlip {
   stakeMinor: number
   totalOdds: number
   potentialReturnMinor: number
+  vatMinor: number
+  netPayoutMinor: number
   selections: TicketSelection[]
 }
 
@@ -490,7 +492,7 @@ export function ShareLoader({ code }: { code: string }) {
               </span>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="rounded-xl border border-border bg-white/50 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Stake</p>
                 <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-main-text">
@@ -504,12 +506,21 @@ export function ShareLoader({ code }: { code: string }) {
                 </p>
               </div>
               <div className="rounded-xl border border-border bg-white/50 px-3 py-2 text-center">
-                <p className="text-[10px] uppercase tracking-wide text-muted-text">Payout</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-text">Gross return</p>
                 <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-main-text">
                   {formatTzs(slip.potentialReturnMinor)}
                 </p>
               </div>
+              <div className="rounded-xl border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-muted-text">Net payout</p>
+                <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-amber-200">
+                  {formatTzs(slip.netPayoutMinor)}
+                </p>
+              </div>
             </div>
+            <p className="mt-2 text-center text-[10px] text-muted-text">
+              Includes {formatTzs(slip.vatMinor)} VAT (10%) deducted from the gross return.
+            </p>
 
             {live.length > 0 ? (
               <div className="receipt-rule mt-4 pt-4">

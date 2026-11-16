@@ -64,6 +64,7 @@ export async function POST(request: Request) {
       const message = 'An account with that email already exists.'
       return apiError(message, 409, { fields: { email: message } })
     }
+    console.error('Sign-up failed', error)
     return apiError('Authentication is temporarily unavailable.', 503)
   }
 }

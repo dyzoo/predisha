@@ -11,7 +11,7 @@ const PLANS = [
   { id: 'monthly', label: 'Monthly' },
 ] as const
 
-type Role = (typeof ROLES)[number]
+type Role = (typeof ROLES)[number] | 'SUPER_ADMIN'
 type Status = (typeof STATUSES)[number]
 
 interface AdminUserActionsProps {
@@ -20,13 +20,21 @@ interface AdminUserActionsProps {
   status: Status | null
   planId: string | null
   isSelf: boolean
+  canManageRoles: boolean
 }
 
 interface UpdateResponse {
   error?: string
 }
 
-export function AdminUserActions({ userId, role, status, planId, isSelf }: AdminUserActionsProps) {
+export function AdminUserActions({
+  userId,
+  role,
+  status,
+  planId,
+  isSelf,
+  canManageRoles,
+}: AdminUserActionsProps) {
   const router = useRouter()
   const [nextRole, setNextRole] = useState<Role>(role)
   const [nextStatus, setNextStatus] = useState<Status>(status ?? 'INACTIVE')
@@ -45,13 +53,18 @@ export function AdminUserActions({ userId, role, status, planId, isSelf }: Admin
     setError(null)
     setSaved(false)
 
+    const roleChange =
+      canManageRoles && !isSelf && role !== 'SUPER_ADMIN' && nextRole !== role
+        ? nextRole
+        : undefined
+
     try {
       const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          role: nextRole,
+          role: roleChange,
           subscriptionStatus: nextStatus,
           planId: nextStatus === 'INACTIVE' ? undefined : nextPlan,
         }),
@@ -81,9 +94,10 @@ export function AdminUserActions({ userId, role, status, planId, isSelf }: Admin
               setNextRole(event.target.value as Role)
               setSaved(false)
             }}
-            disabled={isSelf || pending}
+            disabled={isSelf || pending || !canManageRoles || role === 'SUPER_ADMIN'}
             className="w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-xs font-semibold text-main-text outline-none focus:border-accent/60 disabled:cursor-not-allowed disabled:opacity-60"
           >
+            {role === 'SUPER_ADMIN' ? <option value="SUPER_ADMIN">SUPER ADMIN</option> : null}
             {ROLES.map(value => (
               <option key={value} value={value}>
                 {value}
@@ -142,6 +156,14 @@ export function AdminUserActions({ userId, role, status, planId, isSelf }: Admin
         </button>
         {isSelf ? (
           <span className="text-[11px] text-muted-text">You cannot change your own role.</span>
+        ) : role === 'SUPER_ADMIN' ? (
+          <span className="text-[11px] text-muted-text">
+            Super admin access cannot be changed from this panel.
+          </span>
+        ) : !canManageRoles ? (
+          <span className="text-[11px] text-muted-text">
+            Only a super admin can create or change admins.
+          </span>
         ) : null}
         {saved ? (
           <span className="flex items-center gap-1.5 text-[11px] text-accent">

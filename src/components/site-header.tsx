@@ -52,7 +52,7 @@ export function SiteHeader() {
   const router = useRouter()
   const { viewer, loading, refreshViewer } = useViewer()
   const signedIn = Boolean(viewer?.userId)
-  const isAdmin = viewer?.role === 'ADMIN'
+  const isAdmin = viewer?.role === 'ADMIN' || viewer?.role === 'SUPER_ADMIN'
   const displayName = viewer?.name?.trim() || viewer?.email || 'Account'
   const initial = displayName.charAt(0).toUpperCase()
   const visibleAccountLinks = isAdmin ? [...accountLinks, adminLink] : accountLinks

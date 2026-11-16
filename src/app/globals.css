@@ -734,3 +734,47 @@ button, a { cursor: pointer; }
   border-color: #f6efdf;
   background: rgba(74, 54, 28, 0.28);
 }
+
+.winner-confetti {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.winner-confetti ~ * {
+  position: relative;
+  z-index: 1;
+}
+
+.winner-confetti span {
+  position: absolute;
+  top: -18px;
+  display: block;
+  border-radius: 2px;
+  opacity: 0;
+  animation-name: winner-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes winner-fall {
+  0% {
+    transform: translate3d(0, -12px, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(26px, 640px, 0) rotate(560deg);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .winner-confetti {
+    display: none;
+  }
+}

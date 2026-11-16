@@ -30,6 +30,7 @@ import type {
   TicketSelection,
 } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
+import { WinnerConfetti } from './winner-confetti'
 
 type Tab = 'OPEN' | 'HISTORY'
 type EventMap = Record<string, BetEvent>
@@ -501,7 +502,7 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
         const live = isLiveTicket(ticket, events)
         const won = ticket.status === 'WON'
         const classes = won
-          ? 'rounded-2xl border-2 border-amber-300/70 bg-gradient-to-br from-amber-400/10 via-surface to-surface p-4 shadow-[0_0_0_1px_rgba(252,211,77,0.18)]'
+          ? 'relative overflow-hidden rounded-2xl border-2 border-amber-300/70 bg-gradient-to-br from-amber-400/10 via-surface to-surface p-4 shadow-[0_0_0_1px_rgba(252,211,77,0.18)]'
           : live
             ? 'rounded-2xl border border-red-400/50 bg-surface/90 p-4 shadow-[0_0_24px_rgba(248,113,113,0.08)]'
             : ticket.status === 'OPEN'
@@ -510,6 +511,7 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
 
         return (
           <article key={ticket.id} className={classes}>
+            {won ? <WinnerConfetti count={18} /> : null}
             {ticket.status === 'OPEN' ? (
               live ? (
                 <LiveTicketBody ticket={ticket} events={events} />

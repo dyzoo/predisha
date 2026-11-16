@@ -1,12 +1,13 @@
 import type { SubscriptionStatus } from '@prisma/client'
 
 export type Entitlement = 'FREE' | 'PREMIUM' | 'ADMIN'
+export type ViewerRole = 'USER' | 'ADMIN' | 'SUPER_ADMIN'
 
 export interface Viewer {
   userId: string | null
   email: string | null
   name: string | null
-  role: 'USER' | 'ADMIN' | null
+  role: ViewerRole | null
   entitlement: Entitlement
 }
 
@@ -26,7 +27,7 @@ export interface ClientViewer {
   userId: string | null
   email: string | null
   name: string | null
-  role: 'USER' | 'ADMIN' | null
+  role: ViewerRole | null
   entitlement: Entitlement
   premium: boolean
 }
@@ -51,10 +52,10 @@ const PREMIUM_STATUSES: SubscriptionStatus[] = ['ACTIVE', 'TRIALING']
  * subscription state, never from client-provided flags.
  */
 export function entitlementFor(
-  role: 'USER' | 'ADMIN' | null,
+  role: ViewerRole | null,
   status: SubscriptionStatus | null,
 ): Entitlement {
-  if (role === 'ADMIN') return 'ADMIN'
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN') return 'ADMIN'
   if (status && PREMIUM_STATUSES.includes(status)) return 'PREMIUM'
   return 'FREE'
 }
@@ -64,7 +65,14 @@ export function canViewPremium(viewer: Viewer): boolean {
 }
 
 export function canViewAdmin(viewer: Viewer): boolean {
-  return viewer.role === 'ADMIN' && viewer.entitlement === 'ADMIN'
+  return (
+    (viewer.role === 'ADMIN' || viewer.role === 'SUPER_ADMIN') &&
+    viewer.entitlement === 'ADMIN'
+  )
+}
+
+export function isSuperAdmin(viewer: Viewer): boolean {
+  return viewer.role === 'SUPER_ADMIN' && viewer.entitlement === 'ADMIN'
 }
 
 /**

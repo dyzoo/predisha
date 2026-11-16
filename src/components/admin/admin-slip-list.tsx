@@ -52,6 +52,8 @@ export interface AdminSlipListItemView {
   stakeMinor: number
   totalOdds: number
   potentialReturnMinor: number
+  vatMinor: number
+  netPayoutMinor: number
   entryCount: number
   paidCount: number
   entries: AdminSlipEntryView[]
@@ -485,8 +487,8 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                 <dd className="mt-0.5 text-xs font-semibold tabular-nums text-main-text">{formatOdds(slip.totalOdds)}</dd>
               </div>
               <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
-                <dt className="text-[10px] uppercase tracking-wide text-muted-text">Payout</dt>
-                <dd className="mt-0.5 text-xs font-semibold tabular-nums text-accent">{formatTzs(slip.potentialReturnMinor)}</dd>
+                <dt className="text-[10px] uppercase tracking-wide text-muted-text">Net payout</dt>
+                <dd className="mt-0.5 text-xs font-semibold tabular-nums text-accent">{formatTzs(slip.netPayoutMinor)}</dd>
               </div>
               <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
                 <dt className="text-[10px] uppercase tracking-wide text-muted-text">Entries</dt>
@@ -495,6 +497,9 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                 </dd>
               </div>
             </dl>
+            <p className="mt-1.5 text-[10px] text-muted-text">
+              Gross return {formatTzs(slip.potentialReturnMinor)} | VAT 10% {formatTzs(slip.vatMinor)}
+            </p>
 
             {slip.entries.length > 0 ? (
               <div className="mt-3 rounded-xl border border-border bg-background/40 p-2.5">

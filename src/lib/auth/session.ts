@@ -53,7 +53,7 @@ interface SessionUser {
   id: string
   email: string
   name: string | null
-  role: 'USER' | 'ADMIN'
+  role: 'USER' | 'ADMIN' | 'SUPER_ADMIN'
   subscription: { status: string } | null
 }
 

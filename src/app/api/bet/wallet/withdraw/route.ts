@@ -40,12 +40,12 @@ export async function POST(request: Request) {
           amountMinor: input.amountMinor,
           type: 'WITHDRAWAL',
           reference,
-          note: `Transfer to ${maskTzPhone(normalized.phone)}`,
+          note: `Withdrawal to ${maskTzPhone(normalized.phone)}`,
           metadata: {
             mode,
             source: 'mobile-transfer',
             phone: normalized.phone,
-            status: 'PROCESSING',
+            status: 'SUCCESS',
           },
         })
       })
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       transfer: {
         phoneMasked: maskTzPhone(normalized.phone),
         amountMinor: input.amountMinor,
-        status: 'PROCESSING',
+        status: 'SUCCESS',
       },
     })
   } catch (error) {

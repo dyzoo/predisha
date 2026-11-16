@@ -37,10 +37,10 @@ async function seedAdmin() {
   const passwordHash = await bcrypt.hash(password, 12)
   const user = await prisma.user.upsert({
     where: { email },
-    update: { role: 'ADMIN', passwordHash, emailVerified: new Date() },
+    update: { role: 'SUPER_ADMIN', passwordHash, emailVerified: new Date() },
     create: {
       email,
-      role: 'ADMIN',
+      role: 'SUPER_ADMIN',
       passwordHash,
       name: 'Administrator',
       emailVerified: new Date(),
@@ -128,7 +128,7 @@ const DEMO_USERS = [
     key: 'admin',
     email: 'admin@spotibet.test',
     name: 'Ada Admin',
-    role: 'ADMIN',
+    role: 'SUPER_ADMIN',
     timezone: 'UTC',
     locale: 'en',
   },

@@ -49,7 +49,8 @@ export async function POST(request: Request) {
 
     await createSession(user.id)
     return json({ data: { id: user.id, email: user.email, name: user.name, role: user.role } })
-  } catch {
+  } catch (error) {
+    console.error('Sign-in failed', error)
     return apiError('Authentication is temporarily unavailable.', 503)
   }
 }

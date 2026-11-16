@@ -24,7 +24,7 @@ export function AdminAccessState({ status }: { status: 'unconfigured' | 'forbidd
       </span>
       <p className="mt-4 text-base font-semibold text-main-text">Administrator access required</p>
       <p className="mx-auto mt-2 max-w-md text-sm">
-        Your account is signed in but does not have the ADMIN role. Roles are checked on the server
+        Your account is signed in but does not have admin access. Roles are checked on the server
         for every request.
       </p>
       <Link

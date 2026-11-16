@@ -1,4 +1,4 @@
-import { canViewAdmin, type Viewer } from './entitlements'
+import { canViewAdmin, isSuperAdmin, type Viewer } from './entitlements'
 import { getViewer, isAuthConfigured } from './session'
 
 export type AdminAccess =
@@ -13,4 +13,11 @@ export async function getAdminAccess(): Promise<AdminAccess> {
   if (!viewer.userId) return { status: 'unauthenticated' }
   if (!canViewAdmin(viewer)) return { status: 'forbidden', viewer }
   return { status: 'ok', viewer }
+}
+
+export async function getSuperAdminAccess(): Promise<AdminAccess> {
+  const access = await getAdminAccess()
+  if (access.status !== 'ok') return access
+  if (!isSuperAdmin(access.viewer)) return { status: 'forbidden', viewer: access.viewer }
+  return access
 }

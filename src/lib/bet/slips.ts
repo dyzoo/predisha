@@ -20,6 +20,7 @@ import {
   type BetTicketView,
   type TicketSelection,
 } from './types'
+import { applyVat } from './vat'
 
 export type AdminBetSlipStatusView = 'OPEN' | 'FROZEN' | 'CLOSED'
 
@@ -43,6 +44,8 @@ export interface AdminBetSlipView {
   stakeMinor: number
   totalOdds: number
   potentialReturnMinor: number
+  vatMinor: number
+  netPayoutMinor: number
   selections: TicketSelection[]
 }
 
@@ -85,6 +88,7 @@ export function isSlipFrozen(slip: Pick<AdminBetSlip, 'status' | 'autoFreezeAt'>
 }
 
 export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetSlipView {
+  const vat = applyVat(slip.potentialReturnMinor)
   return {
     id: slip.id,
     code: slip.code,
@@ -102,6 +106,8 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
     stakeMinor: slip.stakeMinor,
     totalOdds: slip.totalOdds,
     potentialReturnMinor: slip.potentialReturnMinor,
+    vatMinor: vat.vatMinor,
+    netPayoutMinor: vat.netPayoutMinor,
     selections: parseSelections(slip.selections),
   }
 }

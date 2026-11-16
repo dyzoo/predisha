@@ -356,7 +356,7 @@ export default async function DashboardPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <SignOutButton />
-        {viewer.role === 'ADMIN' ? (
+        {viewer.role === 'ADMIN' || viewer.role === 'SUPER_ADMIN' ? (
           <Link
             href="/admin"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-main-text transition-colors hover:bg-elevated-surface"
