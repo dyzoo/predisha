@@ -8,7 +8,33 @@ export const MAX_STAKE_MINOR = 500_000
 export const MAX_SELECTIONS = 20
 export const SHARE_CODE_HOURS = 24
 
-export type BetMarketId = '1x2' | 'double-chance' | 'total-goals' | 'btts'
+export type BetMarketId =
+  | '1x2'
+  | 'double-chance'
+  | 'total-goals'
+  | 'btts'
+  | 'total-corners'
+  | 'shots-on-target'
+  | 'substitutions-2h'
+  | 'yellow-cards-1h'
+  | 'red-card'
+  | 'goalkeeper-score'
+  | 'first-goal'
+  | 'goals-0-5'
+
+export const EXTRA_MARKET_IDS: BetMarketId[] = [
+  'double-chance',
+  'total-goals',
+  'btts',
+  'total-corners',
+  'shots-on-target',
+  'substitutions-2h',
+  'yellow-cards-1h',
+  'red-card',
+  'goalkeeper-score',
+  'first-goal',
+  'goals-0-5',
+]
 
 export interface BetSelectionOption {
   id: string

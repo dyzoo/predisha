@@ -131,15 +131,15 @@ function dismissPromo(key: string): void {
 }
 
 export function ShareLoader({ code }: { code: string }) {
-  const { viewer, setItemsFromShare } = useBetSlip()
+  const { viewer, setSharedSlip, unlockSlip, openSlip } = useBetSlip()
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [message, setMessage] = useState<string | null>(null)
   const [stale, setStale] = useState(false)
   const [count, setCount] = useState(0)
   const [slip, setSlip] = useState<AdminSlip | null>(null)
+  const [shareSelections, setShareSelections] = useState<TicketSelection[]>([])
   const [live, setLive] = useState<SharedLiveMatch[]>([])
   const [liveGames, setLiveGames] = useState<BetEvent[]>([])
-  const [upcomingGames, setUpcomingGames] = useState<BetEvent[]>([])
   const [phone, setPhone] = useState('')
   const [paying, setPaying] = useState(false)
   const [entry, setEntry] = useState<SlipEntry | null>(null)
@@ -170,16 +170,17 @@ export function ShareLoader({ code }: { code: string }) {
         if (payload.slip) {
           setSlip(payload.slip)
           setCount(payload.slip.selections.length)
+        } else if (payload.share) {
+          const selections = payload.share.selections
+          const items = selections.map(toSlipItem)
+          setShareSelections(selections)
+          setSharedSlip(items)
+          setCount(items.length)
+          setStale(payload.share.stale)
+          openSlip()
         }
         setLive(payload.live ?? [])
         setLiveGames(payload.liveGames ?? [])
-        setUpcomingGames(payload.upcomingGames ?? [])
-        if (payload.share) {
-          const items = payload.share.selections.map(toSlipItem)
-          setItemsFromShare(items)
-          setCount(items.length)
-          setStale(payload.share.stale)
-        }
         setState('ready')
       } catch {
         if (!cancelled) {
@@ -193,7 +194,9 @@ export function ShareLoader({ code }: { code: string }) {
     return () => {
       cancelled = true
     }
-  }, [code, setItemsFromShare])
+  }, [code, setSharedSlip, openSlip])
+
+  useEffect(() => () => unlockSlip(), [unlockSlip])
 
   useEffect(() => {
     if (state !== 'ready') return
@@ -208,7 +211,6 @@ export function ShareLoader({ code }: { code: string }) {
         if (cancelled || !response.ok) return
         if (payload.live) setLive(payload.live)
         if (payload.liveGames) setLiveGames(payload.liveGames)
-        if (payload.upcomingGames) setUpcomingGames(payload.upcomingGames)
         if (payload.slip) setSlip(payload.slip)
       } catch {
         return
@@ -380,22 +382,40 @@ export function ShareLoader({ code }: { code: string }) {
         </div>
         <h1 className="mt-4 font-display text-2xl font-semibold">Shared slip loaded</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-text">
-          {count} selection{count === 1 ? '' : 's'} added to your bet slip. Review the prices before
-          placing a bet.
+          {count} selection{count === 1 ? '' : 's'} locked into your bet slip. Just set your stake and
+          place the bet.
         </p>
         {stale ? (
           <div className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
-            One or more prices changed since this slip was shared. Remove and re-add those selections
-            from the sportsbook.
+            One or more prices changed since this slip was shared. Ask the sender for a fresh link.
           </div>
         ) : null}
+        {shareSelections.length > 0 ? (
+          <ul className="mt-4 space-y-2 text-left">
+            {shareSelections.map((selection, index) => (
+              <li
+                key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
+                className="rounded-xl border border-border bg-background/40 px-3 py-2"
+              >
+                <p className="truncate text-xs font-semibold text-main-text">
+                  {selection.fixtureLabel}
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted-text">
+                  <span className="font-semibold text-accent">{selection.marketName}</span> ·{' '}
+                  {selection.selectionLabel}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <Link
-            href="/bet/sports"
+          <button
+            type="button"
+            onClick={openSlip}
             className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-background"
           >
-            Browse sportsbook
-          </Link>
+            Enter stake &amp; place bet
+          </button>
           <Link
             href="/bet"
             className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-main-text hover:border-accent/40"
@@ -558,29 +578,19 @@ export function ShareLoader({ code }: { code: string }) {
                         <p className="truncate text-sm font-semibold text-main-text">
                           {selection.fixtureLabel}
                         </p>
-                        <div
-                          className={paid ? '' : 'pointer-events-none select-none blur-sm'}
-                          aria-hidden={!paid}
-                        >
-                          <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-text">
-                            {selection.competition}
-                          </p>
-                          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-                            <span className="font-semibold text-accent">{selection.marketName}</span>
-                            <span className="text-muted-text">{selection.selectionLabel}</span>
-                          </p>
-                          <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-muted-text">
-                            <Clock className="h-3 w-3" />
-                            {kickoffLabel(selection)}
-                          </p>
-                        </div>
+                        <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-text">
+                          {selection.competition}
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                          <span className="font-semibold text-accent">{selection.marketName}</span>
+                          <span className="text-muted-text">{selection.selectionLabel}</span>
+                        </p>
+                        <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-muted-text">
+                          <Clock className="h-3 w-3" />
+                          {kickoffLabel(selection)}
+                        </p>
                       </div>
-                      <div
-                        className={`flex shrink-0 flex-col items-center justify-center rounded-xl border border-accent/35 bg-accent/10 px-3 py-1.5 text-center ${
-                          paid ? '' : 'pointer-events-none select-none blur-sm'
-                        }`}
-                        aria-hidden={!paid}
-                      >
+                      <div className="flex shrink-0 flex-col items-center justify-center rounded-xl border border-accent/35 bg-accent/10 px-3 py-1.5 text-center">
                         <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-text">
                           Odds
                         </span>
@@ -592,12 +602,6 @@ export function ShareLoader({ code }: { code: string }) {
                   )
                 })}
               </ul>
-
-              {!paid ? (
-                <p className="mt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-text">
-                  Teams shown; picks and odds unlock after payment
-                </p>
-              ) : null}
 
               {frozen ? (
                 <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-xs text-amber-900">
@@ -752,19 +756,6 @@ export function ShareLoader({ code }: { code: string }) {
             actionHref="/bet/live"
           />
           <EventGrid events={liveGames.slice(0, 6)} />
-        </section>
-      ) : null}
-
-      {upcomingGames.length > 0 ? (
-        <section>
-          <SectionHeading
-            eyebrow="Sportsbook"
-            title="Upcoming games"
-            description="Tap any price to add it to your bet slip."
-            action="Explore more"
-            actionHref="/bet/sports"
-          />
-          <EventGrid events={upcomingGames.slice(0, 2)} />
         </section>
       ) : null}
 

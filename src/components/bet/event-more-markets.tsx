@@ -2,10 +2,8 @@
 
 import { useState } from 'react'
 import { ChevronDown, Sparkles } from 'lucide-react'
-import type { BetEvent, BetMarketId } from '@/lib/bet/types'
+import { EXTRA_MARKET_IDS, type BetEvent, type BetMarketId } from '@/lib/bet/types'
 import { OddsButton } from './odds-button'
-
-const EXTRA_MARKET_IDS: BetMarketId[] = ['double-chance', 'total-goals', 'btts']
 
 export function EventMoreMarkets({ event }: { event: BetEvent }) {
   const extras = event.markets.filter(market => EXTRA_MARKET_IDS.includes(market.id))

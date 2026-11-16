@@ -31,7 +31,9 @@ interface BetSlipContextValue {
   addSelection: (item: BetSlipItem) => void
   removeSelection: (key: string) => void
   toggleSelection: (item: BetSlipItem) => void
-  setItemsFromShare: (items: BetSlipItem[]) => void
+  setSharedSlip: (items: BetSlipItem[]) => void
+  unlockSlip: () => void
+  locked: boolean
   clear: () => void
   hasSelection: (key: string) => boolean
   totalOdds: number
@@ -90,6 +92,7 @@ export function BetSlipProvider({
   const [walletLoading, setWalletLoading] = useState(false)
   const [placing, setPlacing] = useState(false)
   const [slipOpen, setSlipOpen] = useState(false)
+  const [locked, setLocked] = useState(false)
 
   useEffect(() => {
     try {
@@ -172,6 +175,7 @@ export function BetSlipProvider({
   }, [viewer.userId])
 
   const addSelection = useCallback((item: BetSlipItem) => {
+    if (locked) return
     setItems(current => {
       const withoutMarket = current.filter(
         existing => !(existing.fixtureId === item.fixtureId && existing.marketId === item.marketId),
@@ -179,13 +183,15 @@ export function BetSlipProvider({
       if (withoutMarket.length >= MAX_SELECTIONS) return current
       return [...withoutMarket, item]
     })
-  }, [])
+  }, [locked])
 
   const removeSelection = useCallback((key: string) => {
+    if (locked) return
     setItems(current => current.filter(item => item.key !== key))
-  }, [])
+  }, [locked])
 
   const toggleSelection = useCallback((item: BetSlipItem) => {
+    if (locked) return
     setItems(current => {
       const existing = current.find(candidate => candidate.key === item.key)
       if (existing) return current.filter(candidate => candidate.key !== item.key)
@@ -195,23 +201,19 @@ export function BetSlipProvider({
       if (withoutMarket.length >= MAX_SELECTIONS) return current
       return [...withoutMarket, item]
     })
+  }, [locked])
+
+  const setSharedSlip = useCallback((incoming: BetSlipItem[]) => {
+    setItems(incoming.slice(0, MAX_SELECTIONS))
+    setLocked(true)
   }, [])
 
-  const setItemsFromShare = useCallback((incoming: BetSlipItem[]) => {
-    setItems(current => {
-      const next = [...current]
-      for (const item of incoming.slice(0, MAX_SELECTIONS)) {
-        const index = next.findIndex(
-          existing => existing.fixtureId === item.fixtureId && existing.marketId === item.marketId,
-        )
-        if (index >= 0) next[index] = item
-        else if (next.length < MAX_SELECTIONS) next.push(item)
-      }
-      return next
-    })
-  }, [])
+  const unlockSlip = useCallback(() => setLocked(false), [])
 
-  const clear = useCallback(() => setItems([]), [])
+  const clear = useCallback(() => {
+    if (locked) return
+    setItems([])
+  }, [locked])
   const openSlip = useCallback(() => setSlipOpen(true), [])
   const closeSlip = useCallback(() => setSlipOpen(false), [])
 
@@ -280,6 +282,7 @@ export function BetSlipProvider({
         }
       }
       setItems([])
+      setLocked(false)
       await refreshWallet()
       return { ok: true, ticket: payload.ticket }
     } catch {
@@ -298,7 +301,9 @@ export function BetSlipProvider({
       addSelection,
       removeSelection,
       toggleSelection,
-      setItemsFromShare,
+      setSharedSlip,
+      unlockSlip,
+      locked,
       clear,
       hasSelection,
       totalOdds,
@@ -320,7 +325,9 @@ export function BetSlipProvider({
       addSelection,
       removeSelection,
       toggleSelection,
-      setItemsFromShare,
+      setSharedSlip,
+      unlockSlip,
+      locked,
       clear,
       hasSelection,
       totalOdds,

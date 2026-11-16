@@ -14,14 +14,100 @@ const MARKET_IDS: Record<string, BetMarketId> = {
   'Both teams to score': 'btts',
 }
 
-const MARKET_ORDER: BetMarketId[] = ['1x2', 'double-chance', 'total-goals', 'btts']
+const PREDICTION_MARKET_ORDER: BetMarketId[] = [
+  '1x2',
+  'double-chance',
+  'total-goals',
+  'btts',
+]
 
 const MARKET_NAMES: Record<BetMarketId, string> = {
   '1x2': 'Match result',
   'double-chance': 'Double chance',
   'total-goals': 'Total goals',
   btts: 'Both teams to score',
+  'total-corners': 'Total corners',
+  'shots-on-target': 'Shots on target',
+  'substitutions-2h': 'Substitutions 2nd half',
+  'yellow-cards-1h': 'Yellow cards 1st half',
+  'red-card': 'Red card',
+  'goalkeeper-score': 'Goalkeeper to score',
+  'first-goal': 'First goal time',
+  'goals-0-5': 'Goals 0-5',
 }
+
+interface StaticSelectionSpec {
+  selectionId: string
+  label: string
+  shortLabel: string
+  probability: number
+}
+
+interface StaticMarketSpec {
+  id: BetMarketId
+  selections: StaticSelectionSpec[]
+}
+
+const STATIC_MARKETS: StaticMarketSpec[] = [
+  {
+    id: 'total-corners',
+    selections: [
+      { selectionId: 'CORNERS_OVER_3_5', label: 'Over 3.5 corners', shortLabel: 'O3.5', probability: 0.55 },
+      { selectionId: 'CORNERS_UNDER_25_5', label: 'Under 25.5 corners', shortLabel: 'U25.5', probability: 0.78 },
+    ],
+  },
+  {
+    id: 'shots-on-target',
+    selections: [
+      { selectionId: 'SOT_OVER_3_5', label: 'Over 3.5 shots on target', shortLabel: 'O3.5', probability: 0.6 },
+      { selectionId: 'SOT_UNDER_25_5', label: 'Under 25.5 shots on target', shortLabel: 'U25.5', probability: 0.82 },
+    ],
+  },
+  {
+    id: 'substitutions-2h',
+    selections: [
+      { selectionId: 'SUBS_2H_OVER_0_5', label: 'Over 0.5 substitutions', shortLabel: 'O0.5', probability: 0.55 },
+      { selectionId: 'SUBS_2H_UNDER_3_5', label: 'Under 3.5 substitutions', shortLabel: 'U3.5', probability: 0.8 },
+    ],
+  },
+  {
+    id: 'yellow-cards-1h',
+    selections: [
+      { selectionId: 'YC1H_OVER_0_5', label: 'Over 0.5 yellow cards', shortLabel: 'O0.5', probability: 0.62 },
+      { selectionId: 'YC1H_UNDER_6_5', label: 'Under 6.5 yellow cards', shortLabel: 'U6.5', probability: 0.85 },
+    ],
+  },
+  {
+    id: 'red-card',
+    selections: [
+      { selectionId: 'RED_YES', label: 'Red card: Yes', shortLabel: 'Yes', probability: 0.18 },
+      { selectionId: 'RED_NO', label: 'Red card: No', shortLabel: 'No', probability: 0.82 },
+    ],
+  },
+  {
+    id: 'goalkeeper-score',
+    selections: [
+      { selectionId: 'GK_SCORE_YES', label: 'Goalkeeper to score: Yes', shortLabel: 'Yes', probability: 0.03 },
+      { selectionId: 'GK_SCORE_NO', label: 'Goalkeeper to score: No', shortLabel: 'No', probability: 0.97 },
+    ],
+  },
+  {
+    id: 'first-goal',
+    selections: [
+      { selectionId: 'FIRST_GOAL_1_30', label: 'First goal in 1-30', shortLabel: '1-30', probability: 0.62 },
+      { selectionId: 'FIRST_GOAL_31_60', label: 'First goal in 31-60', shortLabel: '31-60', probability: 0.25 },
+      { selectionId: 'FIRST_GOAL_61_90', label: 'First goal in 61-90', shortLabel: '61-90', probability: 0.13 },
+    ],
+  },
+  {
+    id: 'goals-0-5',
+    selections: [
+      { selectionId: 'GOALS05_HOME', label: '0-5 goals: Home', shortLabel: 'Home', probability: 0.36 },
+      { selectionId: 'GOALS05_DRAW', label: '0-5 goals: Draw', shortLabel: 'Draw', probability: 0.26 },
+      { selectionId: 'GOALS05_AWAY', label: '0-5 goals: Away', shortLabel: 'Away', probability: 0.22 },
+    ],
+  },
+]
 
 export function oddsForProbability(probability: number, margin = BOOK_MARGIN): number {
   const safeProbability = Math.min(0.999, Math.max(0.001, probability))
@@ -72,10 +158,28 @@ export function buildMarkets(prediction: PredictionResult | null): BetMarket[] {
     groups.set(marketId, existing)
   }
 
-  return MARKET_ORDER.flatMap(id => {
+  const predictionMarkets = PREDICTION_MARKET_ORDER.flatMap(id => {
     const market = groups.get(id)
     return market ? [market] : []
   })
+
+  const staticMarkets: BetMarket[] = STATIC_MARKETS.map(spec => ({
+    id: spec.id,
+    name: MARKET_NAMES[spec.id],
+    selections: spec.selections.map(selection => ({
+      id: `${spec.id}:${selection.selectionId}`,
+      marketId: spec.id,
+      marketName: MARKET_NAMES[spec.id],
+      selectionId: selection.selectionId,
+      label: selection.label,
+      shortLabel: selection.shortLabel,
+      probability: selection.probability,
+      odds: oddsForProbability(selection.probability),
+      simulated: true,
+    })),
+  }))
+
+  return [...predictionMarkets, ...staticMarkets]
 }
 
 export function combineOdds(odds: number[]): number {
@@ -94,7 +198,7 @@ export function findSelection(
 }
 
 export function isBetMarketId(value: string): value is BetMarketId {
-  return (MARKET_ORDER as string[]).includes(value)
+  return Object.prototype.hasOwnProperty.call(MARKET_NAMES, value)
 }
 
 export function settleMarket(
@@ -114,5 +218,50 @@ export function settleMarket(
   if (selectionId === 'UNDER_3_5') return totalGoals < 3.5
   if (selectionId === 'BTTS_YES') return homeScore > 0 && awayScore > 0
   if (selectionId === 'BTTS_NO') return homeScore === 0 || awayScore === 0
+
+  if (selectionId === 'CORNERS_OVER_3_5' || selectionId === 'CORNERS_UNDER_25_5') {
+    const corners = (homeScore * 7 + awayScore * 11) % 26
+    return selectionId === 'CORNERS_OVER_3_5' ? corners > 3.5 : corners < 25.5
+  }
+  if (selectionId === 'SOT_OVER_3_5' || selectionId === 'SOT_UNDER_25_5') {
+    const shots = (homeScore * 5 + awayScore * 7 + 4) % 28
+    return selectionId === 'SOT_OVER_3_5' ? shots > 3.5 : shots < 25.5
+  }
+  if (selectionId === 'SUBS_2H_OVER_0_5' || selectionId === 'SUBS_2H_UNDER_3_5') {
+    const substitutions = (homeScore * 2 + awayScore * 3) % 5
+    return selectionId === 'SUBS_2H_OVER_0_5'
+      ? substitutions > 0.5
+      : substitutions < 3.5
+  }
+  if (selectionId === 'YC1H_OVER_0_5' || selectionId === 'YC1H_UNDER_6_5') {
+    const yellowCards = (homeScore * 2 + awayScore * 3 + 1) % 7
+    return selectionId === 'YC1H_OVER_0_5' ? yellowCards > 0.5 : yellowCards < 6.5
+  }
+  if (selectionId === 'RED_YES' || selectionId === 'RED_NO') {
+    const redCard = (homeScore * 3 + awayScore) % 7 === 0
+    return selectionId === 'RED_YES' ? redCard : !redCard
+  }
+  if (selectionId === 'GK_SCORE_YES' || selectionId === 'GK_SCORE_NO') {
+    const keeperScores =
+      totalGoals > 0 && (homeScore * 5 + awayScore * 7) % 37 === 0
+    return selectionId === 'GK_SCORE_YES' ? keeperScores : !keeperScores
+  }
+  if (selectionId.startsWith('FIRST_GOAL_')) {
+    if (totalGoals === 0) return false
+    const minute = ((homeScore * 13 + awayScore * 17) % 90) + 1
+    if (selectionId === 'FIRST_GOAL_1_30') return minute <= 30
+    if (selectionId === 'FIRST_GOAL_31_60') return minute > 30 && minute <= 60
+    if (selectionId === 'FIRST_GOAL_61_90') return minute > 60
+    return null
+  }
+  if (selectionId.startsWith('GOALS05_')) {
+    if (totalGoals > 5) return false
+    const outcome = outcomeForScore(homeScore, awayScore)
+    if (selectionId === 'GOALS05_HOME') return outcome === 'HOME'
+    if (selectionId === 'GOALS05_DRAW') return outcome === 'DRAW'
+    if (selectionId === 'GOALS05_AWAY') return outcome === 'AWAY'
+    return null
+  }
+
   return null
 }

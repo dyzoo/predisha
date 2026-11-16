@@ -28,6 +28,7 @@ export function BetSlipDock() {
     setStakeMinor,
     removeSelection,
     clear,
+    locked,
     totalOdds,
     potentialReturnMinor,
     placeBet,
@@ -240,19 +241,28 @@ export function BetSlipDock() {
                         <span className="rounded-md bg-accent/15 px-2 py-1 text-xs font-bold text-accent tabular-nums">
                           {formatOdds(item.odds)}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => removeSelection(item.key)}
-                          aria-label={`Remove ${item.selectionLabel}`}
-                          className="rounded-md p-1 text-muted-text hover:text-red-700"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {locked ? null : (
+                          <button
+                            type="button"
+                            onClick={() => removeSelection(item.key)}
+                            aria-label={`Remove ${item.selectionLabel}`}
+                            className="rounded-md p-1 text-muted-text hover:text-red-700"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+
+              {locked ? (
+                <div className="mt-3 rounded-xl border border-accent/25 bg-accent/10 px-3 py-2 text-[11px] text-accent">
+                  Shared slip locked. Selections cannot be changed - just set your stake and place
+                  the bet.
+                </div>
+              ) : null}
 
               <div className="mt-4">
                 <label htmlFor="bet-stake" className="text-xs font-medium text-muted-text">
@@ -325,15 +335,17 @@ export function BetSlipDock() {
                     {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     {placing ? 'Placing…' : `Place bet · ${formatTzs(stakeMinor)}`}
                   </button>
-                  <button
-                    type="button"
-                    onClick={onShare}
-                    disabled={sharing}
-                    aria-label="Create share link"
-                    className="rounded-xl border border-border px-3 text-muted-text transition-colors hover:border-accent/40 hover:text-accent disabled:opacity-60"
-                  >
-                    {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-                  </button>
+                  {locked ? null : (
+                    <button
+                      type="button"
+                      onClick={onShare}
+                      disabled={sharing}
+                      aria-label="Create share link"
+                      className="rounded-xl border border-border px-3 text-muted-text transition-colors hover:border-accent/40 hover:text-accent disabled:opacity-60"
+                    >
+                      {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <Link
@@ -344,16 +356,18 @@ export function BetSlipDock() {
                 </Link>
               )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  clear()
-                  closeSlip()
-                }}
-                className="mt-2 w-full rounded-xl px-4 py-2 text-xs font-medium text-muted-text hover:text-red-700"
-              >
-                Clear slip
-              </button>
+              {locked ? null : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clear()
+                    closeSlip()
+                  }}
+                  className="mt-2 w-full rounded-xl px-4 py-2 text-xs font-medium text-muted-text hover:text-red-700"
+                >
+                  Clear slip
+                </button>
+              )}
             </>
           )}
 
