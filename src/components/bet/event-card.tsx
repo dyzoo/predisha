@@ -12,7 +12,7 @@ export function EventCard({ event }: { event: BetEvent }) {
   const probability = event.probability
 
   return (
-    <article className="flex flex-col rounded-2xl border border-border bg-surface/80 p-4 transition-colors hover:border-accent/25">
+    <article className="flex min-w-0 flex-col rounded-2xl border border-border bg-surface/80 p-4 transition-colors hover:border-accent/25">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[11px] font-medium text-muted-text">{event.competition}</p>
