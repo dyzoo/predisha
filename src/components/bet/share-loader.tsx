@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import {
   CalendarDays,
@@ -10,8 +11,12 @@ import {
   Copy,
   Loader2,
   Lock,
+  LogIn,
+  LogOut,
+  Menu,
   Share2,
   Smartphone,
+  UserPlus,
 } from 'lucide-react'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
@@ -22,6 +27,7 @@ import { AviatorPromoModal } from './aviator-promo-modal'
 import { useBetSlip } from './bet-slip-provider'
 import { EventGrid } from './event-grid'
 import { SectionHeading } from './section-heading'
+import { useViewer } from '@/components/ui/viewer-provider'
 
 type BetMode = 'LIVE' | 'SANDBOX'
 type SlipStatus = 'OPEN' | 'FROZEN' | 'CLOSED'
@@ -133,6 +139,8 @@ function dismissPromo(key: string): void {
 }
 
 export function ShareLoader({ code }: { code: string }) {
+  const router = useRouter()
+  const { refreshViewer } = useViewer()
   const { viewer, setSharedSlip, unlockSlip, openSlip } = useBetSlip()
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [message, setMessage] = useState<string | null>(null)
@@ -149,6 +157,8 @@ export function ShareLoader({ code }: { code: string }) {
   const [copied, setCopied] = useState(false)
   const [promo, setPromo] = useState<AviatorTrialView | null>(null)
   const [promoOpen, setPromoOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   const loaded = useRef(false)
   const promoStarted = useRef(false)
 
@@ -342,6 +352,45 @@ export function ShareLoader({ code }: { code: string }) {
     }
   }
 
+  async function handleSignOut() {
+    setMenuOpen(false)
+    try {
+      const response = await fetch('/api/auth/sign-out', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!response.ok) {
+        throw new Error('Sign out failed')
+      }
+      await refreshViewer()
+      router.refresh()
+    } catch {
+      // Keep the signed-in menu state if the sign-out request fails.
+    }
+  }
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    function onPointerDown(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [menuOpen])
+
   if (state !== 'ready') {
     return (
       <div className="mx-auto max-w-lg rounded-3xl border border-border bg-surface/80 p-8 text-center">
@@ -435,6 +484,7 @@ export function ShareLoader({ code }: { code: string }) {
   const frozen = slip.frozen || slip.status !== 'OPEN'
   const canPay = !frozen && !paid && !pending
   const isSandbox = slip.mode === 'SANDBOX'
+  const signedIn = Boolean(viewer?.userId)
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -453,6 +503,111 @@ export function ShareLoader({ code }: { code: string }) {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                <div className="relative" ref={menuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setMenuOpen(value => !value)}
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen}
+                    aria-controls="shared-slip-account-menu"
+                    aria-label="Open profile menu"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white/60 text-main-text transition-colors hover:border-accent/40 hover:bg-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    <Menu className="h-4 w-4" />
+                  </button>
+                  {menuOpen ? (
+                    <div
+                      id="shared-slip-account-menu"
+                      role="menu"
+                      className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-border bg-white/95 shadow-2xl backdrop-blur-xl"
+                    >
+                      {signedIn ? (
+                        <>
+                          <div className="border-b border-border px-4 py-3">
+                            <p className="truncate text-sm font-semibold text-main-text">
+                              {viewer?.name?.trim() || viewer?.email || 'Account'}
+                            </p>
+                            <p className="truncate text-[11px] text-muted-text">{viewer?.email}</p>
+                          </div>
+                          <nav className="flex flex-col py-1.5">
+                            <Link
+                              href="/bet/bets"
+                              role="menuitem"
+                              onClick={() => setMenuOpen(false)}
+                              className="px-4 py-2.5 text-sm font-medium text-main-text transition-colors hover:bg-white/60"
+                            >
+                              My bets
+                            </Link>
+                            <Link
+                              href="/bet/account"
+                              role="menuitem"
+                              onClick={() => setMenuOpen(false)}
+                              className="px-4 py-2.5 text-sm font-medium text-main-text transition-colors hover:bg-white/60"
+                            >
+                              Wallet
+                            </Link>
+                            <Link
+                              href="/dashboard"
+                              role="menuitem"
+                              onClick={() => setMenuOpen(false)}
+                              className="px-4 py-2.5 text-sm font-medium text-main-text transition-colors hover:bg-white/60"
+                            >
+                              Dashboard
+                            </Link>
+                          </nav>
+                          <div className="border-t border-border p-1.5">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={handleSignOut}
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-main-text transition-colors hover:bg-white/60"
+                            >
+                              <LogOut className="h-4 w-4 text-muted-text" />
+                              Sign out
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <nav className="flex flex-col py-1.5">
+                          <Link
+                            href="/sign-in"
+                            role="menuitem"
+                            onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-main-text transition-colors hover:bg-white/60"
+                          >
+                            <LogIn className="h-4 w-4 text-accent" />
+                            Sign in
+                          </Link>
+                          <Link
+                            href="/sign-up"
+                            role="menuitem"
+                            onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-main-text transition-colors hover:bg-white/60"
+                          >
+                            <UserPlus className="h-4 w-4 text-accent" />
+                            Create account
+                          </Link>
+                          <Link
+                            href="/bet/sports"
+                            role="menuitem"
+                            onClick={() => setMenuOpen(false)}
+                            className="px-4 py-2.5 text-sm font-medium text-main-text transition-colors hover:bg-white/60"
+                          >
+                            Browse sportsbook
+                          </Link>
+                          <Link
+                            href="/bet"
+                            role="menuitem"
+                            onClick={() => setMenuOpen(false)}
+                            className="px-4 py-2.5 text-sm font-medium text-main-text transition-colors hover:bg-white/60"
+                          >
+                            Back to bet home
+                          </Link>
+                        </nav>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
                 <span
                   className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
                     paid ? 'border-accent/30 bg-accent/10 text-accent' : statusClass(slip.status)
@@ -513,7 +668,7 @@ export function ShareLoader({ code }: { code: string }) {
               </div>
               <div className="rounded-xl border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Net payout</p>
-                <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-amber-200">
+                <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-black">
                   {formatTzs(slip.netPayoutMinor)}
                 </p>
               </div>
