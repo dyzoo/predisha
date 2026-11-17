@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowDownToLine, ArrowUpFromLine, ChevronUp, CircleHelp, Wallet, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, ChevronUp, CircleHelp, Wallet, X } from 'lucide-react'
 
 const HINT_KEY = 'spotibet:wallet-actions-hint'
 
@@ -189,6 +189,17 @@ export function WalletQuickActions({
         >
           <CircleHelp className="h-3.5 w-3.5" />
           <span className="hidden text-[10px] font-semibold sm:inline">How it works</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMinimized(true)}
+          aria-label="Minimize wallet actions"
+          title="Minimize wallet actions"
+          className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-background/95 px-2.5 text-muted-text shadow-lg shadow-black/10 backdrop-blur transition-colors hover:border-accent/40 hover:text-accent sm:px-3"
+        >
+          <ChevronDown className="h-3.5 w-3.5" />
+          <span className="hidden text-[10px] font-semibold sm:inline">Minimize</span>
         </button>
         </div>
       )}
