@@ -35,7 +35,9 @@ export interface HarakaPayWebhookEvent {
 }
 
 function apiKey(): string {
-  return process.env.HARAKAPAY_API_KEY?.trim() ?? ''
+  const value = process.env.HARAKAPAY_API_KEY?.trim() ?? ''
+  if (!value || value.startsWith('hpk_')) return value
+  return `hpk_${value}`
 }
 
 function baseUrl(): string {
@@ -58,6 +60,14 @@ export function harakapayApiKeyConfigured(): boolean {
 
 export function harakapayWebhookSecretConfigured(): boolean {
   return webhookSecret().length > 0
+}
+
+function sanitizeProviderError(context: string, status: number, raw: string | null): string | null {
+  if (status === 401 || status === 403 || (raw !== null && /api key|unauthorized|invalid api/i.test(raw))) {
+    console.error('[harakapay] provider rejected the API key', { context, status, error: raw })
+    return 'Mobile-money payments are temporarily unavailable. Please contact support.'
+  }
+  return raw
 }
 
 export function toTzsAmount(amountMinor: number, rateTzsPerUsd: number): number {
@@ -103,12 +113,10 @@ export async function createHarakaPayOrder(input: HarakaPayOrderInput): Promise<
       cache: 'no-store',
     })
     const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null
+    const rawError = payload && typeof payload.error === 'string' ? payload.error : null
     const error =
-      payload && typeof payload.error === 'string'
-        ? payload.error
-        : payload && response.ok
-          ? null
-          : `HarakaPay checkout failed with status ${response.status}.`
+      sanitizeProviderError('collect', response.status, rawError) ??
+      (payload && response.ok ? null : `HarakaPay checkout failed with status ${response.status}.`)
     if (!response.ok || !payload || payload.success !== true) {
       return {
         success: false,
@@ -172,6 +180,7 @@ export async function getHarakaPayOrderStatus(orderId: string): Promise<HarakaPa
     const amount = payment && typeof payment.amount === 'number' ? payment.amount : null
     const netAmount = payment && typeof payment.net_amount === 'number' ? payment.net_amount : null
     const feeAmount = payment && typeof payment.fee_amount === 'number' ? payment.fee_amount : null
+    const rawError = payload && typeof payload.error === 'string' ? payload.error : null
     return {
       success: Boolean(payload && payload.success),
       orderId,
@@ -179,7 +188,9 @@ export async function getHarakaPayOrderStatus(orderId: string): Promise<HarakaPa
       amount,
       netAmount,
       fee: feeAmount,
-      error: response.ok || payload?.success === true ? null : 'Unable to load the HarakaPay payment status.',
+      error:
+        sanitizeProviderError('status', response.status, rawError) ??
+        (response.ok || payload?.success === true ? null : 'Unable to load the HarakaPay payment status.'),
     }
   } catch {
     return {

@@ -2,6 +2,8 @@ import { createHmac } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   confirmHarakaPayOrder,
+  createHarakaPayOrder,
+  getHarakaPayOrderStatus,
   toTzsAmount,
   verifyHarakaPayWebhook,
   verifyHarakaPayWebhookSignature,
@@ -11,6 +13,7 @@ describe('harakapay helpers', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('converts plan minor units to TZS amounts using the configured rate', () => {
@@ -114,6 +117,7 @@ describe('harakapay helpers', () => {
   it('rejects unsigned webhooks when the status API does not confirm them', async () => {
     vi.stubEnv('HARAKAPAY_API_KEY', 'hpk_test')
     vi.stubEnv('HARAKAPAY_WEBHOOK_SECRET', '')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
@@ -123,5 +127,77 @@ describe('harakapay helpers', () => {
     const rawBody = JSON.stringify({ order_id: 'HP1', status: 'completed' })
 
     await expect(verifyHarakaPayWebhook(rawBody, null)).resolves.toBeNull()
+  })
+
+  it('prefixes a bare key with hpk_ before calling the provider', async () => {
+    vi.stubEnv('HARAKAPAY_API_KEY', 'bare_key')
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, order_id: 'HP1', amount: 10000 }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createHarakaPayOrder({
+      phone: '0712345678',
+      amountMinor: 10000,
+      currency: 'TZS',
+      description: 'test',
+      webhookUrl: null,
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://harakapay.net/api/v1/collect',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-API-Key': 'hpk_bare_key' }),
+      }),
+    )
+  })
+
+  it('hides the raw invalid-key error from deposit users but logs it for operators', async () => {
+    vi.stubEnv('HARAKAPAY_API_KEY', 'bad_key')
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ success: false, error: 'Invalid API key' }),
+      }),
+    )
+
+    const order = await createHarakaPayOrder({
+      phone: '0712345678',
+      amountMinor: 10000,
+      currency: 'TZS',
+      description: 'test',
+      webhookUrl: null,
+    })
+
+    expect(order.success).toBe(false)
+    expect(order.error).toBe('Mobile-money payments are temporarily unavailable. Please contact support.')
+    expect(order.error).not.toContain('Invalid API key')
+    expect(log).toHaveBeenCalledWith(
+      '[harakapay] provider rejected the API key',
+      expect.objectContaining({ context: 'collect', status: 401, error: 'Invalid API key' }),
+    )
+  })
+
+  it('hides the raw invalid-key error from deposit status polling', async () => {
+    vi.stubEnv('HARAKAPAY_API_KEY', 'bad_key')
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ success: false, error: 'Invalid API key' }),
+      }),
+    )
+
+    const result = await getHarakaPayOrderStatus('HP1')
+
+    expect(result.error).toBe('Mobile-money payments are temporarily unavailable. Please contact support.')
+    expect(result.error).not.toContain('Invalid API key')
   })
 })
