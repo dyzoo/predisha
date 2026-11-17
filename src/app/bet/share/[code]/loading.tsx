@@ -1,5 +1,9 @@
 import { BrandLoading } from '@/components/ui/brand-loading'
 
 export default function SharedSlipLoading() {
-  return <BrandLoading className="min-h-[60vh]" message="Loading shared slip" />
+  return (
+    <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-white">
+      <BrandLoading className="min-h-0 w-full max-w-sm bg-white" message="Loading shared slip" />
+    </div>
+  )
 }

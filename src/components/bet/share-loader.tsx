@@ -399,7 +399,11 @@ export function ShareLoader({ code }: { code: string }) {
   }, [menuOpen])
 
   if (state === 'loading') {
-    return <BrandLoading className="min-h-[60vh]" message="Loading shared slip" />
+    return (
+      <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-white">
+        <BrandLoading className="min-h-0 w-full max-w-sm bg-white" message="Loading shared slip" />
+      </div>
+    )
   }
 
   if (state === 'error') {
@@ -459,7 +463,7 @@ export function ShareLoader({ code }: { code: string }) {
                     {selection.fixtureLabel}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-text">
-                    <span className="font-semibold text-accent">{selection.marketName}</span> Ãƒâ€šÃ‚Â·{' '}
+                    <span className="font-semibold text-accent">{selection.marketName}</span> ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·{' '}
                     {selection.selectionLabel}
                   </p>
                 </li>
@@ -913,7 +917,7 @@ export function ShareLoader({ code }: { code: string }) {
                         : 'Ready to play'}
               </p>
               <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-text">
-                SpotibetBet Ãƒâ€šÃ‚Â· EAT Ãƒâ€šÃ‚Â· {slip.code}
+                SpotibetBet ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· EAT ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {slip.code}
               </p>
             </div>
           </div>
