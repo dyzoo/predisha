@@ -6,7 +6,7 @@ import { useState, type FormEvent } from 'react'
 import { Check, CircleAlert, Loader2, Smartphone, ShieldCheck } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
 import { betModeCopy } from '@/lib/bet/mode-copy'
-import { MIN_DEPOSIT_MINOR, MIN_WITHDRAW_MINOR, type BetWalletView } from '@/lib/bet/types'
+import { MIN_DEPOSIT_MINOR, type BetWalletView } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 import { useBetMode } from './bet-mode-context'
 
@@ -33,7 +33,7 @@ export function WalletAmountForm({
   const isDeposit = mode === 'deposit'
   const isLive = platformMode === 'LIVE'
   const needsPhone = !isDeposit || isLive
-  const minAmountMinor = isDeposit ? MIN_DEPOSIT_MINOR : MIN_WITHDRAW_MINOR
+  const minAmountMinor = isDeposit ? MIN_DEPOSIT_MINOR : 1
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -140,8 +140,8 @@ export function WalletAmountForm({
           id="wallet-amount"
           type="number"
           min={minAmountMinor}
-          max={1_000_000}
-          step={500}
+          max={isDeposit ? 1_000_000 : undefined}
+          step={isDeposit ? 500 : 1}
           value={amountMinor}
           onChange={event => setAmountMinor(Number(event.target.value))}
           className="w-full bg-transparent py-3 text-lg font-bold tabular-nums outline-none"
@@ -159,9 +159,25 @@ export function WalletAmountForm({
           </button>
         ))}
       </div>
-      <p className="mt-2 text-[11px] text-muted-text">
-        Limits: {formatTzs(minAmountMinor)} to {formatTzs(1_000_000)} per request.
-      </p>
+      {isDeposit ? (
+        <p className="mt-2 text-[11px] text-muted-text">
+          Limits: {formatTzs(minAmountMinor)} to {formatTzs(1_000_000)} per request.
+        </p>
+      ) : (
+        <>
+          <p className="mt-2 text-[11px] text-muted-text">
+            No withdrawal cap. You can withdraw your full balance of {formatTzs(wallet.balanceMinor)}.
+          </p>
+          <button
+            type="button"
+            onClick={() => setAmountMinor(wallet.balanceMinor)}
+            disabled={wallet.balanceMinor < 1}
+            className="mt-2 w-full rounded-lg border border-accent/40 bg-accent/10 px-2 py-2 text-[11px] font-bold text-accent transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Withdraw all ({formatTzs(wallet.balanceMinor)})
+          </button>
+        </>
+      )}
 
       {needsPhone ? (
         <>

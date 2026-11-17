@@ -4,7 +4,6 @@ import {
   MAX_STAKE_MINOR,
   MIN_DEPOSIT_MINOR,
   MIN_STAKE_MINOR,
-  MIN_WITHDRAW_MINOR,
 } from './types'
 
 const stakeSchema = z
@@ -55,7 +54,7 @@ export const depositSchema = z.object({
 })
 
 export const withdrawSchema = z.object({
-  amountMinor: z.number().int().min(MIN_WITHDRAW_MINOR).max(1_000_000),
+  amountMinor: z.number().int().min(1, 'Enter an amount greater than zero.'),
   phone: z.string().trim().min(7).max(20),
   reference: referenceSchema.optional(),
 })
