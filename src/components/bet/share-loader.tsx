@@ -364,6 +364,7 @@ export function ShareLoader({ code }: { code: string }) {
         throw new Error('Sign out failed')
       }
       await refreshViewer()
+      router.replace('/bet')
       router.refresh()
     } catch {
       // Keep the signed-in menu state if the sign-out request fails.
@@ -497,7 +498,7 @@ export function ShareLoader({ code }: { code: string }) {
                 <h1 className="mt-1 truncate font-display text-2xl font-bold italic text-main-text">
                   {slip.title ?? (isSandbox ? 'Sandbox bet slip' : 'Shared bet slip')}
                 </h1>
-                <p className="mt-1 font-mono text-sm tracking-[0.24em] text-accent">{slip.code}</p>
+                <p className="mt-1 font-mono text-base font-bold tracking-[0.18em] text-accent">{slip.code}</p>
                 <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-text">
                   {isSandbox ? 'Sandbox bet receipt' : 'Official shared bet receipt'}
                 </p>
@@ -650,7 +651,7 @@ export function ShareLoader({ code }: { code: string }) {
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="rounded-xl border border-border bg-white/50 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Stake</p>
-                <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-main-text">
+                <p className="mt-0.5 font-mono text-base font-bold tabular-nums text-main-text">
                   {formatTzs(slip.stakeMinor)}
                 </p>
               </div>
@@ -662,13 +663,13 @@ export function ShareLoader({ code }: { code: string }) {
               </div>
               <div className="rounded-xl border border-border bg-white/50 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Gross return</p>
-                <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-main-text">
+                <p className="mt-0.5 font-mono text-base font-bold tabular-nums text-main-text">
                   {formatTzs(slip.potentialReturnMinor)}
                 </p>
               </div>
               <div className="rounded-xl border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Net payout</p>
-                <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-black">
+                <p className="mt-0.5 font-mono text-base font-bold tabular-nums text-black">
                   {formatTzs(slip.netPayoutMinor)}
                 </p>
               </div>

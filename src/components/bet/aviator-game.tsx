@@ -12,6 +12,7 @@ import type {
 } from '@/lib/bet/types'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
+import { isBelowGameWalletMinimum, WalletMinimumNotice } from './wallet-minimum-gate'
 
 interface AviatorState {
   round: AviatorRoundView
@@ -40,7 +41,7 @@ function toPhase(phase: AviatorRoundView['phase']): Phase {
 }
 
 export function AviatorGame() {
-  const { refreshWallet } = useBetSlip()
+  const { wallet, refreshWallet } = useBetSlip()
   const skyRef = useRef<HTMLDivElement | null>(null)
   const pathRef = useRef<SVGPathElement | null>(null)
   const planeRef = useRef<HTMLDivElement | null>(null)
@@ -58,6 +59,9 @@ export function AviatorGame() {
   const [error, setError] = useState<string | null>(null)
   const [errorCode, setErrorCode] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const walletBlocked = isBelowGameWalletMinimum(
+    state?.wallet.balanceMinor ?? wallet?.balanceMinor,
+  )
 
   const paintAviator = useCallback((data: AviatorState) => {
     const phase = toPhase(data.round.phase)
@@ -308,6 +312,11 @@ export function AviatorGame() {
         </div>
       ) : null}
 
+      <WalletMinimumNotice
+        balanceMinor={state?.wallet.balanceMinor ?? wallet?.balanceMinor}
+        className="mb-2"
+      />
+
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface/70 px-3 py-2 text-xs">
         <span className="inline-flex items-center gap-1.5 text-muted-text">
           <Wallet className="h-4 w-4 text-accent" />
@@ -435,6 +444,10 @@ export function AviatorGame() {
             ctaLabel = phase === 'fly' ? 'Next round opens soon' : 'Next round'
             disabled = true
             ctaClass = 'is-wait'
+          } else if (walletBlocked) {
+            ctaLabel = 'Deposit to play'
+            disabled = true
+            ctaClass = 'is-wait'
           }
 
           let note = 'Place your bet before takeoff.'
@@ -459,6 +472,9 @@ export function AviatorGame() {
             note = 'Cash out is closed for this round.'
           } else if (phase === 'crash') {
             note = 'Waiting for the next round.'
+          } else if (walletBlocked) {
+            note = 'Deposit to reach the 5,000 TZS wallet minimum.'
+            noteClass = 'is-lost'
           }
 
           return (

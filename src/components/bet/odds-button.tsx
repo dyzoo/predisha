@@ -53,11 +53,11 @@ export function OddsButton({
       } ${closed ? 'cursor-not-allowed opacity-40' : ''}`}
     >
       <span
-        className={`max-w-full truncate text-[10px] font-medium ${
+        className={`max-w-full truncate text-[11px] font-bold ${
           selected ? 'text-background/70' : 'text-muted-text'
         }`}
       >
-        {selection.shortLabel}
+        {selection.label}
       </span>
       <span className="text-sm font-bold tabular-nums">{formatOdds(selection.odds)}</span>
     </button>

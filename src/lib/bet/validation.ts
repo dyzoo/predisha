@@ -2,7 +2,9 @@ import { z } from 'zod'
 import {
   MAX_SELECTIONS,
   MAX_STAKE_MINOR,
+  MIN_DEPOSIT_MINOR,
   MIN_STAKE_MINOR,
+  MIN_WITHDRAW_MINOR,
 } from './types'
 
 const stakeSchema = z
@@ -47,13 +49,13 @@ const referenceSchema = z
   .regex(/^[A-Za-z0-9:_-]+$/, 'Use letters, numbers, colon, underscore or dash only.')
 
 export const depositSchema = z.object({
-  amountMinor: z.number().int().min(1_000).max(1_000_000),
+  amountMinor: z.number().int().min(MIN_DEPOSIT_MINOR).max(1_000_000),
   phone: z.string().trim().min(7).max(20).optional(),
   reference: referenceSchema.optional(),
 })
 
 export const withdrawSchema = z.object({
-  amountMinor: z.number().int().min(1_000).max(1_000_000),
+  amountMinor: z.number().int().min(MIN_WITHDRAW_MINOR).max(1_000_000),
   phone: z.string().trim().min(7).max(20),
   reference: referenceSchema.optional(),
 })

@@ -3,7 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { BetError } from './errors'
 import { pickWeighted, secureInt } from './random'
 import { creditWallet, debitWallet, getWalletView } from './wallet'
-import type { BetGameRoundView, BetWalletView } from './types'
+import {
+  MIN_WALLET_BALANCE_MINOR,
+  type BetGameRoundView,
+  type BetWalletView,
+} from './types'
 import type { GamePlayInput as GamePlaySchemaInput, MinesStartInput as MinesStartSchemaInput } from './validation'
 
 interface MinesDetail {
@@ -68,6 +72,23 @@ function minesRoundView(round: BetGameRound, includeMines = false): BetGameRound
   }
 }
 
+async function assertGameWalletMinimum(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const wallet = await tx.betWallet.findUnique({
+    where: { userId },
+    select: { balanceMinor: true },
+  })
+  if ((wallet?.balanceMinor ?? 0) < MIN_WALLET_BALANCE_MINOR) {
+    throw new BetError(
+      `A minimum wallet balance of ${MIN_WALLET_BALANCE_MINOR.toLocaleString('en-US')} TZS is required to play games. Deposit to continue.`,
+      422,
+      'WALLET_MINIMUM',
+    )
+  }
+}
+
 async function createGameRound(
   userId: string,
   game: 'MINES' | 'DICE' | 'ROULETTE' | 'SLOTS',
@@ -78,6 +99,7 @@ async function createGameRound(
   note: string,
 ): Promise<{ round: BetGameRound; wallet: BetWalletView }> {
   const round = await prisma.$transaction(async tx => {
+    await assertGameWalletMinimum(tx, userId)
     const created = await tx.betGameRound.create({
       data: {
         userId,

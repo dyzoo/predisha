@@ -6,7 +6,7 @@ import { useState, type FormEvent } from 'react'
 import { CircleAlert, Loader2, Smartphone, ShieldCheck } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
 import { betModeCopy } from '@/lib/bet/mode-copy'
-import type { BetWalletView } from '@/lib/bet/types'
+import { MIN_DEPOSIT_MINOR, MIN_WITHDRAW_MINOR, type BetWalletView } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 import { useBetMode } from './bet-mode-context'
 
@@ -33,6 +33,7 @@ export function WalletAmountForm({
   const isDeposit = mode === 'deposit'
   const isLive = platformMode === 'LIVE'
   const needsPhone = !isDeposit || isLive
+  const minAmountMinor = isDeposit ? MIN_DEPOSIT_MINOR : MIN_WITHDRAW_MINOR
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -136,7 +137,7 @@ export function WalletAmountForm({
         <input
           id="wallet-amount"
           type="number"
-          min={1_000}
+          min={minAmountMinor}
           max={1_000_000}
           step={500}
           value={amountMinor}
@@ -157,7 +158,7 @@ export function WalletAmountForm({
         ))}
       </div>
       <p className="mt-2 text-[11px] text-muted-text">
-        Limits: 1,000 TZS to 1,000,000 TZS per request.
+        Limits: {formatTzs(minAmountMinor)} to {formatTzs(1_000_000)} per request.
       </p>
 
       {needsPhone ? (

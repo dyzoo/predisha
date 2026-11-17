@@ -1,22 +1,33 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ClipboardList,
+  CreditCard,
   Gamepad2,
   Gift,
+  History,
   Home,
+  LayoutDashboard,
+  LogOut,
+  Menu,
   Radio,
   ShieldAlert,
+  SlidersHorizontal,
+  Sparkles,
   Ticket,
   Trophy,
   UserRound,
+  Wallet,
+  X,
 } from 'lucide-react'
 import type { ClientViewer } from '@/lib/auth/entitlements'
 import { formatTzs } from '@/lib/bet/format'
+import { MIN_WALLET_BALANCE_MINOR } from '@/lib/bet/types'
 import type { BetMode } from '@/lib/bet/mode-copy'
+import { BetDepositPromoModal } from './bet-deposit-promo-modal'
 import { BetSlipDock } from './bet-slip-dock'
 import { BetSlipProvider, useBetSlip } from './bet-slip-provider'
 import { BetModeProvider, useBetMode } from './bet-mode-context'
@@ -40,6 +51,20 @@ const MOBILE_NAV = [
   { href: '/bet/bets', label: 'My Bets', icon: Ticket },
 ]
 
+const DEPOSIT_PROMO_DISMISS_KEY = 'spotibet.bet.depositPromo.dismissed'
+
+const ACCOUNT_MENU = [
+  { href: '/dashboard', label: 'Dashboard', description: 'Account overview', icon: LayoutDashboard },
+  { href: '/builder', label: 'Build prediction', description: 'Create a new slip', icon: Sparkles },
+  { href: '/bet/bets', label: 'My bets', description: 'Open and settled tickets', icon: History },
+  { href: '/bet/account', label: 'Wallet', description: 'Balance and transactions', icon: Wallet },
+  { href: '/bet/deposit', label: 'Deposit', description: 'Add funds to your wallet', icon: CreditCard },
+  { href: '/bet/withdraw', label: 'Withdraw', description: 'Send winnings to mobile money', icon: Gift },
+  { href: '/settings/profile', label: 'Profile settings', description: 'Name and account details', icon: UserRound },
+  { href: '/settings/preferences', label: 'Preferences', description: 'Timezone and locale', icon: SlidersHorizontal },
+  { href: '/settings/billing', label: 'Billing', description: 'Plan and subscription', icon: CreditCard },
+]
+
 function isActive(pathname: string, href: string): boolean {
   if (href === '/bet') return pathname === '/bet'
   return pathname === href || pathname.startsWith(`${href}/`)
@@ -47,6 +72,14 @@ function isActive(pathname: string, href: string): boolean {
 
 function guestAuthHref(next: string): string {
   return `/sign-in?next=${encodeURIComponent(next)}`
+}
+
+function isDepositPromoDismissed(): boolean {
+  try {
+    return window.sessionStorage.getItem(DEPOSIT_PROMO_DISMISS_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 function ShellInner({ viewer, children }: { viewer: ClientViewer; children: ReactNode }) {
@@ -64,6 +97,60 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
   const walletHref = viewer.userId ? '/bet/account' : guestAuthHref('/bet/account')
   const depositHref = viewer.userId ? '/bet/deposit' : guestAuthHref('/bet/deposit')
   const withdrawHref = viewer.userId ? '/bet/withdraw' : guestAuthHref('/bet/withdraw')
+  const router = useRouter()
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [promoOpen, setPromoOpen] = useState(false)
+  const accountMenuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!accountOpen) return
+
+    function onPointerDown(event: MouseEvent) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setAccountOpen(false)
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setAccountOpen(false)
+    }
+
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [accountOpen])
+
+  async function handleSignOut() {
+    setAccountOpen(false)
+    await fetch('/api/auth/sign-out', { method: 'POST', credentials: 'include' })
+    router.replace('/bet')
+    router.refresh()
+  }
+
+  function dismissPromo() {
+    setPromoOpen(false)
+    try {
+      window.sessionStorage.setItem(DEPOSIT_PROMO_DISMISS_KEY, '1')
+    } catch {
+      // Ignore storage failures in private mode.
+    }
+  }
+
+  useEffect(() => {
+    const balanceMinor = wallet?.balanceMinor ?? 0
+    const shouldOpen =
+      Boolean(viewer.userId) &&
+      pathname === '/bet' &&
+      Boolean(wallet) &&
+      balanceMinor < MIN_WALLET_BALANCE_MINOR &&
+      !isDepositPromoDismissed()
+
+    const frame = requestAnimationFrame(() => setPromoOpen(shouldOpen))
+    return () => cancelAnimationFrame(frame)
+  }, [pathname, viewer.userId, wallet])
 
   useEffect(() => {
     const nav = navRef.current
@@ -148,13 +235,67 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
             {viewer.userId ? (
-              <Link
-                href="/bet/account"
-                aria-label="Account and wallet"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-muted-text transition-colors hover:border-accent/40 hover:text-main-text"
-              >
-                <UserRound className="h-4 w-4" />
-              </Link>
+              <div className="relative" ref={accountMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setAccountOpen(value => !value)}
+                  aria-haspopup="menu"
+                  aria-expanded={accountOpen}
+                  aria-controls="bet-account-menu"
+                  aria-label="Open account menu"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-muted-text transition-colors hover:border-accent/40 hover:text-main-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  {accountOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                </button>
+
+                {accountOpen ? (
+                  <div
+                    id="bet-account-menu"
+                    role="menu"
+                    className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-border bg-surface/95 shadow-2xl backdrop-blur-xl"
+                  >
+                    <div className="border-b border-border px-4 py-3">
+                      <p className="truncate text-sm font-semibold text-main-text">
+                        {viewer.name?.trim() || viewer.email || 'Account'}
+                      </p>
+                      <p className="truncate text-[11px] text-muted-text">{viewer.email}</p>
+                    </div>
+
+                    <nav className="max-h-[60vh] overflow-y-auto py-1.5">
+                      {ACCOUNT_MENU.map(item => {
+                        const Icon = item.icon
+                        return (
+                          <Link
+                            key={`${item.href}:${item.label}`}
+                            href={item.href}
+                            role="menuitem"
+                            onClick={() => setAccountOpen(false)}
+                            className="flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-none"
+                          >
+                            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium text-main-text">{item.label}</span>
+                              <span className="block text-[11px] text-muted-text">{item.description}</span>
+                            </span>
+                          </Link>
+                        )
+                      })}
+                    </nav>
+
+                    <div className="border-t border-border p-1.5">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleSignOut}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-main-text transition-colors hover:bg-white/5"
+                      >
+                        <LogOut className="h-4 w-4 text-muted-text" />
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <>
                 <Link
@@ -280,6 +421,12 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
           )}
         </div>
       </nav>
+
+      <BetDepositPromoModal
+        open={promoOpen}
+        balanceMinor={wallet?.balanceMinor ?? 0}
+        onClose={dismissPromo}
+      />
 
       <WalletQuickActions
         signedIn={Boolean(viewer.userId)}

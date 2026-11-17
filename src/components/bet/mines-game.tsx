@@ -15,6 +15,7 @@ import type { BetGameRoundView } from '@/lib/bet/types'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 import { useBetMode } from './bet-mode-context'
+import { isBelowGameWalletMinimum, WalletMinimumNotice } from './wallet-minimum-gate'
 
 interface MinesDetail {
   mines?: number
@@ -27,7 +28,7 @@ interface MinesDetail {
 const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
 
 export function MinesGame() {
-  const { refreshWallet } = useBetSlip()
+  const { wallet, refreshWallet } = useBetSlip()
   const { mode } = useBetMode()
   const [round, setRound] = useState<BetGameRoundView | null>(null)
   const [stakeMinor, setStakeMinor] = useState(1_000)
@@ -35,6 +36,7 @@ export function MinesGame() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const walletBlocked = isBelowGameWalletMinimum(wallet?.balanceMinor)
 
   const detail = (round?.detail ?? {}) as MinesDetail
   const revealed = new Set(detail.revealed ?? [])
@@ -71,6 +73,10 @@ export function MinesGame() {
   }
 
   async function start() {
+    if (walletBlocked) {
+      setError('Deposit enough to meet the 5,000 TZS wallet minimum before playing.')
+      return
+    }
     const payload = await call<{ round: BetGameRoundView }>('/api/bet/games/mines/start', {
       stakeMinor,
       mines,
@@ -275,14 +281,16 @@ export function MinesGame() {
                   className="mt-2 w-full accent-[#E41827]"
                 />
 
+                <WalletMinimumNotice balanceMinor={wallet?.balanceMinor} className="mt-3" />
+
                 <button
                   type="button"
                   onClick={start}
-                  disabled={busy}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-bold text-background disabled:opacity-60"
+                  disabled={busy || walletBlocked}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  Start round · {formatTzs(stakeMinor)}
+                  {walletBlocked ? 'Deposit to play' : `Start round · ${formatTzs(stakeMinor)}`}
                 </button>
               </>
             )}

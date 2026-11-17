@@ -6,6 +6,7 @@ import { formatTzs } from '@/lib/bet/format'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 import { useBetMode } from './bet-mode-context'
+import { isBelowGameWalletMinimum, WalletMinimumNotice } from './wallet-minimum-gate'
 
 type RouletteBet = 'RED' | 'BLACK' | 'EVEN' | 'ODD' | 'LOW' | 'HIGH' | 'NUMBER'
 
@@ -37,7 +38,7 @@ function numberColor(value: number): string {
 }
 
 export function RouletteGame() {
-  const { refreshWallet } = useBetSlip()
+  const { wallet, refreshWallet } = useBetSlip()
   const { mode } = useBetMode()
   const [stakeMinor, setStakeMinor] = useState(1_000)
   const [bet, setBet] = useState<RouletteBet>('RED')
@@ -45,8 +46,13 @@ export function RouletteGame() {
   const [outcome, setOutcome] = useState<RouletteOutcome | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const walletBlocked = isBelowGameWalletMinimum(wallet?.balanceMinor)
 
   async function play() {
+    if (walletBlocked) {
+      setError('Deposit enough to meet the 5,000 TZS wallet minimum before playing.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -203,14 +209,16 @@ export function RouletteGame() {
           </div>
         ) : null}
 
+        <WalletMinimumNotice balanceMinor={wallet?.balanceMinor} className="mt-3" />
+
         <button
           type="button"
           onClick={play}
-          disabled={busy}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-bold text-background disabled:opacity-60"
+          disabled={busy || walletBlocked}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Spin for {formatTzs(stakeMinor)}
+          {walletBlocked ? 'Deposit to play' : `Spin for ${formatTzs(stakeMinor)}`}
         </button>
         <p className="mt-3 text-[11px] text-muted-text">
           Single-zero wheel. No real money is involved.

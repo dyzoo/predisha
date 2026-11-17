@@ -6,6 +6,7 @@ import { formatMultiplier, formatTzs } from '@/lib/bet/format'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 import { useBetMode } from './bet-mode-context'
+import { isBelowGameWalletMinimum, WalletMinimumNotice } from './wallet-minimum-gate'
 
 const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
 
@@ -17,7 +18,7 @@ interface DiceOutcome {
 }
 
 export function DiceGame() {
-  const { refreshWallet } = useBetSlip()
+  const { wallet, refreshWallet } = useBetSlip()
   const { mode } = useBetMode()
   const [stakeMinor, setStakeMinor] = useState(1_000)
   const [target, setTarget] = useState(50)
@@ -25,11 +26,16 @@ export function DiceGame() {
   const [outcome, setOutcome] = useState<DiceOutcome | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const walletBlocked = isBelowGameWalletMinimum(wallet?.balanceMinor)
 
   const winChance = direction === 'OVER' ? (100 - target) / 100 : target / 100
   const multiplier = Math.max(1.01, Math.round((0.97 / Math.max(0.01, winChance)) * 100) / 100)
 
   async function play() {
+    if (walletBlocked) {
+      setError('Deposit enough to meet the 5,000 TZS wallet minimum before playing.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -173,14 +179,16 @@ export function DiceGame() {
           </div>
         ) : null}
 
+        <WalletMinimumNotice balanceMinor={wallet?.balanceMinor} className="mt-3" />
+
         <button
           type="button"
           onClick={play}
-          disabled={busy}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-bold text-background disabled:opacity-60"
+          disabled={busy || walletBlocked}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-bold text-background disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Dices className="h-4 w-4" />}
-          Roll for {formatTzs(stakeMinor)}
+          {walletBlocked ? 'Deposit to play' : `Roll for ${formatTzs(stakeMinor)}`}
         </button>
         <p className="mt-3 text-[11px] text-muted-text">
           Multiplier includes a 3% house edge. No real money is involved.

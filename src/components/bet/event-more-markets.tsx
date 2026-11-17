@@ -19,12 +19,12 @@ export function EventMoreMarkets({ event }: { event: BetEvent }) {
   )
 
   return (
-    <div className="mt-3 min-w-0 max-w-full overflow-hidden rounded-xl border border-border/80 bg-background/30">
+    <div className="mt-3 min-w-0 max-w-full overflow-hidden rounded-2xl border border-border/80 bg-background/30">
       <button
         type="button"
         onClick={() => setOpen(value => !value)}
         aria-expanded={open}
-        className="flex w-full min-w-0 items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold text-muted-text transition-colors hover:text-main-text"
+        className="flex w-full min-w-0 items-center justify-between gap-2 rounded-t-2xl border border-border/80 bg-gradient-to-r from-surface/90 to-background/70 px-3 py-2 text-[11px] font-semibold text-main-text shadow-sm transition-colors hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <span className="inline-flex min-w-0 items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-accent" />
@@ -39,13 +39,13 @@ export function EventMoreMarkets({ event }: { event: BetEvent }) {
       </button>
 
       {open ? (
-        <div className="min-w-0 border-t border-border/70 p-2.5">
+        <div className="min-w-0 rounded-b-2xl border-t border-border/70 bg-background/80 p-3 shadow-xl">
           <label className="block sm:hidden">
             <span className="sr-only">Choose a market</span>
             <select
               value={activeMarket.id}
               onChange={event => setActiveId(event.target.value as BetMarketId)}
-              className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] font-semibold text-main-text outline-none focus:border-accent/60"
+              className="w-full rounded-xl border border-border bg-background/70 px-3 py-2 text-[11px] font-semibold text-main-text outline-none focus:border-accent/60"
             >
               {extras.map(market => (
                 <option key={market.id} value={market.id}>
@@ -55,14 +55,14 @@ export function EventMoreMarkets({ event }: { event: BetEvent }) {
             </select>
           </label>
 
-          <div className="hidden flex-wrap gap-1 sm:flex">
+          <div className="hidden flex-wrap gap-1.5 sm:flex">
             {extras.map(market => (
               <button
                 key={market.id}
                 type="button"
                 onClick={() => setActiveId(market.id)}
                 aria-pressed={activeMarket.id === market.id}
-                className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition-colors ${
                   activeMarket.id === market.id
                     ? 'bg-accent text-background'
                     : 'bg-background/60 text-muted-text hover:text-main-text'

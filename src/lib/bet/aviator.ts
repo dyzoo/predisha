@@ -8,12 +8,13 @@ import {
 import { BetError, isUniqueConstraintError } from './errors'
 import { hashString, mulberry32 } from './random'
 import { creditWallet, debitWallet, getWalletView } from './wallet'
-import type {
-  AviatorBetView,
-  AviatorPlayerView,
-  AviatorPulseView,
-  AviatorRoundView,
-  BetWalletView,
+import {
+  MIN_WALLET_BALANCE_MINOR,
+  type AviatorBetView,
+  type AviatorPlayerView,
+  type AviatorPulseView,
+  type AviatorRoundView,
+  type BetWalletView,
 } from './types'
 
 export function crashPointFor(
@@ -120,6 +121,18 @@ export async function placeAviatorBet(
 
   try {
     const bet = await prisma.$transaction(async tx => {
+      const wallet = await tx.betWallet.findUnique({
+        where: { userId },
+        select: { balanceMinor: true },
+      })
+      if ((wallet?.balanceMinor ?? 0) < MIN_WALLET_BALANCE_MINOR) {
+        throw new BetError(
+          `A minimum wallet balance of ${MIN_WALLET_BALANCE_MINOR.toLocaleString('en-US')} TZS is required to play Aviator. Deposit to continue.`,
+          422,
+          'WALLET_MINIMUM',
+        )
+      }
+
       const created = await tx.betAviatorBet.create({
         data: {
           userId,

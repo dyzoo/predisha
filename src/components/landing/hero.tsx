@@ -64,11 +64,11 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
             transition={{ duration: 0.55, delay: 0.06, ease: 'easeOut' }}
             className="mt-5 max-w-2xl font-chivo text-4xl font-black leading-[1.05] tracking-tight text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] sm:text-5xl lg:text-6xl"
           >
-            Read the match
+            AI Assisted
             <br />
             <span className="bg-gradient-to-r from-accent to-[#5B8CFF] bg-clip-text text-transparent">
-            before kickoff.
-          </span>
+              Football Analytics
+            </span>
           </motion.h1>
 
           <motion.p
@@ -76,8 +76,13 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
             transition={{ duration: 0.55, delay: 0.12, ease: 'easeOut' }}
             className="mt-5 max-w-xl text-base leading-relaxed text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] sm:text-lg"
           >
-            Statistically grounded match probabilities, explained with the data behind them. Track
-            fixtures, follow the model, and see the record honestly - no hype, no guaranteed wins.
+            Spotibet is an AI-assisted football analytics platform.
+            <br />
+            Explore match probabilities, compare markets, and build your own predictions.
+            <br />
+            Every insight is grounded in timestamped data and transparent models.
+            <br />
+            No hype, no guaranteed wins — just clear analysis before kickoff.
           </motion.p>
 
           <motion.div
