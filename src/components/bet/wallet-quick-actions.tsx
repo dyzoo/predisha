@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowDownToLine, ArrowUpFromLine, CircleHelp, Wallet, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, ChevronUp, CircleHelp, Wallet, X } from 'lucide-react'
 
 const HINT_KEY = 'spotibet:wallet-actions-hint'
 
@@ -36,6 +36,7 @@ export function WalletQuickActions({
   withdrawHref: string
 }) {
   const [helpOpen, setHelpOpen] = useState(false)
+  const [minimized, setMinimized] = useState(false)
 
   useEffect(() => {
     if (hasSeenHint()) return
@@ -125,7 +126,17 @@ export function WalletQuickActions({
     <>
       {guide}
 
-      <div className="fixed right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col items-end gap-2 sm:right-4">
+      {minimized ? (
+        <button
+          type="button"
+          onClick={() => setMinimized(false)}
+          aria-label="Show wallet actions"
+          className="fixed right-3 top-1/2 z-30 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/95 text-main-text shadow-lg shadow-black/10 backdrop-blur transition-colors hover:border-accent/40 hover:text-accent sm:right-4"
+        >
+          <ChevronUp className="h-5 w-5" />
+        </button>
+      ) : (
+        <div className="fixed right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col items-end gap-2 sm:right-4">
         <Link
           href={walletHref}
           onClick={dismissHelp}
@@ -179,7 +190,8 @@ export function WalletQuickActions({
           <CircleHelp className="h-3.5 w-3.5" />
           <span className="hidden text-[10px] font-semibold sm:inline">How it works</span>
         </button>
-      </div>
+        </div>
+      )}
     </>
   )
 }

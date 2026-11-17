@@ -22,19 +22,19 @@ export function WinnerReceipt({ winner }: { winner: PublicWinnerSlipView }) {
         <div className="relative">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/50 bg-amber-300/15 text-amber-300 shadow-[0_0_40px_-10px_rgba(240,213,46,0.7)]">
-                <Trophy className="h-7 w-7" />
+              <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-300/50 bg-amber-300/15 text-amber-300 shadow-[0_0_50px_-10px_rgba(240,213,46,0.8)] sm:h-20 sm:w-20">
+                <Trophy className="h-8 w-8 text-amber-300 sm:h-10 sm:w-10" />
               </span>
               <div>
                 <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.24em] text-amber-300">
                   <Sparkles className="h-3.5 w-3.5" />
                   Winner slip
                 </p>
-                <h1 className="mt-1 font-display text-2xl font-bold leading-tight text-main-text sm:text-3xl">
-                  {winner.title ?? 'Winning bet slip'}
+                <h1 className="mt-1 font-display text-2xl font-black leading-tight text-main-text sm:text-3xl">
+                  You Won
                 </h1>
                 <p className="mt-1 text-xs text-muted-text">
-                  Awarded to {winner.recipientName}
+                  {winner.title ?? 'Winning bet slip'} · Awarded to {winner.recipientName}
                 </p>
               </div>
             </div>

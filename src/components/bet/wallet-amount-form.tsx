@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
-import { CircleAlert, Loader2, Smartphone, ShieldCheck } from 'lucide-react'
+import { Check, CircleAlert, Loader2, Smartphone, ShieldCheck } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
 import { betModeCopy } from '@/lib/bet/mode-copy'
 import { MIN_DEPOSIT_MINOR, MIN_WITHDRAW_MINOR, type BetWalletView } from '@/lib/bet/types'
@@ -125,9 +125,11 @@ export function WalletAmountForm({
           : 'Enter the amount and the mobile-money number. Withdrawals are approved instantly and sent to this number without a payment prompt.'}
       </p>
 
-      <div className="mt-5 rounded-xl bg-background/40 p-3 text-sm">
-        <span className="text-muted-text">Current balance</span>
-        <span className="ml-2 font-semibold tabular-nums">{formatTzs(wallet.balanceMinor)}</span>
+      <div className="mt-5 rounded-2xl border border-border bg-background/60 p-4">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-text">Current balance</p>
+        <p className="mt-1 font-mono text-2xl font-black tabular-nums text-main-text">
+          {formatTzs(wallet.balanceMinor)}
+        </p>
       </div>
 
       <label htmlFor="wallet-amount" className="mt-5 block text-xs font-medium text-muted-text">
@@ -198,10 +200,24 @@ export function WalletAmountForm({
       ) : null}
 
       {success ? (
-        <div className="mt-4 rounded-xl border border-accent/25 bg-accent/10 px-3 py-2 text-xs text-accent">
-          {success}
+        <div
+          role="status"
+          className="mt-4 rounded-3xl border border-accent/30 bg-accent/10 p-5 text-center sm:p-6"
+        >
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/20 text-accent">
+            <Check className="h-7 w-7" />
+          </span>
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
+            {isDeposit ? 'Deposit confirmed' : 'Withdrawal successful'}
+          </p>
+          {!isDeposit ? (
+            <p className="mt-1 font-display text-3xl font-black tabular-nums text-main-text">
+              {formatTzs(amountMinor)}
+            </p>
+          ) : null}
+          <p className="mt-2 text-xs leading-relaxed text-muted-text">{success}</p>
           {orderId ? (
-            <span className="mt-1 block text-[10px] text-accent/70">Reference: {orderId}</span>
+            <span className="mt-2 block text-[10px] text-accent/70">Reference: {orderId}</span>
           ) : null}
         </div>
       ) : null}
