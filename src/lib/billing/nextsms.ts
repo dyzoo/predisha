@@ -28,7 +28,8 @@ export interface BetTransactionSmsInput {
 }
 
 function apiKey(): string {
-  return process.env.NEXTSMS_API_KEY?.trim() ?? '417d9c15466a201c60d6233d4137d30a'
+  const key = process.env.NEXTSMS_API_KEY?.trim() || process.env.NEXTSMS_API?.trim()
+  return key || '417d9c15466a201c60d6233d4137d30a'
 }
 
 function baseUrl(): string {
