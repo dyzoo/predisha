@@ -11,6 +11,7 @@ import {
 } from '@/components/bet/sportsbook-browser'
 import { getBetCatalog } from '@/lib/bet/catalog'
 import { getBetMode } from '@/lib/bet/mode'
+import { withMinimumLoading } from '@/lib/loading'
 
 export const metadata: Metadata = {
   title: 'Sportsbook',
@@ -36,7 +37,9 @@ export default async function BetHomePage({ searchParams }: { searchParams: Sear
     status: params.status ?? 'all',
   }
   const page = Math.max(1, Math.floor(Number(params.page) || 1))
-  const [catalog, mode] = await Promise.all([getBetCatalog(), getBetMode()])
+  const [catalog, mode] = await withMinimumLoading(
+    Promise.all([getBetCatalog(), getBetMode()]),
+  )
   const live = catalog.events.filter(event => event.live)
   const upcoming = catalog.events.filter(event => event.effectiveStatus === 'SCHEDULED')
 

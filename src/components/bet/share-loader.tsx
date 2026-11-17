@@ -24,6 +24,8 @@ import type { BetEvent, BetSlipItem, TicketSelection } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { BrandLogo } from '@/components/brand-logo'
 import { BrandLoading } from '@/components/ui/brand-loading'
+import { waitForMinimum } from '@/lib/loading'
+import { AviatorPromoBanner } from './aviator-promo-banner'
 import { AviatorPromoModal } from './aviator-promo-modal'
 import { useBetSlip } from './bet-slip-provider'
 import { EventGrid } from './event-grid'
@@ -169,6 +171,7 @@ export function ShareLoader({ code }: { code: string }) {
     let cancelled = false
 
     async function load() {
+      const startedAt = Date.now()
       try {
         const response = await fetch(`/api/bet/share/${encodeURIComponent(code)}`, {
           cache: 'no-store',
@@ -180,6 +183,8 @@ export function ShareLoader({ code }: { code: string }) {
           setMessage(payload.error ?? 'That share link could not be loaded.')
           return
         }
+        await waitForMinimum(startedAt)
+        if (cancelled) return
         if (payload.slip) {
           setSlip(payload.slip)
           setCount(payload.slip.selections.length)
@@ -394,7 +399,7 @@ export function ShareLoader({ code }: { code: string }) {
   }, [menuOpen])
 
   if (state === 'loading') {
-    return <BrandLoading className="min-h-[50vh]" message="Loading shared slip" />
+    return <BrandLoading className="min-h-[60vh]" message="Loading shared slip" />
   }
 
   if (state === 'error') {
@@ -427,52 +432,55 @@ export function ShareLoader({ code }: { code: string }) {
 
   if (!slip) {
     return (
-      <div className="mx-auto max-w-lg rounded-3xl border border-border bg-surface/80 p-8 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
-          <Share2 className="h-6 w-6" />
-        </div>
-        <h1 className="mt-4 font-display text-2xl font-semibold">Shared slip loaded</h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-text">
-          {count} selection{count === 1 ? '' : 's'} locked into your bet slip. Just set your stake and
-          place the bet.
-        </p>
-        {stale ? (
-          <div className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
-            One or more prices changed since this slip was shared. Ask the sender for a fresh link.
+      <div className="mx-auto max-w-6xl space-y-4">
+        <AviatorPromoBanner />
+        <div className="mx-auto max-w-lg rounded-3xl border border-border bg-surface/80 p-8 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
+            <Share2 className="h-6 w-6" />
           </div>
-        ) : null}
-        {shareSelections.length > 0 ? (
-          <ul className="mt-4 space-y-2 text-left">
-            {shareSelections.map((selection, index) => (
-              <li
-                key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
-                className="rounded-xl border border-border bg-background/40 px-3 py-2"
-              >
-                <p className="truncate text-xs font-semibold text-main-text">
-                  {selection.fixtureLabel}
-                </p>
-                <p className="mt-0.5 text-[11px] text-muted-text">
-                  <span className="font-semibold text-accent">{selection.marketName}</span> ·{' '}
-                  {selection.selectionLabel}
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <button
-            type="button"
-            onClick={openSlip}
-            className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-background"
-          >
-            Enter stake &amp; place bet
-          </button>
-          <Link
-            href="/bet"
-            className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-main-text hover:border-accent/40"
-          >
-            Back to bet home
-          </Link>
+          <h1 className="mt-4 font-display text-2xl font-semibold">Shared slip loaded</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-text">
+            {count} selection{count === 1 ? '' : 's'} locked into your bet slip. Just set your stake
+            and place the bet.
+          </p>
+          {stale ? (
+            <div className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+              One or more prices changed since this slip was shared. Ask the sender for a fresh link.
+            </div>
+          ) : null}
+          {shareSelections.length > 0 ? (
+            <ul className="mt-4 space-y-2 text-left">
+              {shareSelections.map((selection, index) => (
+                <li
+                  key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
+                  className="rounded-xl border border-border bg-background/40 px-3 py-2"
+                >
+                  <p className="truncate text-xs font-semibold text-main-text">
+                    {selection.fixtureLabel}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted-text">
+                    <span className="font-semibold text-accent">{selection.marketName}</span> ·{' '}
+                    {selection.selectionLabel}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={openSlip}
+              className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-background"
+            >
+              Enter stake &amp; place bet
+            </button>
+            <Link
+              href="/bet"
+              className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-main-text hover:border-accent/40"
+            >
+              Back to bet home
+            </Link>
+          </div>
         </div>
       </div>
     )
@@ -488,6 +496,7 @@ export function ShareLoader({ code }: { code: string }) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <AviatorPromoBanner />
       <section className="mx-auto max-w-2xl">
         <div className="receipt-paper receipt-sheet">
           <div className="px-5 pb-8 pt-5 sm:px-6">

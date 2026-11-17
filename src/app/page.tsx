@@ -1,5 +1,6 @@
 import { Activity, ArrowRight, CalendarClock, Globe2, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
+import { connection } from 'next/server'
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { Hero } from '@/components/landing/hero'
@@ -11,6 +12,7 @@ import { LiveTicker } from '@/components/landing/live-ticker'
 import { getMatchAnalyses } from '@/lib/sports/service'
 import { toMatchView } from '@/lib/sports/view-model'
 import { getViewer } from '@/lib/auth/session'
+import { withMinimumLoading } from '@/lib/loading'
 
 const trustItems = [
   { icon: Activity, label: 'Multi-market probabilities' },
@@ -20,8 +22,10 @@ const trustItems = [
 ]
 
 export default async function Home() {
-  const { analyses, dataset } = await getMatchAnalyses()
-  const viewer = await getViewer()
+  await connection()
+  const [{ analyses, dataset }, viewer] = await withMinimumLoading(
+    Promise.all([getMatchAnalyses(), getViewer()]),
+  )
   const signedIn = Boolean(viewer.userId)
   const health = dataset.health
   const isDemo = dataset.isDemo
