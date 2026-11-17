@@ -24,6 +24,7 @@ import type { BetEvent, BetSlipItem, TicketSelection } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { BrandLogo } from '@/components/brand-logo'
 import { BrandLoading } from '@/components/ui/brand-loading'
+import { waitForMinimum } from '@/lib/loading'
 import { AviatorPromoBanner } from './aviator-promo-banner'
 import { AviatorPromoModal } from './aviator-promo-modal'
 import { useBetSlip } from './bet-slip-provider'
@@ -170,6 +171,7 @@ export function ShareLoader({ code }: { code: string }) {
     let cancelled = false
 
     async function load() {
+      const startedAt = Date.now()
       try {
         const response = await fetch(`/api/bet/share/${encodeURIComponent(code)}`, {
           cache: 'no-store',
@@ -181,6 +183,8 @@ export function ShareLoader({ code }: { code: string }) {
           setMessage(payload.error ?? 'That share link could not be loaded.')
           return
         }
+        await waitForMinimum(startedAt)
+        if (cancelled) return
         if (payload.slip) {
           setSlip(payload.slip)
           setCount(payload.slip.selections.length)
@@ -455,7 +459,7 @@ export function ShareLoader({ code }: { code: string }) {
                     {selection.fixtureLabel}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-text">
-                    <span className="font-semibold text-accent">{selection.marketName}</span> Ã‚Â·{' '}
+                    <span className="font-semibold text-accent">{selection.marketName}</span> Ãƒâ€šÃ‚Â·{' '}
                     {selection.selectionLabel}
                   </p>
                 </li>
@@ -909,7 +913,7 @@ export function ShareLoader({ code }: { code: string }) {
                         : 'Ready to play'}
               </p>
               <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-text">
-                SpotibetBet Ã‚Â· EAT Ã‚Â· {slip.code}
+                SpotibetBet Ãƒâ€šÃ‚Â· EAT Ãƒâ€šÃ‚Â· {slip.code}
               </p>
             </div>
           </div>
