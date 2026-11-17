@@ -26,8 +26,26 @@ export default async function Home() {
   const health = dataset.health
   const isDemo = dataset.isDemo
   const matches = analyses.map(analysis => toMatchView(analysis))
+  const recentFinished =
+    matches
+      .filter(match => match.effectiveStatus === 'FINISHED')
+      .sort(
+        (a, b) =>
+          new Date(b.kickoffIso).getTime() - new Date(a.kickoffIso).getTime(),
+      )
+      .find(match => match.probability || match.score) ??
+    matches.find(match => match.effectiveStatus === 'FINISHED')
+  const upcoming = matches
+    .filter(match => match.effectiveStatus === 'LIVE' || match.effectiveStatus === 'SCHEDULED')
+    .sort((a, b) => {
+      if (a.effectiveStatus === 'LIVE' && b.effectiveStatus !== 'LIVE') return -1
+      if (b.effectiveStatus === 'LIVE' && a.effectiveStatus !== 'LIVE') return 1
+      return new Date(a.kickoffIso).getTime() - new Date(b.kickoffIso).getTime()
+    })
   const featured =
     matches.find(match => match.effectiveStatus === 'LIVE' && match.probability) ??
+    recentFinished ??
+    upcoming[0] ??
     matches.find(match => match.probability) ??
     matches[0]
   const liveMatches = matches.filter(match => match.effectiveStatus === 'LIVE')

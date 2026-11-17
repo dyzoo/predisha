@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import { Plane } from 'lucide-react'
-import { PageShell } from '@/components/page-shell'
+import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminAviatorSettings } from '@/components/admin/admin-aviator-settings'
 import { AdminNav } from '@/components/admin/admin-nav'
@@ -21,9 +21,9 @@ export default async function AdminAviatorPage() {
 
   if (!isAuthConfigured()) {
     return (
-      <PageShell eyebrow="Admin" title="Aviator">
+      <AdminShell eyebrow="Admin" title="Aviator">
         <AdminAccessState status="unconfigured" />
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -31,9 +31,9 @@ export default async function AdminAviatorPage() {
   if (!viewer.userId) redirect('/sign-in?next=/admin/aviator')
   if (!canViewAdmin(viewer)) {
     return (
-      <PageShell eyebrow="Admin" title="Aviator">
+      <AdminShell eyebrow="Admin" title="Aviator">
         <AdminAccessState status="forbidden" />
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -60,7 +60,7 @@ export default async function AdminAviatorPage() {
   })
 
   return (
-    <PageShell
+    <AdminShell
       eyebrow="Admin"
       title="Aviator control"
       intro="Tune the Aviator round engine, pause betting, and watch live stake and payout activity. Changes are persisted server-side and audited."
@@ -89,7 +89,7 @@ export default async function AdminAviatorPage() {
         }}
         history={history}
       />
-    </PageShell>
+    </AdminShell>
   )
 }
 

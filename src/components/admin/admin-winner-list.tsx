@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ExternalLink, Receipt, Trophy } from 'lucide-react'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
+import { VAT_PERCENT } from '@/lib/bet/vat'
 
 export interface AdminWinnerSelectionView {
   fixtureLabel: string
@@ -106,7 +107,9 @@ export function AdminWinnerList({ winners }: { winners: AdminWinnerListItemView[
               </dd>
             </div>
             <div className="rounded-lg border border-border bg-background/40 px-2 py-1.5">
-              <dt className="text-[10px] uppercase tracking-wide text-muted-text">VAT 10%</dt>
+              <dt className="text-[10px] uppercase tracking-wide text-muted-text">
+                VAT {VAT_PERCENT}%
+              </dt>
               <dd className="mt-0.5 text-xs font-semibold tabular-nums text-red-300">
                 -{formatTzs(winner.vatMinor)}
               </dd>

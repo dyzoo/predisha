@@ -40,14 +40,24 @@ function pickFromSelection(
   }
 }
 
+const SCHEDULED_STATUSES: readonly BetEvent['effectiveStatus'][] = ['SCHEDULED']
+
 export function AdminSelectionPicker({
   excludedFixtures,
   onAdd,
   disabled = false,
+  statuses = SCHEDULED_STATUSES,
+  actionLabel = 'Add another match',
+  emptyLabel = 'No upcoming matches match that search.',
+  limit = 40,
 }: {
   excludedFixtures: Set<string>
   onAdd: (pick: AdminRecommendationPick) => void
   disabled?: boolean
+  statuses?: readonly BetEvent['effectiveStatus'][]
+  actionLabel?: string
+  emptyLabel?: string
+  limit?: number
 }) {
   const [open, setOpen] = useState(false)
   const [events, setEvents] = useState<BetEvent[] | null>(null)
@@ -84,7 +94,7 @@ export function AdminSelectionPicker({
     const source = events ?? []
     const needle = query.trim().toLowerCase()
     return source
-      .filter(event => event.effectiveStatus === 'SCHEDULED')
+      .filter(event => statuses.includes(event.effectiveStatus))
       .filter(event => {
         if (!needle) return true
         return [
@@ -100,8 +110,8 @@ export function AdminSelectionPicker({
           .toLowerCase()
           .includes(needle)
       })
-      .slice(0, 40)
-  }, [events, query])
+      .slice(0, limit)
+  }, [events, limit, query, statuses])
 
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/40">
@@ -113,7 +123,7 @@ export function AdminSelectionPicker({
       >
         <span className="inline-flex items-center gap-2">
           <Plus className="h-3.5 w-3.5 text-accent" />
-          Add another match
+          {actionLabel}
         </span>
         {loading ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
@@ -147,7 +157,7 @@ export function AdminSelectionPicker({
           <div className="mt-2 max-h-80 space-y-1.5 overflow-y-auto pr-1">
             {!loading && filtered.length === 0 ? (
               <p className="rounded-lg border border-dashed border-border px-3 py-3 text-[11px] text-muted-text">
-                No upcoming matches match that search.
+                {emptyLabel}
               </p>
             ) : null}
 
@@ -166,7 +176,12 @@ export function AdminSelectionPicker({
                         {event.home.name} vs {event.away.name}
                       </span>
                       <span className="mt-0.5 block truncate text-[10px] text-muted-text">
-                        {event.competition} | {event.kickoffLabel}
+                        {event.competition} | {event.kickoffLabel} |{' '}
+                        {event.effectiveStatus === 'FINISHED'
+                          ? 'Finished'
+                          : event.effectiveStatus === 'LIVE'
+                            ? 'Live'
+                            : 'Upcoming'}
                       </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">

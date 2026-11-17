@@ -156,9 +156,12 @@ export const adminEntryActionSchema = z.object({
 })
 
 export const adminWinnerSelectionSchema = z.object({
+  fixtureId: z.string().trim().min(1).max(160).optional(),
   fixtureLabel: z.string().trim().min(3, 'Enter the teams or fixture.').max(160),
   competition: z.string().trim().max(120).optional(),
+  marketId: z.string().trim().min(1).max(80).optional(),
   marketName: z.string().trim().min(1, 'Enter the market.').max(80),
+  selectionId: z.string().trim().min(1).max(80).optional(),
   selectionLabel: z.string().trim().min(1, 'Enter the winning selection.').max(120),
   odds: z.number().finite().min(1.01).max(1000),
   finalScore: z
@@ -174,6 +177,7 @@ export const adminWinnerSelectionSchema = z.object({
 export const adminWinnerCreateSchema = z.object({
   userId: z.string().trim().min(1, 'Choose a registered user.').max(80),
   title: z.string().trim().max(120).optional(),
+  date: z.string().datetime().optional(),
   stakeMinor: z.number().int().min(MIN_STAKE_MINOR).max(MAX_STAKE_MINOR),
   selections: z.array(adminWinnerSelectionSchema).min(1).max(MAX_SELECTIONS),
   note: z.string().trim().max(280).optional(),

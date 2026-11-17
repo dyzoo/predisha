@@ -3,17 +3,20 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  CalendarDays,
   CircleAlert,
   CircleCheck,
+  Database,
   Loader2,
-  Plus,
   Search,
   Trash2,
   Trophy,
   UserRound,
 } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
+import type { AdminRecommendationPick } from '@/lib/bet/recommendation'
 import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
+import { AdminSelectionPicker } from './admin-selection-picker'
 
 export interface WinnerUserOption {
   id: string
@@ -23,9 +26,14 @@ export interface WinnerUserOption {
 }
 
 interface SelectionDraft {
+  fixtureId: string
   fixtureLabel: string
   competition: string
+  kickoffIso: string
+  kickoffLabel: string
+  marketId: string
   marketName: string
+  selectionId: string
   selectionLabel: string
   odds: string
   homeScore: string
@@ -47,17 +55,12 @@ interface WinnerResponse {
 
 const MIN_ODDS = 1.01
 const MAX_ODDS = 1000
+const WINNER_STATUSES = ['SCHEDULED', 'LIVE', 'FINISHED'] as const
 
-function emptySelection(): SelectionDraft {
-  return {
-    fixtureLabel: '',
-    competition: '',
-    marketName: 'Match result',
-    selectionLabel: '',
-    odds: '',
-    homeScore: '',
-    awayScore: '',
-  }
+function todayDateValue(): string {
+  const now = new Date()
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 10)
 }
 
 function normalizeOdds(value: string): number {
@@ -88,9 +91,10 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
   const [query, setQuery] = useState('')
   const [userId, setUserId] = useState('')
   const [title, setTitle] = useState('')
+  const [date, setDate] = useState(todayDateValue)
   const [stake, setStake] = useState('1000')
   const [note, setNote] = useState('')
-  const [rows, setRows] = useState<SelectionDraft[]>([emptySelection()])
+  const [rows, setRows] = useState<SelectionDraft[]>([])
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<WinnerResponse | null>(null)
@@ -120,10 +124,29 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
     )
   }
 
-  function addRow() {
+  function addPick(pick: AdminRecommendationPick) {
     setResult(null)
     setError(null)
-    setRows(current => [...current, emptySelection()])
+    setRows(current => {
+      if (current.some(row => row.fixtureId === pick.fixtureId)) return current
+      return [
+        ...current,
+        {
+          fixtureId: pick.fixtureId,
+          fixtureLabel: pick.fixtureLabel,
+          competition: pick.competition,
+          kickoffIso: pick.kickoffIso,
+          kickoffLabel: pick.kickoffLabel,
+          marketId: pick.marketId,
+          marketName: pick.marketName,
+          selectionId: pick.selectionId,
+          selectionLabel: pick.selectionLabel,
+          odds: pick.odds.toFixed(2),
+          homeScore: '',
+          awayScore: '',
+        },
+      ]
+    })
   }
 
   function removeRow(index: number) {
@@ -148,21 +171,26 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
       setError('Choose the registered user who should receive this winner payout.')
       return
     }
+    const payoutDate = date ? new Date(`${date}T12:00:00.000Z`) : null
+    if (!payoutDate || Number.isNaN(payoutDate.getTime())) {
+      setError('Choose the date for this winner payout.')
+      return
+    }
     if (!Number.isInteger(stakeMinor) || stakeMinor < 500 || stakeMinor > 500_000) {
       setError('Stake must be a whole amount between 500 and 500,000 TZS.')
       return
     }
     if (rows.length === 0) {
-      setError('Add at least one winning selection.')
+      setError('Choose at least one winning selection from the fixture API.')
       return
     }
     for (const [index, row] of rows.entries()) {
-      if (!row.fixtureLabel.trim()) {
-        setError(`Selection ${index + 1}: enter the teams or fixture.`)
+      if (!row.fixtureId || !row.marketId || !row.selectionId) {
+        setError(`Selection ${index + 1}: choose a fixture and selection from the API picker.`)
         return
       }
-      if (!row.marketName.trim() || !row.selectionLabel.trim()) {
-        setError(`Selection ${index + 1}: enter the market and winning selection.`)
+      if (!row.fixtureLabel.trim() || !row.marketName.trim() || !row.selectionLabel.trim()) {
+        setError(`Selection ${index + 1}: the selected fixture details are incomplete.`)
         return
       }
       const odds = normalizeOdds(row.odds)
@@ -187,13 +215,18 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
         body: JSON.stringify({
           userId: selectedUser.id,
           title: title.trim() || undefined,
+          date: payoutDate.toISOString(),
           stakeMinor,
           note: note.trim() || undefined,
           selections: rows.map(row => ({
+            fixtureId: row.fixtureId,
             fixtureLabel: row.fixtureLabel.trim(),
             competition: row.competition.trim() || undefined,
+            marketId: row.marketId,
             marketName: row.marketName.trim(),
+            selectionId: row.selectionId,
             selectionLabel: row.selectionLabel.trim(),
+            kickoffIso: row.kickoffIso,
             odds: normalizeOdds(row.odds),
             finalScore: scoreFor(row),
           })),
@@ -222,8 +255,12 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
         <div>
           <h2 className="font-display text-base font-bold text-main-text">Assign a winner</h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-text">
-            Pick a registered user, add the winning teams and selections, then set the stake and
-            odds. The payout is credited to their wallet minus {VAT_PERCENT}% VAT.
+            Pick a registered user, choose the teams and winning selections from the live fixture
+            API, set the payout date and stake, then credit the wallet after VAT.
+          </p>
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+            <Database className="h-3 w-3" />
+            Fixture API | {VAT_PERCENT}% VAT deducted automatically
           </p>
         </div>
       </div>
@@ -275,7 +312,7 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
             ) : null}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <label className="block">
               <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
                 Winner slip title (optional)
@@ -287,6 +324,18 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
                 maxLength={120}
                 placeholder="e.g. Weekend jackpot winner"
                 className="w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-xs text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 flex items-center gap-1 text-[11px] font-medium text-muted-text">
+                <CalendarDays className="h-3.5 w-3.5 text-accent" />
+                Payout date
+              </span>
+              <input
+                type="date"
+                value={date}
+                onChange={event => setDate(event.target.value)}
+                className="w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-xs font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
               />
             </label>
             <label className="block">
@@ -326,6 +375,10 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
             Payout preview
           </p>
           <dl className="mt-3 space-y-2 text-xs">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-text">Payout date</dt>
+              <dd className="font-semibold tabular-nums text-main-text">{date || '-'}</dd>
+            </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-text">Stake</dt>
               <dd className="font-semibold tabular-nums text-main-text">
@@ -373,67 +426,53 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
         </div>
 
         <div className="mt-3 space-y-3">
+          {rows.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-[11px] leading-relaxed text-muted-text">
+              No winning selections yet. Use the fixture API picker below to choose a match,
+              market and winning selection.
+            </p>
+          ) : null}
+
           {rows.map((row, index) => (
             <div
-              key={index}
+              key={row.fixtureId}
               className="rounded-xl border border-border bg-surface/60 p-3"
             >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-accent">
-                  Selection {index + 1}
-                </p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-accent">
+                    Selection {index + 1}
+                  </p>
+                  <p className="mt-1 truncate text-xs font-semibold text-main-text">
+                    {row.fixtureLabel}
+                  </p>
+                  <p className="mt-0.5 truncate text-[10px] text-muted-text">
+                    {row.competition} | {row.kickoffLabel}
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => removeRow(index)}
-                  disabled={rows.length === 1}
                   aria-label={`Remove selection ${index + 1}`}
-                  className="rounded-lg border border-border bg-surface p-1.5 text-muted-text transition-colors hover:border-red-400/40 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-lg border border-border bg-surface p-1.5 text-muted-text transition-colors hover:border-red-400/40 hover:text-red-300"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
 
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-[10px] text-muted-text">Teams / fixture</span>
-                  <input
-                    type="text"
-                    value={row.fixtureLabel}
-                    onChange={event => updateRow(index, { fixtureLabel: event.target.value })}
-                    placeholder="e.g. Yanga vs Simba"
-                    className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-xs text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-[10px] text-muted-text">Competition</span>
-                  <input
-                    type="text"
-                    value={row.competition}
-                    onChange={event => updateRow(index, { competition: event.target.value })}
-                    placeholder="e.g. NBC Premier League"
-                    className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-xs text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-[10px] text-muted-text">Market</span>
-                  <input
-                    type="text"
-                    value={row.marketName}
-                    onChange={event => updateRow(index, { marketName: event.target.value })}
-                    placeholder="e.g. Match result"
-                    className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-xs text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-[10px] text-muted-text">Winning selection</span>
-                  <input
-                    type="text"
-                    value={row.selectionLabel}
-                    onChange={event => updateRow(index, { selectionLabel: event.target.value })}
-                    placeholder="e.g. Yanga to win"
-                    className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-xs text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60"
-                  />
-                </label>
+                <div className="rounded-lg border border-border bg-background/60 px-2.5 py-2">
+                  <span className="block text-[10px] text-muted-text">Market</span>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-main-text">
+                    {row.marketName}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-background/60 px-2.5 py-2">
+                  <span className="block text-[10px] text-muted-text">Winning selection</span>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-main-text">
+                    {row.selectionLabel}
+                  </p>
+                </div>
                 <label className="block">
                   <span className="mb-1 block text-[10px] text-muted-text">Odds</span>
                   <input
@@ -483,15 +522,15 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={addRow}
-          disabled={rows.length >= 20}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-[11px] font-semibold text-main-text transition-colors hover:border-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add selection
-        </button>
+        <AdminSelectionPicker
+          excludedFixtures={new Set(rows.map(row => row.fixtureId))}
+          onAdd={addPick}
+          disabled={pending}
+          statuses={WINNER_STATUSES}
+          actionLabel="Choose winning selection"
+          emptyLabel="No fixtures match that search."
+          limit={500}
+        />
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -521,7 +560,7 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
           <p className="mt-2 text-xs text-main-text">
             {formatTzs(result.winner.netPayoutMinor)} added to the wallet. Gross{' '}
             {formatTzs(result.winner.grossPayoutMinor)} minus {formatTzs(result.winner.vatMinor)}{' '}
-            VAT.
+            VAT ({VAT_PERCENT}%).
           </p>
           <p className="mt-1 text-[11px] text-muted-text">
             Winner code{' '}

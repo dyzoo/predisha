@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       selections: input.selections,
       note: input.note,
       createdBy: access.viewer.userId,
-      now: new Date(),
+      now: input.date ? new Date(input.date) : new Date(),
     })
 
     return json(

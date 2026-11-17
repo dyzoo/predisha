@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { AuthShell } from '@/components/auth-shell'
+import { canViewAdmin } from '@/lib/auth/entitlements'
 import { safeNextPath } from '@/lib/auth/redirect'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 
@@ -16,7 +17,12 @@ export default async function SignInPage({
   const { next } = await searchParams
   const nextPath = safeNextPath(next)
   const viewer = await getViewer()
-  if (viewer.userId) redirect(nextPath ?? '/dashboard')
+  if (viewer.userId) {
+    if (canViewAdmin(viewer)) {
+      redirect(nextPath?.startsWith('/admin') ? nextPath : '/admin')
+    }
+    redirect(nextPath ?? '/dashboard')
+  }
 
   return (
     <AuthShell mode="sign-in" authConfigured={isAuthConfigured()} nextPath={nextPath ?? undefined} />

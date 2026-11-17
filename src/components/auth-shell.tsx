@@ -31,6 +31,9 @@ interface AuthResponse {
   error?: string
   fields?: Record<string, string>
   retryAfterSeconds?: number
+  data?: {
+    role?: string
+  }
 }
 
 const copy = {
@@ -156,7 +159,13 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
         return
       }
       await refreshViewer()
-      router.replace(safeNext ?? '/dashboard')
+      const isAdmin = payload.data?.role === 'ADMIN' || payload.data?.role === 'SUPER_ADMIN'
+      const destination = isAdmin
+        ? safeNext?.startsWith('/admin')
+          ? safeNext
+          : '/admin'
+        : (safeNext ?? '/dashboard')
+      router.replace(destination)
       router.refresh()
     } catch {
       setError('Network error. Please try again.')

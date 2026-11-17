@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import type { Prisma, SubscriptionStatus } from '@prisma/client'
 import { CircleCheck, Filter, Search, ShieldCheck, Users } from 'lucide-react'
-import { PageShell } from '@/components/page-shell'
+import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminCreateAdmin } from '@/components/admin/admin-create-admin'
 import { AdminNav } from '@/components/admin/admin-nav'
@@ -41,9 +41,9 @@ export default async function AdminUsersPage({
 
   if (!isAuthConfigured()) {
     return (
-      <PageShell eyebrow="Admin" title="Users">
+      <AdminShell eyebrow="Admin" title="Users">
         <AdminAccessState status="unconfigured" />
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -51,9 +51,9 @@ export default async function AdminUsersPage({
   if (!viewer.userId) redirect('/sign-in?next=/admin/users')
   if (!canViewAdmin(viewer)) {
     return (
-      <PageShell eyebrow="Admin" title="Users">
+      <AdminShell eyebrow="Admin" title="Users">
         <AdminAccessState status="forbidden" />
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -103,7 +103,7 @@ export default async function AdminUsersPage({
   ])
 
   return (
-    <PageShell
+    <AdminShell
       eyebrow="Admin"
       title="Users"
       intro="Review accounts, create admins and adjust subscription access. Every change is written to the audit log."
@@ -270,7 +270,7 @@ export default async function AdminUsersPage({
           })
         )}
       </section>
-    </PageShell>
+    </AdminShell>
   )
 }
 

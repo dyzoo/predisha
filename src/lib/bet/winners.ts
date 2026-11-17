@@ -18,9 +18,12 @@ const MAX_TOTAL_ODDS = 1_000_000
 const MAX_GROSS_PAYOUT_MINOR = 1_000_000_000
 
 export interface WinnerSelectionInput {
+  fixtureId?: string
   fixtureLabel: string
   competition?: string
+  marketId?: string
   marketName: string
+  selectionId?: string
   selectionLabel: string
   odds: number
   finalScore?: { home: number; away: number } | null
@@ -85,14 +88,14 @@ function buildWinnerSelections(
     const odds = roundOdds(selection.odds)
     const kickoffIso = selection.kickoffIso ?? now.toISOString()
     return {
-      fixtureId: `winner-${index + 1}`,
+      fixtureId: selection.fixtureId?.trim() || `winner-${index + 1}`,
       fixtureLabel: selection.fixtureLabel.trim(),
       competition: selection.competition?.trim() || 'Admin-settled winner',
       kickoffIso,
       kickoffLabel: formatKickoffLabel(kickoffIso),
-      marketId: 'winner',
+      marketId: selection.marketId?.trim() || 'winner',
       marketName: selection.marketName.trim(),
-      selectionId: `WINNER_${index + 1}`,
+      selectionId: selection.selectionId?.trim() || `WINNER_${index + 1}`,
       selectionLabel: selection.selectionLabel.trim(),
       odds,
       probability: Math.min(0.999, Math.max(0.001, 1 / odds)),
@@ -273,6 +276,7 @@ export async function createWinnerSlip(input: {
             grossPayoutMinor: vat.grossMinor,
             vatMinor: vat.vatMinor,
             netPayoutMinor: vat.netPayoutMinor,
+            creditedAt: now.toISOString(),
             note: input.note?.trim() || null,
           },
         },

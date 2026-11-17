@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import { Receipt, SlidersHorizontal } from 'lucide-react'
-import { PageShell } from '@/components/page-shell'
+import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminBetModeToggle } from '@/components/admin/admin-bet-mode-toggle'
 import { AdminSlipGenerator } from '@/components/admin/admin-slip-generator'
@@ -24,9 +24,9 @@ export default async function AdminBetsPage() {
 
   if (!isAuthConfigured()) {
     return (
-      <PageShell eyebrow="Admin" title="Bets">
+      <AdminShell eyebrow="Admin" title="Bets">
         <AdminAccessState status="unconfigured" />
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -34,9 +34,9 @@ export default async function AdminBetsPage() {
   if (!viewer.userId) redirect('/sign-in?next=/admin/bets')
   if (!canViewAdmin(viewer)) {
     return (
-      <PageShell eyebrow="Admin" title="Bets">
+      <AdminShell eyebrow="Admin" title="Bets">
         <AdminAccessState status="forbidden" />
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -85,7 +85,7 @@ export default async function AdminBetsPage() {
   }))
 
   return (
-    <PageShell
+    <AdminShell
       eyebrow="Admin"
       title="Bet control"
       intro="Switch the platform between live and sandbox, review the model's best upcoming picks, set the odds and stake you want to offer, then freeze a slip the moment you need to."
@@ -118,7 +118,7 @@ export default async function AdminBetsPage() {
       </section>
 
       <AdminSlipList slips={slipItems} />
-    </PageShell>
+    </AdminShell>
   )
 }
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2, LogOut } from 'lucide-react'
 import { useViewer } from '@/components/ui/viewer-provider'
 
-export function SignOutButton() {
+export function SignOutButton({ redirectTo = '/' }: { redirectTo?: string }) {
   const router = useRouter()
   const { refreshViewer } = useViewer()
   const [pending, setPending] = useState(false)
@@ -15,7 +15,7 @@ export function SignOutButton() {
     try {
       await fetch('/api/auth/sign-out', { method: 'POST', credentials: 'include' })
       await refreshViewer()
-      router.push('/')
+      router.replace(redirectTo)
       router.refresh()
     } finally {
       setPending(false)

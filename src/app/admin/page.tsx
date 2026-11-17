@@ -12,7 +12,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react'
-import { PageShell } from '@/components/page-shell'
+import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminNav } from '@/components/admin/admin-nav'
 import { canViewAdmin } from '@/lib/auth/entitlements'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
@@ -29,7 +29,7 @@ export default async function AdminPage() {
   await connection()
   if (!isAuthConfigured()) {
     return (
-      <PageShell eyebrow="Admin" title="Admin console">
+      <AdminShell eyebrow="Admin" title="Admin console">
         <div className="rounded-2xl border border-dashed border-border bg-surface/50 p-8 text-center">
           <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-accent/15 text-accent">
             <Lock className="h-5 w-5" />
@@ -40,7 +40,7 @@ export default async function AdminPage() {
             exposed without a verified server-side session.
           </p>
         </div>
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -49,7 +49,7 @@ export default async function AdminPage() {
 
   if (!canViewAdmin(viewer)) {
     return (
-      <PageShell eyebrow="Admin" title="Access denied">
+      <AdminShell eyebrow="Admin" title="Access denied">
         <div className="rounded-2xl border border-red-400/25 bg-red-400/10 p-8 text-center">
           <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-red-400/15 text-red-300">
             <ShieldAlert className="h-5 w-5" />
@@ -67,7 +67,7 @@ export default async function AdminPage() {
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -98,7 +98,7 @@ export default async function AdminPage() {
   const flags = analyses.flatMap(item => item.prediction?.qualityFlags ?? [])
 
   return (
-    <PageShell
+    <AdminShell
       eyebrow="Admin"
       title="Admin console"
       intro="Operational snapshot from the configured provider and database. Every value is read server-side."
@@ -224,7 +224,7 @@ export default async function AdminPage() {
           </ul>
         )}
       </section>
-    </PageShell>
+    </AdminShell>
   )
 }
 

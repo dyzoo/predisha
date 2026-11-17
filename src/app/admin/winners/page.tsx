@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
-import { PageShell } from '@/components/page-shell'
+import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminNav } from '@/components/admin/admin-nav'
 import {
@@ -26,9 +26,9 @@ export default async function AdminWinnersPage() {
 
   if (!isAuthConfigured()) {
     return (
-      <PageShell eyebrow="Admin" title="Winners">
+      <AdminShell eyebrow="Admin" title="Winners">
         <AdminAccessState status="unconfigured" />
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -36,9 +36,9 @@ export default async function AdminWinnersPage() {
   if (!viewer.userId) redirect('/sign-in?next=/admin/winners')
   if (!canViewAdmin(viewer)) {
     return (
-      <PageShell eyebrow="Admin" title="Winners">
+      <AdminShell eyebrow="Admin" title="Winners">
         <AdminAccessState status="forbidden" />
-      </PageShell>
+      </AdminShell>
     )
   }
 
@@ -90,10 +90,10 @@ export default async function AdminWinnersPage() {
   }))
 
   return (
-    <PageShell
+    <AdminShell
       eyebrow="Admin"
       title="Winner payouts"
-      intro="Choose a registered user, record the teams, selections and odds behind their winning slip, and credit the wallet after the 10% VAT deduction."
+      intro="Choose a registered user, select teams and winning selections from the fixture API, set the payout date, and credit the wallet after the 10% VAT deduction."
     >
       <AdminNav active="/admin/winners" />
 
@@ -106,7 +106,7 @@ export default async function AdminWinnersPage() {
       <AdminWinnerForm users={userOptions} />
 
       <AdminWinnerList winners={winnerItems} />
-    </PageShell>
+    </AdminShell>
   )
 }
 

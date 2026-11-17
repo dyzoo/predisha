@@ -9,7 +9,6 @@ import {
   CircleCheck,
   Radio,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react'
 import { TeamBadge } from '@/components/teams/team-badge'
 import type { MatchView } from '@/lib/sports/view-model'
@@ -50,25 +49,14 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
 
       <div className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-12 px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:px-8 lg:pb-28 lg:pt-24">
         <div>
-          <motion.div
-            {...fadeUp}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-accent"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            AI-assisted football analytics
-          </motion.div>
-
           <motion.h1
             {...fadeUp}
             transition={{ duration: 0.55, delay: 0.06, ease: 'easeOut' }}
-            className="mt-5 max-w-2xl font-chivo text-4xl font-black leading-[1.05] tracking-tight text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] sm:text-5xl lg:text-6xl"
+            className="max-w-2xl font-chivo text-4xl font-black leading-[1.05] tracking-tight text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] sm:text-5xl lg:text-6xl"
           >
             AI Assisted
             <br />
-            <span className="bg-gradient-to-r from-accent to-[#5B8CFF] bg-clip-text text-transparent">
-              Football Analytics
-            </span>
+            <span className="text-accent">Football Analytics</span>
           </motion.h1>
 
           <motion.p
@@ -82,7 +70,7 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
             <br />
             Every insight is grounded in timestamped data and transparent models.
             <br />
-            No hype, no guaranteed wins — just clear analysis before kickoff.
+            No hype, no guaranteed wins. Just clear analysis before kickoff.
           </motion.p>
 
           <motion.div
