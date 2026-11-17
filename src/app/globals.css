@@ -74,6 +74,21 @@ button, a { cursor: pointer; }
   background: #3d4653;
 }
 
+.brand-loading-bar__fill {
+  width: 45%;
+  animation: brand-loading-bar 1.15s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  will-change: transform;
+}
+
+@keyframes brand-loading-bar {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -85,6 +100,12 @@ button, a { cursor: pointer; }
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .brand-loading-bar__fill {
+    width: 100%;
+    animation: none;
+    transform: none;
   }
 }
 

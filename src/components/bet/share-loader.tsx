@@ -23,6 +23,7 @@ import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
 import type { BetEvent, BetSlipItem, TicketSelection } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { BrandLogo } from '@/components/brand-logo'
+import { BrandLoading } from '@/components/ui/brand-loading'
 import { AviatorPromoModal } from './aviator-promo-modal'
 import { useBetSlip } from './bet-slip-provider'
 import { EventGrid } from './event-grid'
@@ -392,19 +393,17 @@ export function ShareLoader({ code }: { code: string }) {
     }
   }, [menuOpen])
 
-  if (state !== 'ready') {
+  if (state === 'loading') {
+    return <BrandLoading className="min-h-[50vh]" message="Loading shared slip" />
+  }
+
+  if (state === 'error') {
     return (
       <div className="mx-auto max-w-lg rounded-3xl border border-border bg-surface/80 p-8 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
-          {state === 'loading' ? (
-            <Loader2 className="h-6 w-6 animate-spin" />
-          ) : (
-            <CircleAlert className="h-6 w-6" />
-          )}
+          <CircleAlert className="h-6 w-6" />
         </div>
-        <h1 className="mt-4 font-display text-2xl font-semibold">
-          {state === 'loading' ? 'Loading shared slip...' : 'Share link unavailable'}
-        </h1>
+        <h1 className="mt-4 font-display text-2xl font-semibold">Share link unavailable</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-text">
           {message ?? 'Share codes expire after 24 hours.'}
         </p>
