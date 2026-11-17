@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import {
+  MAX_DEPOSIT_MINOR,
   MAX_SELECTIONS,
   MAX_STAKE_MINOR,
-  MIN_DEPOSIT_MINOR,
   MIN_STAKE_MINOR,
 } from './types'
 
@@ -48,7 +48,7 @@ const referenceSchema = z
   .regex(/^[A-Za-z0-9:_-]+$/, 'Use letters, numbers, colon, underscore or dash only.')
 
 export const depositSchema = z.object({
-  amountMinor: z.number().int().min(MIN_DEPOSIT_MINOR).max(1_000_000),
+  amountMinor: z.number().int().min(1).max(MAX_DEPOSIT_MINOR),
   phone: z.string().trim().min(7).max(20).optional(),
   reference: referenceSchema.optional(),
 })
@@ -188,6 +188,10 @@ export const slipPaySchema = z.object({
 
 export const adminPlatformModeSchema = z.object({
   mode: z.enum(['LIVE', 'SANDBOX']),
+})
+
+export const adminDepositMinSchema = z.object({
+  amountMinor: z.number().int().min(1).max(MAX_DEPOSIT_MINOR),
 })
 
 export const aviatorSettingsSchema = z

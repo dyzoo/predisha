@@ -6,7 +6,7 @@ import { useState, type FormEvent } from 'react'
 import { Check, CircleAlert, Loader2, Smartphone, ShieldCheck } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
 import { betModeCopy } from '@/lib/bet/mode-copy'
-import { MIN_DEPOSIT_MINOR, type BetWalletView } from '@/lib/bet/types'
+import { MAX_DEPOSIT_MINOR, type BetWalletView } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 import { useBetMode } from './bet-mode-context'
 
@@ -21,9 +21,9 @@ export function WalletAmountForm({
 }) {
   const router = useRouter()
   const { refreshWallet } = useBetSlip()
-  const { mode: platformMode } = useBetMode()
+  const { mode: platformMode, depositMinMinor } = useBetMode()
   const copy = betModeCopy(platformMode)
-  const [amountMinor, setAmountMinor] = useState(10_000)
+  const [amountMinor, setAmountMinor] = useState(() => Math.max(10_000, depositMinMinor))
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,7 +33,9 @@ export function WalletAmountForm({
   const isDeposit = mode === 'deposit'
   const isLive = platformMode === 'LIVE'
   const needsPhone = !isDeposit || isLive
-  const minAmountMinor = isDeposit ? MIN_DEPOSIT_MINOR : 1
+  const minAmountMinor = isDeposit ? depositMinMinor : 1
+  const quickAmounts = QUICK_AMOUNTS.filter(amount => amount >= minAmountMinor)
+  const depositQuickAmounts = quickAmounts.length > 0 ? quickAmounts : [minAmountMinor]
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -140,15 +142,15 @@ export function WalletAmountForm({
           id="wallet-amount"
           type="number"
           min={minAmountMinor}
-          max={isDeposit ? 1_000_000 : undefined}
-          step={isDeposit ? 500 : 1}
+          max={isDeposit ? MAX_DEPOSIT_MINOR : undefined}
+          step={1}
           value={amountMinor}
           onChange={event => setAmountMinor(Number(event.target.value))}
           className="w-full bg-transparent py-3 text-lg font-bold tabular-nums outline-none"
         />
       </div>
       <div className="mt-2 grid grid-cols-4 gap-2">
-        {QUICK_AMOUNTS.map(amount => (
+        {depositQuickAmounts.map(amount => (
           <button
             key={amount}
             type="button"
@@ -161,7 +163,7 @@ export function WalletAmountForm({
       </div>
       {isDeposit ? (
         <p className="mt-2 text-[11px] text-muted-text">
-          Limits: {formatTzs(minAmountMinor)} to {formatTzs(1_000_000)} per request.
+          Limits: {formatTzs(minAmountMinor)} to {formatTzs(MAX_DEPOSIT_MINOR)} per request.
         </p>
       ) : (
         <>

@@ -6,15 +6,15 @@ import {
   harakapayApiKeyConfigured,
   type HarakaPayWebhookEvent,
 } from '@/lib/billing/harakapay'
+import { getDepositMinMinor } from './deposit-settings'
 import { BetError } from './errors'
 import { normalizeTzPhone } from './phone'
+import { MAX_DEPOSIT_MINOR } from './types'
 import { creditWallet } from './wallet'
 import { sendBetTransactionSms } from '@/lib/billing/nextsms'
 
 const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed'])
 const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired'])
-const MIN_DEPOSIT_TZS = 1_000
-const MAX_DEPOSIT_TZS = 1_000_000
 
 export interface DepositOrderView {
   orderId: string
@@ -57,13 +57,14 @@ export async function startWalletDeposit(input: {
   amountMinor: number
   phone: string
 }): Promise<DepositOrderView> {
+  const minDepositMinor = await getDepositMinMinor()
   if (
     !Number.isInteger(input.amountMinor) ||
-    input.amountMinor < MIN_DEPOSIT_TZS ||
-    input.amountMinor > MAX_DEPOSIT_TZS
+    input.amountMinor < minDepositMinor ||
+    input.amountMinor > MAX_DEPOSIT_MINOR
   ) {
     throw new BetError(
-      `Deposit must be between ${MIN_DEPOSIT_TZS} and ${MAX_DEPOSIT_TZS} TZS.`,
+      `Deposit must be between ${minDepositMinor} and ${MAX_DEPOSIT_MINOR} TZS.`,
       422,
       'BAD_AMOUNT',
     )

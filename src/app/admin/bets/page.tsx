@@ -5,12 +5,14 @@ import { Receipt, SlidersHorizontal } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminBetModeToggle } from '@/components/admin/admin-bet-mode-toggle'
+import { AdminDepositMinimum } from '@/components/admin/admin-deposit-minimum'
 import { AdminSlipGenerator } from '@/components/admin/admin-slip-generator'
 import { AdminSlipList, type AdminSlipListItemView } from '@/components/admin/admin-slip-list'
 import { AdminNav } from '@/components/admin/admin-nav'
 import { canViewAdmin } from '@/lib/auth/entitlements'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 import { harakapayApiKeyConfigured } from '@/lib/billing/harakapay'
+import { getDepositMinMinor } from '@/lib/bet/deposit-settings'
 import { getBetMode } from '@/lib/bet/mode'
 import { buildAdminSlipRecommendation } from '@/lib/bet/recommendation'
 import { listAdminBetSlips } from '@/lib/bet/slips'
@@ -40,8 +42,9 @@ export default async function AdminBetsPage() {
     )
   }
 
-  const [mode, recommendation, slips] = await Promise.all([
+  const [mode, minDepositMinor, recommendation, slips] = await Promise.all([
     getBetMode(),
+    getDepositMinMinor(),
     buildAdminSlipRecommendation(),
     listAdminBetSlips(),
   ])
@@ -93,6 +96,8 @@ export default async function AdminBetsPage() {
       <AdminNav active="/admin/bets" />
 
       <AdminBetModeToggle mode={mode} />
+
+      <AdminDepositMinimum minDepositMinor={minDepositMinor} />
 
       {!harakapayApiKeyConfigured() ? (
         <section className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-xs leading-relaxed text-amber-200">

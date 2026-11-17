@@ -444,15 +444,17 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
 export function BetShell({
   viewer,
   mode,
+  depositMinMinor,
   children,
 }: {
   viewer: ClientViewer
   mode: BetMode
+  depositMinMinor?: number
   children: ReactNode
 }) {
   return (
     <BetSlipProvider viewer={viewer}>
-      <BetModeProvider mode={mode}>
+      <BetModeProvider mode={mode} depositMinMinor={depositMinMinor}>
         <ShellInner viewer={viewer}>{children}</ShellInner>
       </BetModeProvider>
     </BetSlipProvider>

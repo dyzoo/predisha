@@ -1,4 +1,5 @@
 import { json } from '@/lib/api'
+import { getDepositMinMinor } from '@/lib/bet/deposit-settings'
 import { startWalletDeposit } from '@/lib/bet/deposits'
 import { BetError, handleBetError, isUniqueConstraintError } from '@/lib/bet/errors'
 import { getBetMode } from '@/lib/bet/mode'
@@ -18,6 +19,14 @@ export async function POST(request: Request) {
     const viewer = await requireViewer()
     const input = await readJson(request, depositSchema)
     const mode = await getBetMode()
+    const minDepositMinor = await getDepositMinMinor()
+    if (input.amountMinor < minDepositMinor) {
+      throw new BetError(
+        `Deposit must be at least ${minDepositMinor} TZS.`,
+        422,
+        'BAD_AMOUNT',
+      )
+    }
 
     if (mode === 'LIVE') {
       if (!input.phone) {
