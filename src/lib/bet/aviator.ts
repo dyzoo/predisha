@@ -8,6 +8,7 @@ import {
 import { BetError, isUniqueConstraintError } from './errors'
 import { hashString, mulberry32 } from './random'
 import { creditWallet, debitWallet, getWalletView } from './wallet'
+import { sendBetTransactionSms } from '@/lib/billing/nextsms'
 import {
   MIN_WALLET_BALANCE_MINOR,
   type AviatorBetView,
@@ -151,6 +152,13 @@ export async function placeAviatorBet(
       })
       return created
     })
+    await sendBetTransactionSms({
+      userId,
+      amountMinor: input.stakeMinor,
+      source: 'aviator',
+      reference: `aviator:${bet.id}:stake`,
+    }).catch(() => undefined)
+
     return { bet: toAviatorBetView(bet), wallet: await getWalletView(userId) }
   } catch (error) {
     if (isUniqueConstraintError(error)) {

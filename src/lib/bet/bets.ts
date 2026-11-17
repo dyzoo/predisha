@@ -6,6 +6,7 @@ import { combineOdds, findSelection, settleMarket } from './odds'
 import { hashString, mulberry32, randomCode } from './random'
 import { applyVat, VAT_PERCENT } from './vat'
 import { creditWallet, debitWallet } from './wallet'
+import { sendBetTransactionSms } from '@/lib/billing/nextsms'
 import {
   type BetSelectionInput,
   type BetTicketStatusView,
@@ -206,6 +207,13 @@ export async function placeBetFromSelections(
         note: input.note,
       }),
     )
+    await sendBetTransactionSms({
+      userId,
+      amountMinor: input.stakeMinor,
+      source: 'shared_slip',
+      reference: `ticket:${ticket.code}:stake`,
+    }).catch(() => undefined)
+
     return toTicketView(ticket)
   } catch (error) {
     if (isUniqueConstraintError(error)) {

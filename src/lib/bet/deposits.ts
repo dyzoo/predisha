@@ -9,6 +9,7 @@ import {
 import { BetError } from './errors'
 import { normalizeTzPhone } from './phone'
 import { creditWallet } from './wallet'
+import { sendBetTransactionSms } from '@/lib/billing/nextsms'
 
 const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed'])
 const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired'])
@@ -125,6 +126,13 @@ async function completeDeposit(orderId: string): Promise<void> {
       where: { id: order.id },
       data: { status: 'PAID', completedAt: new Date() },
     })
+
+    await sendBetTransactionSms({
+      userId: order.userId,
+      amountMinor: order.amountMinor,
+      source: 'deposit',
+      reference: order.orderId,
+    }).catch(() => undefined)
   })
 }
 

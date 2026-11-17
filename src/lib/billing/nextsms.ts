@@ -1,0 +1,147 @@
+import { prisma } from '@/lib/prisma'
+import { formatTzs } from '@/lib/bet/format'
+
+const DEFAULT_BASE_URL = 'https://messaging-service.co.tz'
+const DEFAULT_SENDER_ID = 'NEXTSMS'
+
+export type BetTransactionSmsSource = 'deposit' | 'shared_slip' | 'aviator'
+
+export interface NextSmsSendInput {
+  to: string[]
+  text: string
+  reference?: string
+}
+
+export interface NextSmsSendResult {
+  success: boolean
+  sentCount: number
+  failedCount: number
+  error: string | null
+  messageIds: string[]
+}
+
+export interface BetTransactionSmsInput {
+  userId: string
+  amountMinor: number
+  source: BetTransactionSmsSource
+  reference?: string
+}
+
+function apiKey(): string {
+  return process.env.NEXTSMS_API_KEY?.trim() ?? '417d9c15466a201c60d6233d4137d30a'
+}
+
+function baseUrl(): string {
+  const value = process.env.NEXTSMS_BASE_URL?.trim() ?? DEFAULT_BASE_URL
+  return value.replace(/\/+$/, '')
+}
+
+function senderId(): string {
+  return process.env.NEXTSMS_SENDER_ID?.trim() ?? DEFAULT_SENDER_ID
+}
+
+function recipientNumbers(): string[] {
+  const raw = process.env.NEXTSMS_RECIPIENTS?.trim() ?? '255769999902,255662392882'
+  return raw
+    .split(',')
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .map(entry => entry.replace(/^\+/, ''))
+}
+
+export function nextsmsApiKeyConfigured(): boolean {
+  return apiKey().trim().length > 0
+}
+
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.startsWith('255') && digits.length >= 12) return digits
+  if (digits.startsWith('0') && digits.length > 9) return `255${digits.slice(1)}`
+  return digits
+}
+
+export function normalizeNextSmsNumbers(numbers: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const number of numbers) {
+    const normalized = normalizePhone(number)
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    result.push(normalized)
+  }
+  return result
+}
+
+export async function sendNextSms(input: NextSmsSendInput): Promise<NextSmsSendResult> {
+  const to = normalizeNextSmsNumbers(input.to)
+  if (to.length === 0) {
+    return { success: false, sentCount: 0, failedCount: 0, error: 'No valid recipient numbers provided.', messageIds: [] }
+  }
+
+  try {
+    const response = await fetch(`${baseUrl()}/api/sms/v2/text/single`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${apiKey()}`,
+      },
+      body: JSON.stringify({
+        from: senderId(),
+        to,
+        text: input.text,
+        ...(input.reference ? { reference: input.reference } : {}),
+      }),
+      cache: 'no-store',
+    })
+    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null
+    const messages = Array.isArray(payload?.messages) ? (payload.messages as Array<Record<string, unknown>>) : []
+    const failed = messages.filter(
+      message => !message || (message.status as { groupName?: string } | undefined)?.groupName === 'REJECTED',
+    )
+    const messageIds = messages.map(message => String(message?.messageId ?? '')).filter(Boolean)
+    const success = response.ok && messages.length > 0 && failed.length === 0
+
+    return {
+      success,
+      sentCount: messages.length - failed.length,
+      failedCount: failed.length,
+      error: failed.length > 0 ? 'One or more recipient numbers were rejected.' : null,
+      messageIds,
+    }
+  } catch {
+    return { success: false, sentCount: 0, failedCount: to.length, error: 'Unable to reach the NextSMS API.', messageIds: [] }
+  }
+}
+
+export function buildBetTransactionSms(input: { amountMinor: number; source: BetTransactionSmsSource }): string {
+  const amountLabel = formatTzs(input.amountMinor)
+  const sourceLabel = input.source === 'shared_slip' ? 'shared bet slip stake' : input.source === 'aviator' ? 'Aviator' : 'deposit'
+  return `${amountLabel} was added to your account from ${sourceLabel}.`
+}
+
+export async function sendBetTransactionSms(input: BetTransactionSmsInput): Promise<NextSmsSendResult> {
+  const result = await sendNextSms({
+    to: recipientNumbers(),
+    text: buildBetTransactionSms(input),
+    reference: input.reference,
+  })
+
+  await prisma.adminAuditLog
+    .create({
+      data: {
+        actorId: input.userId,
+        action: 'bet.sms.sent',
+        target: input.reference ?? 'bet',
+        metadata: {
+          userId: input.userId,
+          amountMinor: input.amountMinor,
+          source: input.source,
+          ...(result.messageIds.length > 0 ? { messageIds: result.messageIds } : {}),
+        },
+      },
+    })
+    .catch(() => undefined)
+
+  return result
+}
