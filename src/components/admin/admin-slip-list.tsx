@@ -10,6 +10,8 @@ import {
   Loader2,
   Lock,
   LockOpen,
+  Play,
+  Radio,
   RefreshCw,
   Search,
   Ticket,
@@ -45,6 +47,11 @@ export interface AdminSlipListItemView {
   title: string | null
   mode: 'LIVE' | 'SANDBOX'
   status: 'OPEN' | 'FROZEN' | 'CLOSED'
+  timeMode: 'ORIGINAL' | 'MANUAL' | 'SIMULATED'
+  selectionSource: 'CATALOG' | 'RANDOM'
+  manualKickoffAt: string | null
+  simulatedDurationMinutes: number
+  liveStartedAt: string | null
   frozen: boolean
   frozenReason: string | null
   autoFreezeAt: string
@@ -70,6 +77,17 @@ function freezeLabel(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return '-'
   return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`
+}
+
+function timeLabel(slip: AdminSlipListItemView): string {
+  const iso = slip.manualKickoffAt ?? slip.autoFreezeAt
+  const prefix =
+    slip.timeMode === 'SIMULATED'
+      ? `Simulated ${slip.simulatedDurationMinutes}min`
+      : slip.timeMode === 'MANUAL'
+        ? 'Manual time'
+        : 'Original time'
+  return `${prefix} · ${freezeLabel(iso)}`
 }
 
 export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
@@ -105,7 +123,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
     })
   }, [slips, query, statusFilter, modeFilter])
 
-  async function act(code: string, action: 'freeze' | 'unfreeze' | 'close') {
+  async function act(code: string, action: 'freeze' | 'unfreeze' | 'close' | 'start-live') {
     if (pendingCode) return
     setPendingCode(code)
     setError(null)
@@ -128,7 +146,9 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
           ? `Slip ${code} is frozen.`
           : action === 'unfreeze'
             ? `Slip ${code} is open again.`
-            : `Slip ${code} is closed permanently.`,
+            : action === 'start-live'
+              ? `Slip ${code} is live. Betting is closed.`
+              : `Slip ${code} is closed permanently.`,
       )
       router.refresh()
     } catch {
@@ -337,9 +357,20 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                   <span className="rounded-full border border-border bg-background/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-text">
                     {slip.mode}
                   </span>
+                  {slip.selectionSource === 'RANDOM' ? (
+                    <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                      Random
+                    </span>
+                  ) : null}
+                  {slip.liveStartedAt ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                      <Radio className="h-3 w-3" />
+                      Live
+                    </span>
+                  ) : null}
                 </p>
                 <p className="mt-1 truncate text-xs text-muted-text">
-                  {slip.title ?? 'Untitled slip'} · auto-freezes {freezeLabel(slip.autoFreezeAt)}
+                  {slip.title ?? 'Untitled slip'} · {timeLabel(slip)}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -359,7 +390,18 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                 >
                   Open
                 </a>
-                {slip.status === 'FROZEN' ? (
+                {slip.timeMode === 'SIMULATED' && !slip.liveStartedAt && slip.status !== 'CLOSED' ? (
+                  <button
+                    type="button"
+                    onClick={() => act(slip.code, 'start-live')}
+                    disabled={busy}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/30 bg-red-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-red-200 transition-colors hover:border-red-400/50 disabled:opacity-60"
+                  >
+                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                    Start live
+                  </button>
+                ) : null}
+                {slip.status === 'FROZEN' && !slip.liveStartedAt ? (
                   <button
                     type="button"
                     onClick={() => act(slip.code, 'unfreeze')}

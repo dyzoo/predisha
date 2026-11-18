@@ -5,6 +5,7 @@ import {
   deleteAdminBetSlip,
   freezeAdminBetSlip,
   getAdminBetSlipByCode,
+  startAdminSlipSimulation,
   unfreezeAdminBetSlip,
 } from '@/lib/bet/slips'
 import { getAdminAccess } from '@/lib/auth/admin'
@@ -59,6 +60,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       const updated = await freezeAdminBetSlip({
         id: slip.id,
         reason: input.reason,
+        actorId,
+        now: new Date(),
+      })
+      return json({ slip: updated })
+    }
+
+    if (input.action === 'start-live') {
+      const updated = await startAdminSlipSimulation({
+        id: slip.id,
         actorId,
         now: new Date(),
       })

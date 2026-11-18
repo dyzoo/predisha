@@ -657,6 +657,11 @@ model AdminBetSlip {
   stakeMinor           Int
   potentialReturnMinor Int
   status               AdminBetSlipStatus @default(OPEN)
+  timeMode             String              @default("ORIGINAL")
+  selectionSource      String              @default("CATALOG")
+  manualKickoffAt      DateTime?
+  simulatedDurationMinutes Int             @default(90)
+  liveStartedAt        DateTime?
   freezeReason         String?
   autoFreezeAt         DateTime
   frozenAt             DateTime?
@@ -669,6 +674,7 @@ model AdminBetSlip {
 
   @@index([status])
   @@index([autoFreezeAt])
+  @@index([liveStartedAt])
   @@index([createdAt])
 }
 

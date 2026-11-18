@@ -99,6 +99,15 @@ export interface BetSlipItem extends BetSelectionInput {
 }
 
 export type TicketResult = 'PENDING' | 'WON' | 'LOST' | 'VOID'
+export type AdminSlipTimeMode = 'ORIGINAL' | 'MANUAL' | 'SIMULATED'
+export type AdminSlipSelectionSource = 'CATALOG' | 'RANDOM'
+
+export interface TicketSimulationMeta {
+  liveStartedAt: string
+  durationMinutes: number
+  seed: string
+  kickoffIso: string
+}
 
 export interface TicketSelection {
   fixtureId: string
@@ -115,6 +124,7 @@ export interface TicketSelection {
   result: TicketResult
   finalScore: { home: number; away: number } | null
   demoResult: boolean
+  simulation?: TicketSimulationMeta | null
 }
 
 export type BetTicketStatusView = 'OPEN' | 'WON' | 'LOST' | 'VOID' | 'CASHED_OUT'

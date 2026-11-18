@@ -86,6 +86,11 @@ describe('toAdminSlipView', () => {
         stakeMinor: 1000,
         potentialReturnMinor: 1500,
         status: 'OPEN',
+        timeMode: 'ORIGINAL',
+        selectionSource: 'CATALOG',
+        manualKickoffAt: null,
+        simulatedDurationMinutes: 90,
+        liveStartedAt: null,
         freezeReason: null,
         autoFreezeAt: new Date('2026-01-01T11:00:00.000Z'),
         frozenAt: null,
@@ -119,6 +124,11 @@ describe('toAdminSlipView', () => {
         stakeMinor: 500,
         potentialReturnMinor: 500,
         status: 'FROZEN',
+        timeMode: 'MANUAL',
+        selectionSource: 'CATALOG',
+        manualKickoffAt: new Date('2026-01-02T12:00:00.000Z'),
+        simulatedDurationMinutes: 90,
+        liveStartedAt: null,
         freezeReason: 'Paused by an administrator.',
         autoFreezeAt: new Date('2026-01-02T12:00:00.000Z'),
         frozenAt: now,
@@ -132,5 +142,42 @@ describe('toAdminSlipView', () => {
 
     expect(view.frozen).toBe(true)
     expect(view.frozenReason).toBe('Paused by an administrator.')
+  })
+
+  it('maps simulated live fields for the share page', () => {
+    const view = toAdminSlipView(
+      {
+        id: 'slip-3',
+        code: 'SIM123',
+        title: null,
+        mode: 'LIVE',
+        selections: [selection(2)] as never,
+        totalOdds: 2,
+        stakeMinor: 1000,
+        potentialReturnMinor: 2000,
+        status: 'FROZEN',
+        timeMode: 'SIMULATED',
+        selectionSource: 'RANDOM',
+        manualKickoffAt: new Date('2026-01-01T12:00:00.000Z'),
+        simulatedDurationMinutes: 45,
+        liveStartedAt: new Date('2026-01-01T12:00:00.000Z'),
+        freezeReason: 'Simulated matches are live. Betting is closed.',
+        autoFreezeAt: new Date('2027-01-01T12:00:00.000Z'),
+        frozenAt: now,
+        frozenBy: 'admin-1',
+        createdBy: 'admin-1',
+        createdAt: now,
+        updatedAt: now,
+      },
+      now,
+    )
+
+    expect(view).toMatchObject({
+      timeMode: 'SIMULATED',
+      selectionSource: 'RANDOM',
+      simulatedDurationMinutes: 45,
+      liveStartedAt: '2026-01-01T12:00:00.000Z',
+      frozen: true,
+    })
   })
 })

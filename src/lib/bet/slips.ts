@@ -13,10 +13,13 @@ import { BetError, isUniqueConstraintError } from './errors'
 import { formatKickoffLabel } from './format'
 import { randomCode } from './random'
 import { getBetMode, type BetMode } from './mode'
+import { attachSimulationClock, DEFAULT_SIMULATED_DURATION_MINUTES } from './simulation'
 import {
   MAX_SELECTIONS,
   MAX_STAKE_MINOR,
   MIN_STAKE_MINOR,
+  type AdminSlipSelectionSource,
+  type AdminSlipTimeMode,
   type BetTicketView,
   type TicketSelection,
 } from './types'
@@ -29,6 +32,13 @@ export interface AdminSlipSelectionInput {
   marketId: string
   selectionId: string
   odds: number
+  custom?: boolean
+  fixtureLabel?: string
+  competition?: string
+  kickoffIso?: string
+  marketName?: string
+  selectionLabel?: string
+  probability?: number
 }
 
 export interface AdminBetSlipView {
@@ -37,6 +47,11 @@ export interface AdminBetSlipView {
   title: string | null
   mode: BetMode
   status: AdminBetSlipStatusView
+  timeMode: AdminSlipTimeMode
+  selectionSource: AdminSlipSelectionSource
+  manualKickoffAt: string | null
+  simulatedDurationMinutes: number
+  liveStartedAt: string | null
   frozen: boolean
   frozenReason: string | null
   autoFreezeAt: string
@@ -95,6 +110,14 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
     title: slip.title,
     mode: slip.mode === 'SANDBOX' ? 'SANDBOX' : 'LIVE',
     status: slip.status as AdminBetSlipStatusView,
+    timeMode:
+      slip.timeMode === 'MANUAL' || slip.timeMode === 'SIMULATED'
+        ? slip.timeMode
+        : 'ORIGINAL',
+    selectionSource: slip.selectionSource === 'RANDOM' ? 'RANDOM' : 'CATALOG',
+    manualKickoffAt: slip.manualKickoffAt?.toISOString() ?? null,
+    simulatedDurationMinutes: slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES,
+    liveStartedAt: slip.liveStartedAt?.toISOString() ?? null,
     frozen: isSlipFrozen(slip, now),
     frozenReason:
       slip.freezeReason ??
@@ -172,9 +195,17 @@ export async function createAdminBetSlip(input: {
   title?: string | null
   stakeMinor: number
   selections: AdminSlipSelectionInput[]
+  timeMode?: AdminSlipTimeMode
+  selectionSource?: AdminSlipSelectionSource
+  manualKickoffAt?: string | null
+  simulatedDurationMinutes?: number
   now?: Date
 }): Promise<AdminBetSlipView> {
   const now = input.now ?? new Date()
+  const timeMode = input.timeMode ?? 'ORIGINAL'
+  const selectionSource = input.selectionSource ?? 'CATALOG'
+  const simulatedDurationMinutes =
+    input.simulatedDurationMinutes ?? DEFAULT_SIMULATED_DURATION_MINUTES
 
   if (!Number.isInteger(input.stakeMinor)) {
     throw new BetError('Stake must be a whole amount.', 422, 'BAD_STAKE')
@@ -197,11 +228,59 @@ export async function createAdminBetSlip(input: {
     )
   }
 
-  const catalog = await getBetCatalog(now)
-  const eventById = new Map(catalog.events.map(event => [event.id, event]))
+  let manualKickoffAt: Date | null = null
+  if (timeMode !== 'ORIGINAL') {
+    if (!input.manualKickoffAt) {
+      throw new BetError('Enter a manual kickoff time.', 422, 'MISSING_KICKOFF')
+    }
+    const parsed = new Date(input.manualKickoffAt)
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BetError('Enter a valid manual kickoff time.', 422, 'BAD_KICKOFF')
+    }
+    manualKickoffAt = parsed
+  }
+
+  const hasCatalogSelections = input.selections.some(selection => !selection.custom)
+  const catalog = hasCatalogSelections ? await getBetCatalog(now) : null
+  const eventById = new Map((catalog?.events ?? []).map(event => [event.id, event]))
   const seenFixtures = new Set<string>()
 
   const selections: TicketSelection[] = input.selections.map(selection => {
+    if (seenFixtures.has(selection.fixtureId)) {
+      throw new BetError('Choose only one selection per fixture.', 422, 'DUPLICATE_FIXTURE')
+    }
+    seenFixtures.add(selection.fixtureId)
+
+    if (!Number.isFinite(selection.odds) || selection.odds < 1.01 || selection.odds > 1000) {
+      throw new BetError('Odds must be between 1.01 and 1000.', 422, 'BAD_ODDS')
+    }
+
+    if (selection.custom) {
+      if (!selection.fixtureLabel || !selection.marketName || !selection.selectionLabel || !selection.kickoffIso) {
+        throw new BetError('A random match is missing its teams, market or kickoff time.', 422, 'BAD_CUSTOM_SELECTION')
+      }
+      const customKickoff = manualKickoffAt?.toISOString() ?? selection.kickoffIso
+      if (Number.isNaN(new Date(customKickoff).getTime())) {
+        throw new BetError('This match has an invalid kickoff time.', 422, 'BAD_KICKOFF')
+      }
+      return {
+        fixtureId: selection.fixtureId,
+        fixtureLabel: selection.fixtureLabel,
+        competition: selection.competition || 'Random selection',
+        kickoffIso: customKickoff,
+        marketId: selection.marketId,
+        marketName: selection.marketName,
+        selectionId: selection.selectionId,
+        selectionLabel: selection.selectionLabel,
+        odds: Math.round(selection.odds * 100) / 100,
+        probability: selection.probability ?? 0.5,
+        result: 'PENDING',
+        finalScore: null,
+        demoResult: false,
+        kickoffLabel: formatKickoffLabel(customKickoff),
+      } as TicketSelection
+    }
+
     const event = eventById.get(selection.fixtureId)
     if (!event) {
       throw new BetError('One of the selected fixtures is no longer available.', 422, 'UNKNOWN_FIXTURE')
@@ -211,30 +290,24 @@ export async function createAdminBetSlip(input: {
         fixtureId: event.id,
       })
     }
-    if (event.kickoffIso && new Date(event.kickoffIso).getTime() <= now.getTime()) {
+    if (timeMode === 'ORIGINAL' && event.kickoffIso && new Date(event.kickoffIso).getTime() <= now.getTime()) {
       throw new BetError('This match has already started.', 422, 'FIXTURE_CLOSED', {
         fixtureId: event.id,
       })
     }
-    if (seenFixtures.has(event.id)) {
-      throw new BetError('Choose only one selection per fixture.', 422, 'DUPLICATE_FIXTURE')
-    }
-    seenFixtures.add(event.id)
 
     const market = event.markets.find(item => item.id === selection.marketId)
     const option = market?.selections.find(item => item.selectionId === selection.selectionId)
     if (!market || !option) {
       throw new BetError('That market selection is not available.', 422, 'UNKNOWN_SELECTION')
     }
-    if (!Number.isFinite(selection.odds) || selection.odds < 1.01 || selection.odds > 1000) {
-      throw new BetError('Odds must be between 1.01 and 1000.', 422, 'BAD_ODDS')
-    }
 
+    const effectiveKickoff = manualKickoffAt?.toISOString() ?? event.kickoffIso
     return {
       fixtureId: event.id,
       fixtureLabel: `${event.home.name} vs ${event.away.name}`,
       competition: event.competition,
-      kickoffIso: event.kickoffIso,
+      kickoffIso: effectiveKickoff,
       marketId: market.id,
       marketName: market.name,
       selectionId: option.selectionId,
@@ -244,13 +317,16 @@ export async function createAdminBetSlip(input: {
       result: 'PENDING',
       finalScore: null,
       demoResult: false,
-      kickoffLabel: formatKickoffLabel(event.kickoffIso),
+      kickoffLabel: formatKickoffLabel(effectiveKickoff),
     } as TicketSelection
   })
 
   selections.sort((left, right) => new Date(left.kickoffIso).getTime() - new Date(right.kickoffIso).getTime())
   const { totalOdds, potentialReturnMinor } = computeTicketTotals(input.stakeMinor, selections)
-  const autoFreezeAt = new Date(selections[0].kickoffIso)
+  const autoFreezeAt =
+    timeMode === 'SIMULATED'
+      ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000)
+      : manualKickoffAt ?? new Date(selections[0].kickoffIso)
   const mode = await getBetMode()
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -261,6 +337,10 @@ export async function createAdminBetSlip(input: {
           code,
           title: input.title?.trim().slice(0, 120) || null,
           mode,
+          timeMode,
+          selectionSource,
+          manualKickoffAt,
+          simulatedDurationMinutes,
           selections: selections as unknown as Prisma.InputJsonValue,
           totalOdds,
           stakeMinor: input.stakeMinor,
@@ -360,6 +440,9 @@ export async function unfreezeAdminBetSlip(input: {
   if (!existing) {
     throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
   }
+  if (existing.liveStartedAt) {
+    throw new BetError('A simulated live slip cannot be reopened.', 409, 'SLIP_LIVE')
+  }
   if (existing.autoFreezeAt.getTime() <= now.getTime()) {
     throw new BetError(
       'This slip cannot be reopened because the first match has already started.',
@@ -417,6 +500,85 @@ export async function closeAdminBetSlip(input: {
     return updated
   })
   return toAdminSlipView(slip, now)
+}
+
+export async function startAdminSlipSimulation(input: {
+  id: string
+  actorId: string
+  now?: Date
+}): Promise<AdminBetSlipView> {
+  const now = input.now ?? new Date()
+  const slip = await prisma.adminBetSlip.findUnique({
+    where: { id: input.id },
+    include: {
+      entries: {
+        where: { ticketId: { not: null } },
+        select: { ticketId: true },
+      },
+    },
+  })
+  if (!slip) {
+    throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
+  }
+  if (slip.timeMode !== 'SIMULATED') {
+    throw new BetError('Only simulated slips can be started manually.', 409, 'SLIP_NOT_SIMULATED')
+  }
+  if (slip.status === 'CLOSED') {
+    throw new BetError('A closed slip cannot go live.', 409, 'SLIP_CLOSED')
+  }
+  if (slip.liveStartedAt) {
+    return toAdminSlipView(slip, now)
+  }
+
+  const clock = {
+    liveStartedAt: now.toISOString(),
+    durationMinutes: slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES,
+    seed: slip.code,
+    kickoffIso: slip.manualKickoffAt?.toISOString() ?? slip.autoFreezeAt.toISOString(),
+  }
+  const slipSelections = attachSimulationClock(parseSelections(slip.selections), clock)
+  const ticketIds = [...new Set(slip.entries.map(entry => entry.ticketId).filter(Boolean))] as string[]
+
+  const updated = await prisma.$transaction(async tx => {
+    const claimed = await tx.adminBetSlip.updateMany({
+      where: { id: slip.id, status: { in: ['OPEN', 'FROZEN'] }, liveStartedAt: null },
+      data: {
+        status: 'FROZEN',
+        freezeReason: 'Simulated matches are live. Betting is closed.',
+        liveStartedAt: now,
+        frozenAt: now,
+        frozenBy: input.actorId,
+        selections: slipSelections as unknown as Prisma.InputJsonValue,
+      },
+    })
+    if (claimed.count === 0) {
+      return (
+        (await tx.adminBetSlip.findUnique({ where: { id: slip.id } })) ?? slip
+      )
+    }
+
+    for (const ticketId of ticketIds) {
+      const ticket = await tx.betTicket.findUnique({ where: { id: ticketId } })
+      if (!ticket || ticket.status !== 'OPEN') continue
+      const ticketSelections = attachSimulationClock(parseSelections(ticket.selections), clock)
+      await tx.betTicket.update({
+        where: { id: ticket.id },
+        data: { selections: ticketSelections as unknown as Prisma.InputJsonValue },
+      })
+    }
+
+    await tx.adminAuditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: 'admin.slip.start-live',
+        target: slip.code,
+        metadata: { liveStartedAt: clock.liveStartedAt, durationMinutes: clock.durationMinutes },
+      },
+    })
+    return tx.adminBetSlip.findUniqueOrThrow({ where: { id: slip.id } })
+  })
+
+  return toAdminSlipView(updated, now)
 }
 
 export async function deleteAdminBetSlip(input: {
@@ -508,10 +670,19 @@ export async function placeAdminSlipBet(input: {
     throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
   }
 
-  const selections = parseSelections(slip.selections)
-  if (selections.length === 0) {
+  const slipSelections = parseSelections(slip.selections)
+  if (slipSelections.length === 0) {
     throw new BetError('This slip has no selections to place.', 422, 'EMPTY_SLIP')
   }
+  const selections =
+    slip.timeMode === 'SIMULATED' && slip.liveStartedAt
+      ? attachSimulationClock(slipSelections, {
+          liveStartedAt: slip.liveStartedAt.toISOString(),
+          durationMinutes: slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES,
+          seed: slip.code,
+          kickoffIso: slip.manualKickoffAt?.toISOString() ?? slip.autoFreezeAt.toISOString(),
+        })
+      : slipSelections
 
   const { totalOdds, potentialReturnMinor } = computeTicketTotals(slip.stakeMinor, selections)
   const code = await generateTicketCode()

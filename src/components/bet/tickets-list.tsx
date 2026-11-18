@@ -23,6 +23,12 @@ import {
   formatTzs,
   statusLabel,
 } from '@/lib/bet/format'
+import {
+  simulatedScore,
+  simulationClockFromSelection,
+  simulationIsLive,
+  simulationMinute,
+} from '@/lib/bet/simulation'
 import type {
   BetEvent,
   BetTicketView,
@@ -82,18 +88,26 @@ function statusClasses(status: BetTicketView['status']): string {
   }
 }
 
-function isLiveTicket(ticket: BetTicketView, events: EventMap): boolean {
+function isLiveTicket(ticket: BetTicketView, events: EventMap, now: number): boolean {
   if (ticket.status !== 'OPEN') return false
-  return ticket.selections.some(selection => events[selection.fixtureId]?.live)
+  return ticket.selections.some(selection => {
+    const clock = simulationClockFromSelection(selection)
+    if (clock && simulationIsLive(clock, now)) return true
+    return events[selection.fixtureId]?.live
+  })
 }
 
-function selectionScore(selection: TicketSelection, event?: BetEvent) {
+function selectionScore(selection: TicketSelection, event: BetEvent | undefined, now: number) {
+  const clock = simulationClockFromSelection(selection)
+  if (clock) return simulatedScore(selection, clock, simulationMinute(clock, now))
   return event?.score ?? selection.finalScore
 }
 
-function liveMinute(selection: TicketSelection, event?: BetEvent): string | null {
+function liveMinute(selection: TicketSelection, event: BetEvent | undefined, now: number): string | null {
+  const clock = simulationClockFromSelection(selection)
+  if (clock) return `${simulationMinute(clock, now)}'`
   if (!event?.live) return null
-  const elapsed = Date.now() - new Date(selection.kickoffIso).getTime()
+  const elapsed = now - new Date(selection.kickoffIso).getTime()
   const minute = Math.min(90, Math.max(1, Math.floor(elapsed / 60_000)))
   return `${minute}'`
 }
@@ -167,9 +181,11 @@ function WaitingTicketBody({ ticket }: { ticket: BetTicketView }) {
 function LiveTicketBody({
   ticket,
   events,
+  now,
 }: {
   ticket: BetTicketView
   events: EventMap
+  now: number
 }) {
   return (
     <>
@@ -189,8 +205,8 @@ function LiveTicketBody({
       <ul className="mt-4 space-y-2">
         {ticket.selections.map(selection => {
           const event = events[selection.fixtureId]
-          const score = selectionScore(selection, event)
-          const minute = liveMinute(selection, event)
+          const score = selectionScore(selection, event, now)
+          const minute = liveMinute(selection, event, now)
           return (
             <li
               key={`${selection.fixtureId}:${selection.marketId}`}
@@ -391,7 +407,14 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successId, setSuccessId] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
   const hasOpenTickets = tickets.some(ticket => ticket.status === 'OPEN')
+
+  useEffect(() => {
+    if (!hasOpenTickets) return
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [hasOpenTickets])
 
   useEffect(() => {
     if (!hasOpenTickets) return
@@ -499,7 +522,7 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
 
       {visibleTickets.map(ticket => {
         const busy = busyId === ticket.id
-        const live = isLiveTicket(ticket, events)
+        const live = isLiveTicket(ticket, events, now)
         const won = ticket.status === 'WON'
         const classes = won
           ? 'relative overflow-hidden rounded-2xl border-2 border-amber-300/70 bg-gradient-to-br from-amber-400/10 via-surface to-surface p-4 shadow-[0_0_0_1px_rgba(252,211,77,0.18)]'
@@ -514,7 +537,7 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
             {won ? <WinnerConfetti count={18} /> : null}
             {ticket.status === 'OPEN' ? (
               live ? (
-                <LiveTicketBody ticket={ticket} events={events} />
+                <LiveTicketBody ticket={ticket} events={events} now={now} />
               ) : (
                 <WaitingTicketBody ticket={ticket} />
               )

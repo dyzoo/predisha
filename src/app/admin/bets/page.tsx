@@ -55,6 +55,11 @@ export default async function AdminBetsPage() {
     title: slip.title,
     mode: slip.mode,
     status: slip.status,
+    timeMode: slip.timeMode,
+    selectionSource: slip.selectionSource,
+    manualKickoffAt: slip.manualKickoffAt,
+    simulatedDurationMinutes: slip.simulatedDurationMinutes,
+    liveStartedAt: slip.liveStartedAt,
     frozen: slip.frozen,
     frozenReason: slip.frozenReason,
     autoFreezeAt: slip.autoFreezeAt,
@@ -91,7 +96,7 @@ export default async function AdminBetsPage() {
     <AdminShell
       eyebrow="Admin"
       title="Bet control"
-      intro="Switch the platform between live and sandbox, review the model's best upcoming picks, set the odds and stake you want to offer, then freeze a slip the moment you need to."
+      intro="Switch the platform between live and sandbox, build slips from model picks, manual fixtures or random teams, set original/manual/simulated timing, then start or freeze a slip when you need to."
     >
       <AdminNav active="/admin/bets" />
 
@@ -117,8 +122,8 @@ export default async function AdminBetsPage() {
         </h2>
         <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-text">
           <SlidersHorizontal className="h-3.5 w-3.5" />
-          Slips freeze automatically when their first match kicks off. Admins can freeze, close,
-          delete or filter previous slips here.
+          Original-time slips freeze at kickoff; manual and simulated slips use the time you set.
+          Admins can start simulated live matches, freeze, close, delete or filter previous slips here.
         </p>
       </section>
 

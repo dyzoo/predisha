@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import {
   CircleAlert,
   CircleCheck,
+  Clock,
   Copy,
   Loader2,
   Plus,
   RefreshCw,
+  Shuffle,
   Sparkles,
   Trash2,
   Wand2,
@@ -18,15 +20,23 @@ import type {
   AdminRecommendationPick,
   AdminSlipRecommendation,
 } from '@/lib/bet/recommendation'
-import { formatOdds, formatTzs } from '@/lib/bet/format'
+import { formatKickoffLabel, formatOdds, formatTzs } from '@/lib/bet/format'
+import {
+  buildRandomSelections,
+  RANDOM_TEAM_GROUPS,
+  type RandomSelectionDraft,
+} from '@/lib/bet/random-teams'
+import type { AdminSlipTimeMode } from '@/lib/bet/types'
 import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
 import { AdminSelectionPicker } from './admin-selection-picker'
 
-type PickedSelection = Omit<AdminRecommendationPick, 'odds'> & {
+type PickedSelection = Omit<AdminRecommendationPick, 'odds' | 'riskLevel'> & {
   odds: string
+  riskLevel?: string
+  custom?: boolean
 }
 
-type CreationMode = 'AI' | 'MANUAL'
+type CreationMode = 'AI' | 'MANUAL' | 'RANDOM'
 
 const MIN_ODDS = 1.01
 const MAX_ODDS = 1000
@@ -47,6 +57,10 @@ interface CreateResponse {
 
 function toPicked(picks: AdminRecommendationPick[]): PickedSelection[] {
   return picks.map(pick => ({ ...pick, odds: pick.odds.toFixed(2) }))
+}
+
+function toRandomPicked(picks: RandomSelectionDraft[]): PickedSelection[] {
+  return picks.map(pick => ({ ...pick, odds: pick.odds.toFixed(2), riskLevel: 'random' }))
 }
 
 function normalizeOddsValue(odds: string): number {
@@ -74,6 +88,22 @@ function generatedLabel(iso: string): string {
   return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`
 }
 
+function kickoffIsoFromInput(value: string, fallbackMinutes = 30): string {
+  const parsed = new Date(value)
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+  return new Date(Date.now() + fallbackMinutes * 60_000).toISOString()
+}
+
+function dateTimeInputValue(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+}
+
+function randomPrefix(): string {
+  return `random-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 export function AdminSlipGenerator({
   recommendation,
 }: {
@@ -81,6 +111,13 @@ export function AdminSlipGenerator({
 }) {
   const router = useRouter()
   const [creationMode, setCreationMode] = useState<CreationMode>('AI')
+  const [timeMode, setTimeMode] = useState<AdminSlipTimeMode>('ORIGINAL')
+  const [manualKickoff, setManualKickoff] = useState(() =>
+    dateTimeInputValue(new Date(Date.now() + 30 * 60_000).toISOString()),
+  )
+  const [simulatedDuration, setSimulatedDuration] = useState('90')
+  const [randomLeague, setRandomLeague] = useState('ANY')
+  const [randomCount, setRandomCount] = useState('8')
   const [title, setTitle] = useState('')
   const [stake, setStake] = useState('1000')
   const [picked, setPicked] = useState<PickedSelection[]>(() => toPicked(recommendation.picks))
@@ -114,11 +151,62 @@ export function AdminSlipGenerator({
     if (next === 'MANUAL') {
       setPicked([])
       setGeneratedAt(new Date().toISOString())
+      setTimeMode('ORIGINAL')
+    } else if (next === 'RANDOM') {
+      setTimeMode('SIMULATED')
+      const iso = kickoffIsoFromInput(manualKickoff)
+      setPicked(
+        toRandomPicked(
+          buildRandomSelections({
+            count: Math.min(20, Math.max(1, Number(randomCount) || 8)),
+            kickoffIso: iso,
+            leagueName: randomLeague,
+            prefix: randomPrefix(),
+          }),
+        ),
+      )
+      setGeneratedAt(iso)
+      setDemo(false)
     } else {
       setPicked(toPicked(recommendation.picks))
       setGeneratedAt(recommendation.generatedAt)
       setDemo(recommendation.demo)
+      setTimeMode('ORIGINAL')
     }
+  }
+
+  function updateKickoff(value: string) {
+    setManualKickoff(value)
+    clearFeedback()
+    if (creationMode !== 'RANDOM') return
+    const iso = kickoffIsoFromInput(value)
+    setPicked(current =>
+      current.map(item => ({
+        ...item,
+        kickoffIso: iso,
+        kickoffLabel: formatKickoffLabel(iso),
+      })),
+    )
+  }
+
+  function generateRandomPicks(append: boolean) {
+    clearFeedback()
+    const iso = kickoffIsoFromInput(manualKickoff)
+    const count = Math.min(20, Math.max(1, Number(randomCount) || 8))
+    const drafts = buildRandomSelections({
+      count: append ? Math.max(1, count - picked.length) : count,
+      kickoffIso: iso,
+      leagueName: randomLeague,
+      prefix: randomPrefix(),
+    })
+    const next = toRandomPicked(drafts)
+    setPicked(current => {
+      if (!append) return next
+      const existing = new Set(current.map(item => item.fixtureId))
+      return [...current, ...next.filter(item => !existing.has(item.fixtureId))].slice(0, 20)
+    })
+    setGeneratedAt(iso)
+    setDemo(false)
   }
 
   function updateOdds(index: number, odds: string) {
@@ -181,6 +269,10 @@ export function AdminSlipGenerator({
       )
       return
     }
+    if (timeMode !== 'ORIGINAL' && !manualKickoff) {
+      setError('Choose the kickoff time before publishing this slip.')
+      return
+    }
     if (!Number.isInteger(stakeMinor) || stakeMinor < 500 || stakeMinor > 500_000) {
       setError('Stake must be a whole amount between 500 and 500,000 TZS.')
       return
@@ -198,12 +290,32 @@ export function AdminSlipGenerator({
         body: JSON.stringify({
           title: title.trim() ? title.trim() : undefined,
           stakeMinor,
-          selections: picked.map(item => ({
-            fixtureId: item.fixtureId,
-            marketId: item.marketId,
-            selectionId: item.selectionId,
-            odds: normalizeOddsValue(item.odds),
-          })),
+          timeMode,
+          selectionSource: creationMode === 'RANDOM' ? 'RANDOM' : 'CATALOG',
+          manualKickoffAt: manualKickoff ? kickoffIsoFromInput(manualKickoff) : undefined,
+          simulatedDurationMinutes: Number(simulatedDuration) || 90,
+          selections: picked.map(item =>
+            item.custom
+              ? {
+                  fixtureId: item.fixtureId,
+                  fixtureLabel: item.fixtureLabel,
+                  competition: item.competition,
+                  kickoffIso: item.kickoffIso,
+                  marketId: item.marketId,
+                  marketName: item.marketName,
+                  selectionId: item.selectionId,
+                  selectionLabel: item.selectionLabel,
+                  odds: normalizeOddsValue(item.odds),
+                  probability: item.probability,
+                  custom: true,
+                }
+              : {
+                  fixtureId: item.fixtureId,
+                  marketId: item.marketId,
+                  selectionId: item.selectionId,
+                  odds: normalizeOddsValue(item.odds),
+                },
+          ),
         }),
       })
       const payload = (await response.json().catch(() => ({}))) as CreateResponse
@@ -249,8 +361,9 @@ export function AdminSlipGenerator({
             Bet slip builder
           </h2>
           <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-text">
-            Start from the model ranked picks or build the slip yourself. Remove any match, add
-            more from the full schedule, adjust the odds and publish when it is ready.
+            Start from the model ranked picks, build the slip yourself, or generate fixtures from
+            the random team pools. Set original, manual or simulated timing, adjust the odds and
+            publish when it is ready.
           </p>
         </div>
         {creationMode === 'AI' ? (
@@ -295,7 +408,141 @@ export function AdminSlipGenerator({
           <Plus className="h-3.5 w-3.5" />
           Create manually
         </button>
+        <button
+          type="button"
+          onClick={() => switchMode('RANDOM')}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+            creationMode === 'RANDOM'
+              ? 'bg-accent text-background'
+              : 'text-muted-text hover:text-main-text'
+          }`}
+        >
+          <Shuffle className="h-3.5 w-3.5" />
+          Random teams
+        </button>
       </div>
+
+      <div className="mt-3 rounded-xl border border-border bg-background/40 p-3">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-main-text">
+          <Clock className="h-3.5 w-3.5 text-accent" />
+          Kickoff and live timing
+        </p>
+        <div className="mt-2 inline-flex flex-wrap gap-1">
+          {(['ORIGINAL', 'MANUAL', 'SIMULATED'] as AdminSlipTimeMode[]).map(mode => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setTimeMode(mode)}
+              className={`rounded-lg px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                timeMode === mode
+                  ? 'bg-accent text-background'
+                  : 'border border-border bg-surface text-muted-text hover:text-main-text'
+              }`}
+            >
+              {mode === 'ORIGINAL'
+                ? 'Original time'
+                : mode === 'MANUAL'
+                  ? 'Manual time'
+                  : 'Simulated live'}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-medium text-muted-text">
+              {timeMode === 'ORIGINAL'
+                ? 'Kickoff used for generated matches'
+                : 'Manual kickoff time'}
+            </span>
+            <input
+              type="datetime-local"
+              value={manualKickoff}
+              onChange={event => updateKickoff(event.target.value)}
+              className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs text-main-text outline-none focus:border-accent/60"
+            />
+          </label>
+          {timeMode === 'SIMULATED' ? (
+            <label className="block sm:w-36">
+              <span className="mb-1 block text-[10px] font-medium text-muted-text">
+                Match minutes
+              </span>
+              <input
+                type="number"
+                min={5}
+                max={180}
+                step={5}
+                value={simulatedDuration}
+                onChange={event => setSimulatedDuration(event.target.value)}
+                className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
+              />
+            </label>
+          ) : null}
+        </div>
+        <p className="mt-1.5 text-[10px] text-muted-text">
+          {timeMode === 'ORIGINAL'
+            ? 'Catalog kickoffs stay unchanged. Random teams use the kickoff above.'
+            : timeMode === 'MANUAL'
+              ? 'Every selection uses the kickoff above. Bets freeze at that time.'
+              : 'Start the clock from the slip list when you are ready. Users then see LIVE time updates.'}
+        </p>
+      </div>
+
+      {creationMode === 'RANDOM' ? (
+        <div className="mt-3 rounded-xl border border-accent/25 bg-accent/5 p-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="min-w-[180px] flex-1">
+              <span className="mb-1 block text-[10px] font-medium text-muted-text">
+                Team pool
+              </span>
+              <select
+                value={randomLeague}
+                onChange={event => setRandomLeague(event.target.value)}
+                className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs text-main-text outline-none focus:border-accent/60"
+              >
+                <option value="ANY">Any league</option>
+                {RANDOM_TEAM_GROUPS.map(group => (
+                  <option key={group.name} value={group.name}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="w-24">
+              <span className="mb-1 block text-[10px] font-medium text-muted-text">Matches</span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={randomCount}
+                onChange={event => setRandomCount(event.target.value)}
+                className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => generateRandomPicks(false)}
+              disabled={pending}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1.5 text-[11px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              <Shuffle className="h-3.5 w-3.5" />
+              Generate
+            </button>
+            <button
+              type="button"
+              onClick={() => generateRandomPicks(true)}
+              disabled={pending || picked.length >= 20}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-main-text transition-colors hover:border-accent/40 disabled:opacity-60"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add more
+            </button>
+          </div>
+          <p className="mt-1.5 text-[10px] text-muted-text">
+            Picks are generated from the pasted second-division team list. Remove any match below or
+            generate more until the slip is ready.
+          </p>
+        </div>
+      ) : null}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
         <label className="block">
@@ -329,7 +576,11 @@ export function AdminSlipGenerator({
       <div className="mt-4 rounded-xl border border-border bg-background/40 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-text">
-            {creationMode === 'AI' ? 'Model picks' : 'Your selections'}
+            {creationMode === 'AI'
+              ? 'Model picks'
+              : creationMode === 'RANDOM'
+                ? 'Random fixtures'
+                : 'Your selections'}
           </p>
           <div className="flex items-center gap-2 text-[11px] text-muted-text">
             {creationMode === 'AI' && demo ? (
@@ -348,7 +599,9 @@ export function AdminSlipGenerator({
           <p className="mt-3 rounded-xl border border-dashed border-border bg-background/40 px-3 py-3 text-xs text-muted-text">
             {creationMode === 'MANUAL'
               ? 'No matches yet. Use the button below to add selections from the upcoming schedule.'
-              : 'No upcoming fixtures pass the model quality gates right now. Refresh or switch to manual creation.'}
+              : creationMode === 'RANDOM'
+                ? 'No random fixtures yet. Generate a set above, then remove or add more as needed.'
+                : 'No upcoming fixtures pass the model quality gates right now. Refresh or switch to manual creation.'}
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -403,11 +656,13 @@ export function AdminSlipGenerator({
           </ul>
         )}
 
-        <AdminSelectionPicker
-          excludedFixtures={pickedFixtures}
-          onAdd={addPick}
-          disabled={pending}
-        />
+        {creationMode === 'RANDOM' ? null : (
+          <AdminSelectionPicker
+            excludedFixtures={pickedFixtures}
+            onAdd={addPick}
+            disabled={pending}
+          />
+        )}
 
         {creationMode === 'AI' && picked.length > 0 && picked.length < 15 ? (
           <p className="mt-3 text-[10px] text-amber-200">
@@ -459,9 +714,15 @@ export function AdminSlipGenerator({
           ) : (
             <Plus className="h-3.5 w-3.5" />
           )}
-          {pending ? 'Publishing...' : creationMode === 'MANUAL' ? 'Create slip' : 'Publish slip'}
+          {pending
+            ? 'Publishing...'
+            : creationMode === 'MANUAL'
+              ? 'Create slip'
+              : creationMode === 'RANDOM'
+                ? 'Create random slip'
+                : 'Publish slip'}
         </button>
-        {picked.length > 0 && creationMode === 'MANUAL' ? (
+        {picked.length > 0 && creationMode !== 'AI' ? (
           <button
             type="button"
             onClick={() => {

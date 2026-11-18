@@ -4,6 +4,7 @@ import { getBetCatalog, getFixtureResults, type FixtureResult } from './catalog'
 import { BetError, isUniqueConstraintError } from './errors'
 import { combineOdds, findSelection, settleMarket } from './odds'
 import { hashString, mulberry32, randomCode } from './random'
+import { simulatedCashoutOffer } from './simulation'
 import { applyVat, VAT_PERCENT } from './vat'
 import { creditWallet, debitWallet } from './wallet'
 import { sendBetTransactionSms } from '@/lib/billing/nextsms'
@@ -414,6 +415,19 @@ export async function settleTicketsForUser(
   return settled
 }
 
+async function ticketWithCashoutQuote(
+  ticket: BetTicket,
+  now: Date,
+): Promise<BetTicketView> {
+  if (ticket.status !== 'OPEN') return toTicketView(ticket)
+  const selections = parseSelections(ticket.selections)
+  const catalog = await getBetCatalog(now)
+  const results = await getFixtureResults(now)
+  const eventById = new Map(catalog.events.map(event => [event.id, event]))
+  const quote = cashoutOffer(ticket, selections, results, eventById, now)
+  return toTicketView(ticket, quote.blocked ? null : quote.offer)
+}
+
 export async function listTickets(
   userId: string,
   now: Date = new Date(),
@@ -424,27 +438,16 @@ export async function listTickets(
     orderBy: { placedAt: 'desc' },
     take: 50,
   })
-  if (!tickets.some(ticket => ticket.status === 'OPEN')) {
-    return tickets.map(ticket => toTicketView(ticket))
-  }
-
-  const catalog = await getBetCatalog(now)
-  const results = await getFixtureResults(now)
-  const eventById = new Map(catalog.events.map(event => [event.id, event]))
-
-  return tickets.map(ticket => {
-    if (ticket.status !== 'OPEN') return toTicketView(ticket)
-    const quote = cashoutOffer(ticket, parseSelections(ticket.selections), results, eventById)
-    return toTicketView(ticket, quote.blocked ? null : quote.offer)
-  })
+  return Promise.all(tickets.map(ticket => ticketWithCashoutQuote(ticket, now)))
 }
 
 export async function getTicket(
   userId: string,
   ticketId: string,
+  now: Date = new Date(),
 ): Promise<BetTicketView | null> {
   const ticket = await prisma.betTicket.findFirst({ where: { id: ticketId, userId } })
-  return ticket ? toTicketView(ticket) : null
+  return ticket ? ticketWithCashoutQuote(ticket, now) : null
 }
 
 function cashoutOffer(
@@ -452,7 +455,19 @@ function cashoutOffer(
   selections: TicketSelection[],
   results: Map<string, FixtureResult>,
   eventById: Map<string, Awaited<ReturnType<typeof getBetCatalog>>['events'][number]>,
+  now: Date = new Date(),
 ): { offer: number; blocked: boolean } {
+  const clock = selections.find(selection => selection.simulation)?.simulation
+  if (clock) {
+    return simulatedCashoutOffer({
+      stakeMinor: ticket.stakeMinor,
+      potentialReturnMinor: ticket.potentialReturnMinor,
+      selections,
+      clock,
+      now: now.getTime(),
+    })
+  }
+
   let allWinning = true
   let anyLosing = false
 
@@ -503,7 +518,7 @@ export async function cashoutTicket(
   const catalog = await getBetCatalog(now)
   const results = await getFixtureResults(now)
   const eventById = new Map(catalog.events.map(event => [event.id, event]))
-  const { offer, blocked } = cashoutOffer(ticket, selections, results, eventById)
+  const { offer, blocked } = cashoutOffer(ticket, selections, results, eventById, now)
 
   if (blocked) {
     throw new BetError('Cash out is unavailable while a selection is losing.', 409, 'CASHOUT_UNAVAILABLE')

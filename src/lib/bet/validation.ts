@@ -137,16 +137,27 @@ export const adminSlipSelectionSchema = z.object({
   marketId: z.string().trim().min(1).max(80),
   selectionId: z.string().trim().min(1).max(80),
   odds: z.number().finite().min(1.01).max(1000),
+  custom: z.boolean().optional(),
+  fixtureLabel: z.string().trim().min(3).max(160).optional(),
+  competition: z.string().trim().max(120).optional(),
+  kickoffIso: z.string().datetime().optional(),
+  marketName: z.string().trim().max(80).optional(),
+  selectionLabel: z.string().trim().max(120).optional(),
+  probability: z.number().min(0).max(1).optional(),
 })
 
 export const adminSlipCreateSchema = z.object({
   title: z.string().trim().max(120).optional(),
   stakeMinor: z.number().int().min(MIN_STAKE_MINOR).max(MAX_STAKE_MINOR),
+  timeMode: z.enum(['ORIGINAL', 'MANUAL', 'SIMULATED']).default('ORIGINAL'),
+  selectionSource: z.enum(['CATALOG', 'RANDOM']).default('CATALOG'),
+  manualKickoffAt: z.string().datetime().optional(),
+  simulatedDurationMinutes: z.number().int().min(5).max(180).default(90),
   selections: z.array(adminSlipSelectionSchema).min(1).max(MAX_SELECTIONS),
 })
 
 export const adminSlipActionSchema = z.object({
-  action: z.enum(['freeze', 'unfreeze', 'close']),
+  action: z.enum(['freeze', 'unfreeze', 'close', 'start-live']),
   reason: z.string().trim().max(200).optional(),
 })
 

@@ -44,6 +44,10 @@ export async function POST(request: Request) {
       title: input.title,
       stakeMinor: input.stakeMinor,
       selections: input.selections,
+      timeMode: input.timeMode,
+      selectionSource: input.selectionSource,
+      manualKickoffAt: input.manualKickoffAt ?? null,
+      simulatedDurationMinutes: input.simulatedDurationMinutes,
       now: new Date(),
     })
     return json({ slip, shareUrl: `/bet/share/${slip.code}` }, { status: 201 })
