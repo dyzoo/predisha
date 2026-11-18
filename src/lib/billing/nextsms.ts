@@ -100,6 +100,14 @@ export async function sendNextSms(input: NextSmsSendInput): Promise<NextSmsSendR
     const failed = messages.filter(
       message => !message || (message.status as { groupName?: string } | undefined)?.groupName === 'REJECTED',
     )
+    const rejectionReasons = failed
+      .map(message => {
+        const status = message?.status as
+          | { name?: string; description?: string; groupName?: string }
+          | undefined
+        return [status?.name, status?.description].filter(Boolean).join(': ')
+      })
+      .filter(Boolean)
     const messageIds = messages.map(message => String(message?.messageId ?? '')).filter(Boolean)
     const success = response.ok && messages.length > 0 && failed.length === 0
 
@@ -107,7 +115,12 @@ export async function sendNextSms(input: NextSmsSendInput): Promise<NextSmsSendR
       success,
       sentCount: messages.length - failed.length,
       failedCount: failed.length,
-      error: failed.length > 0 ? 'One or more recipient numbers were rejected.' : null,
+      error:
+        failed.length > 0
+          ? rejectionReasons.length > 0
+            ? rejectionReasons.join('; ')
+            : 'One or more recipient numbers were rejected.'
+          : null,
       messageIds,
     }
   } catch {

@@ -8,6 +8,7 @@ import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminCreateAdmin } from '@/components/admin/admin-create-admin'
 import { AdminNav } from '@/components/admin/admin-nav'
+import { AdminSendSmsForm } from '@/components/admin/admin-send-sms-form'
 import { AdminUserActions } from '@/components/admin/admin-user-actions'
 import { canViewAdmin, isSuperAdmin } from '@/lib/auth/entitlements'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
@@ -81,6 +82,7 @@ export default async function AdminUsersPage({
         id: true,
         email: true,
         name: true,
+        phone: true,
         role: true,
         emailVerified: true,
         createdAt: true,
@@ -111,6 +113,17 @@ export default async function AdminUsersPage({
       <AdminNav active="/admin/users" />
 
       {superAdmin ? <AdminCreateAdmin /> : null}
+
+      <AdminSendSmsForm
+        users={users
+          .filter(user => Boolean(user.phone))
+          .map(user => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone as string,
+          }))}
+      />
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[

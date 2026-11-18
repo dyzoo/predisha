@@ -10,14 +10,16 @@ import { SignOutButton } from '@/components/auth/sign-out-button'
 import { SettingsNav } from '@/components/settings/settings-nav'
 import { SettingsLocked } from '@/components/settings/settings-locked'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
+import { normalizeTzPhone } from '@/lib/bet/phone'
 import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
   title: 'Profile settings',
 }
 
-const nameSchema = z.object({
+const profileSchema = z.object({
   name: z.string().trim().min(2).max(80),
+  phone: z.string().trim().max(30),
 })
 
 async function updateProfile(formData: FormData) {
@@ -25,12 +27,22 @@ async function updateProfile(formData: FormData) {
   const viewer = await getViewer()
   if (!viewer.userId) redirect('/sign-in?next=/settings/profile')
 
-  const parsed = nameSchema.safeParse({ name: formData.get('name') })
-  if (!parsed.success) redirect('/settings/profile?error=1')
+  const parsed = profileSchema.safeParse({
+    name: formData.get('name'),
+    phone: formData.get('phone') ?? '',
+  })
+  if (!parsed.success) redirect('/settings/profile?error=name')
+
+  let phone: string | null = null
+  if (parsed.data.phone) {
+    const normalized = normalizeTzPhone(parsed.data.phone)
+    if (!normalized.ok) redirect('/settings/profile?error=phone')
+    phone = normalized.phone
+  }
 
   await prisma.user.update({
     where: { id: viewer.userId },
-    data: { name: parsed.data.name },
+    data: { name: parsed.data.name, phone },
   })
   revalidatePath('/settings/profile')
   redirect('/settings/profile?saved=1')
@@ -57,7 +69,14 @@ export default async function ProfileSettingsPage({
   const account = await prisma.user
     .findUnique({
       where: { id: viewer.userId },
-      select: { name: true, email: true, role: true, createdAt: true, emailVerified: true },
+      select: {
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        createdAt: true,
+        emailVerified: true,
+      },
     })
     .catch(() => null)
 
@@ -92,7 +111,9 @@ export default async function ProfileSettingsPage({
       {error ? (
         <p className="flex items-center gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-xs text-red-200">
           <CircleAlert className="h-4 w-4" />
-          Enter a name between 2 and 80 characters.
+          {error === 'phone'
+            ? 'Enter a valid Tanzanian mobile number, for example 0712 345 678.'
+            : 'Enter a name between 2 and 80 characters.'}
         </p>
       ) : null}
 
@@ -115,11 +136,29 @@ export default async function ProfileSettingsPage({
               className="w-full rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm text-main-text outline-none focus:border-accent/60"
             />
           </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-muted-text">
+              Mobile number for account messages
+            </span>
+            <input
+              type="tel"
+              name="phone"
+              inputMode="tel"
+              autoComplete="tel"
+              maxLength={30}
+              placeholder="0712 345 678"
+              defaultValue={account.phone ?? ''}
+              className="w-full rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm text-main-text outline-none focus:border-accent/60"
+            />
+            <span className="mt-1 block text-[11px] text-muted-text">
+              Used when an operator sends you a direct SMS. Leave blank to opt out.
+            </span>
+          </label>
           <button
             type="submit"
             className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
           >
-            Save name
+            Save profile
           </button>
         </form>
 

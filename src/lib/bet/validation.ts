@@ -194,6 +194,11 @@ export const adminDepositMinSchema = z.object({
   amountMinor: z.number().int().min(1).max(MAX_DEPOSIT_MINOR),
 })
 
+export const adminSendSmsSchema = z.object({
+  userId: z.string().trim().min(1),
+  message: z.string().trim().min(1).max(480),
+})
+
 export const aviatorSettingsSchema = z
   .object({
     enabled: z.boolean(),
