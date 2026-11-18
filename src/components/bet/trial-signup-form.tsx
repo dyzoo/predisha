@@ -103,7 +103,7 @@ export function TrialSignupForm() {
               autoComplete="new-password"
               value={password}
               onChange={event => setPassword(event.target.value)}
-              placeholder="At least 12 characters"
+              placeholder="At least 8 characters"
               className="w-full rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60"
             />
             {fields.password ? (

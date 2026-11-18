@@ -24,7 +24,7 @@ export const signUpSchema = z.object({
   email: emailSchema,
   password: z
     .string()
-    .min(12, 'Use at least 12 characters for your password.')
+    .min(8, 'Use at least 8 characters for your password.')
     .max(200, 'Password must be 200 characters or fewer.'),
   acceptedTerms: z
     .boolean()

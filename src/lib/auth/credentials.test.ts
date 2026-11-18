@@ -16,18 +16,29 @@ describe('signUpSchema', () => {
     expect(result.data.email).toBe('ada@example.com')
   })
 
+  it('accepts an eight-character password', () => {
+    const result = signUpSchema.safeParse({
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      password: 'password',
+      acceptedTerms: true,
+    })
+
+    expect(result.success).toBe(true)
+  })
+
   it('rejects short passwords and missing consent', () => {
     const result = signUpSchema.safeParse({
       name: 'Ada Lovelace',
       email: 'ada@example.com',
-      password: 'too-short',
+      password: 'short',
       acceptedTerms: false,
     })
 
     expect(result.success).toBe(false)
     if (result.success) return
     expect(zodFieldErrors(result.error)).toMatchObject({
-      password: 'Use at least 12 characters for your password.',
+      password: 'Use at least 8 characters for your password.',
       acceptedTerms: 'Accept the Terms and Privacy Policy to continue.',
     })
   })

@@ -336,7 +336,7 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
               </div>
               {mode === 'sign-up' ? (
                 <p className="mt-1.5 text-[11px] leading-relaxed text-muted-text">
-                  Use at least 12 characters. A short passphrase works well.
+                  Use at least 8 characters. A short passphrase works well.
                 </p>
               ) : null}
               <FieldError id="auth-password-error" message={fieldErrors.password} />

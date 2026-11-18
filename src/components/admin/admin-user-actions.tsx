@@ -84,7 +84,7 @@ export function AdminUserActions({
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-4 space-y-3 border-t border-border pt-4">
+    <form onSubmit={onSubmit} className="mt-3 space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block">
           <span className="mb-1.5 block text-[11px] font-medium text-muted-text">Role</span>

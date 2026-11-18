@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import type { Prisma, SubscriptionStatus } from '@prisma/client'
-import { CircleCheck, Filter, Search, ShieldCheck, Users } from 'lucide-react'
+import { ChevronDown, CircleCheck, Filter, Search, ShieldCheck, Users } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminCreateAdmin } from '@/components/admin/admin-create-admin'
@@ -12,6 +12,7 @@ import { AdminSendSmsForm } from '@/components/admin/admin-send-sms-form'
 import { AdminUserActions } from '@/components/admin/admin-user-actions'
 import { canViewAdmin, isSuperAdmin } from '@/lib/auth/entitlements'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
+import { maskTzPhone } from '@/lib/bet/phone'
 import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
@@ -193,13 +194,13 @@ export default async function AdminUsersPage({
         </form>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-base font-bold text-main-text">
             {query || roleFilter ? 'Filtered accounts' : 'All accounts'}
           </h2>
           <p className="text-[11px] text-muted-text">
-            Showing {users.length} of {total} accounts (max 50).
+            Showing {users.length} of {total} accounts (max 50). Select a row to view details.
           </p>
         </div>
 
@@ -211,74 +212,95 @@ export default async function AdminUsersPage({
           users.map(user => {
             const subscriptionStatus = user.subscription?.status ?? null
             return (
-              <article key={user.id} className="rounded-2xl border border-border bg-surface/60 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+              <details
+                key={user.id}
+                className="group rounded-xl border border-border bg-surface/60 open:border-accent/30"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-main-text">
-                      {user.name ?? 'Unnamed account'}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-main-text">
+                        {user.name ?? 'Unnamed account'}
+                      </p>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                          user.role === 'SUPER_ADMIN'
+                            ? 'border-violet-300/35 bg-violet-300/10 text-violet-200'
+                            : 'border-border bg-background/40 text-muted-text'
+                        }`}
+                      >
+                        {user.role}
+                      </span>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusClass(subscriptionStatus)}`}
+                      >
+                        {subscriptionStatus ?? 'NO PLAN'}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 truncate text-[11px] text-muted-text">
+                      {user.email}
+                      {user.phone ? ` · ${maskTzPhone(user.phone)}` : null}
                     </p>
-                    <p className="truncate text-xs text-muted-text">{user.email}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                        user.role === 'SUPER_ADMIN'
-                          ? 'border-violet-300/35 bg-violet-300/10 text-violet-200'
-                          : 'border-border bg-background/40 text-muted-text'
-                      }`}
-                    >
-                      {user.role}
-                    </span>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusClass(subscriptionStatus)}`}
-                    >
-                      {subscriptionStatus ?? 'NO PLAN'}
-                    </span>
-                  </div>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-text transition-transform group-open:rotate-180" />
+                </summary>
+
+                <div className="border-t border-border px-3 pb-3 pt-2">
+                  <dl className="grid gap-2 text-[11px] sm:grid-cols-3">
+                    <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                      <dt className="text-muted-text">Plan</dt>
+                      <dd className="mt-0.5 font-semibold text-main-text">
+                        {user.subscription
+                          ? `${user.subscription.plan.name} · ${user.subscription.plan.interval.toLowerCase()}`
+                          : 'None'}
+                      </dd>
+                    </div>
+                    <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                      <dt className="text-muted-text">Period ends</dt>
+                      <dd className="mt-0.5 font-semibold text-main-text">
+                        {user.subscription?.currentPeriodEnd
+                          ? `${user.subscription.currentPeriodEnd.toISOString().slice(0, 10)}${
+                              user.subscription.cancelAtPeriodEnd ? ' (cancels)' : ''
+                            }`
+                          : '—'}
+                      </dd>
+                    </div>
+                    <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                      <dt className="text-muted-text">Email verified</dt>
+                      <dd className="mt-0.5 font-semibold text-main-text">
+                        {user.emailVerified ? 'Yes' : 'No'}
+                      </dd>
+                    </div>
+                    <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                      <dt className="text-muted-text">Phone</dt>
+                      <dd className="mt-0.5 font-semibold text-main-text">
+                        {user.phone ? maskTzPhone(user.phone) : '—'}
+                      </dd>
+                    </div>
+                    <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                      <dt className="text-muted-text">Saved · slips</dt>
+                      <dd className="mt-0.5 font-semibold text-main-text">
+                        {user._count.savedFixtures} · {user._count.predictionSlips}
+                      </dd>
+                    </div>
+                    <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                      <dt className="text-muted-text">Joined</dt>
+                      <dd className="mt-0.5 font-semibold text-main-text">
+                        {user.createdAt.toISOString().slice(0, 10)}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <AdminUserActions
+                    userId={user.id}
+                    role={user.role}
+                    status={subscriptionStatus}
+                    planId={user.subscription?.planId ?? null}
+                    isSelf={user.id === viewer.userId}
+                    canManageRoles={superAdmin}
+                  />
                 </div>
-
-                <dl className="mt-3 grid gap-2 text-[11px] sm:grid-cols-4">
-                  <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
-                    <dt className="text-muted-text">Plan</dt>
-                    <dd className="mt-0.5 font-semibold text-main-text">
-                      {user.subscription
-                        ? `${user.subscription.plan.name} · ${user.subscription.plan.interval.toLowerCase()}`
-                        : 'None'}
-                    </dd>
-                  </div>
-                  <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
-                    <dt className="text-muted-text">Period ends</dt>
-                    <dd className="mt-0.5 font-semibold text-main-text">
-                      {user.subscription?.currentPeriodEnd
-                        ? `${user.subscription.currentPeriodEnd.toISOString().slice(0, 10)}${
-                            user.subscription.cancelAtPeriodEnd ? ' (cancels)' : ''
-                          }`
-                        : '—'}
-                    </dd>
-                  </div>
-                  <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
-                    <dt className="text-muted-text">Email verified</dt>
-                    <dd className="mt-0.5 font-semibold text-main-text">
-                      {user.emailVerified ? 'Yes' : 'No'}
-                    </dd>
-                  </div>
-                  <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
-                    <dt className="text-muted-text">Saved · slips</dt>
-                    <dd className="mt-0.5 font-semibold text-main-text">
-                      {user._count.savedFixtures} · {user._count.predictionSlips}
-                    </dd>
-                  </div>
-                </dl>
-
-                <AdminUserActions
-                  userId={user.id}
-                  role={user.role}
-                  status={subscriptionStatus}
-                  planId={user.subscription?.planId ?? null}
-                  isSelf={user.id === viewer.userId}
-                  canManageRoles={superAdmin}
-                />
-              </article>
+              </details>
             )
           })
         )}
