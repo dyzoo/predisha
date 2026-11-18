@@ -122,7 +122,7 @@ export function AviatorGame() {
       playersEl.innerHTML = players
         .map(player => {
           const mine = player.mine ? 'mine' : ''
-          return `<div class="av-row ${mine}"><span>${player.name}</span><span>${formatTzs(player.stakeMinor)}</span><b>${player.status === 'CASHED_OUT' && player.cashedOutAt ? player.cashedOutAt.toFixed(2) + 'x' : '—'}</b></div>`
+          return `<div class="av-row ${mine}"><span>${player.name}</span><span>${formatTzs(player.stakeMinor)}</span><b>${player.status === 'CASHED_OUT' && player.cashedOutAt ? player.cashedOutAt.toFixed(2) + 'x' : '-'}</b></div>`
         })
         .join('')
       if (players.length === 0) playersEl.innerHTML = '<p class="hint">Waiting for bets</p>'

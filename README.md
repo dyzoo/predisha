@@ -1,4 +1,4 @@
-# Spotibet — AI Sports Predictions Platform
+# Spotibet: AI Sports Predictions Platform
 
 An international sports analytics subscription platform. Spotibet does **not** accept bets, hold
 betting funds, or operate as a bookmaker. A high model probability is never a guaranteed result.

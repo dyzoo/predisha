@@ -33,7 +33,7 @@ M1 provenance fields added to `Fixture`: `sourceProvider`, `sourceFilePath`, `so
 
 ### 4.1 Provider Strategy
 - Primary: `football-data.org` (configured via adapter interface).
-- Supplementary: `openfootball` (community JSON datasets) — **adapter disabled by default** (`OPENFOOTBALL_ENABLED=false`) until exact dataset licence and commercial suitability is verified.
+- Supplementary: `openfootball` (community JSON datasets), **adapter disabled by default** (`OPENFOOTBALL_ENABLED=false`) until exact dataset licence and commercial suitability is verified.
 
 ### 4.2 Adapter Architecture
 ```
@@ -60,7 +60,7 @@ src/lib/sports/
 ### 5.1 Model Foundation: Elo + Poisson
 - **Elo Ratings:** Relative team strength with home advantage (`MODEL_CONFIG.homeAdvantageElo = 70`), k-factor (`24`), initial rating `1500`.
 - **Poisson Goal Model:** Expected goals derived from attack/defence strengths, league average (`1.35`), home/away factors, and Elo adjustment (`clamp(1 + eloDifference/800, 0.55, 1.65)`).
-- **Market Derivation:** 1X2, Double Chance, Over/Under thresholds, BTTS — derived from joint scoreline distribution (`maxGoals = 8`).
+- **Market Derivation:** 1X2, Double Chance, Over/Under thresholds, BTTS, derived from joint scoreline distribution (`maxGoals = 8`).
 
 ### 5.2 Leakage Prevention
 - `buildMatchFeatures` uses only `FINISHED` fixtures with `kickoffUtc < asOf` (strict chronological split).
@@ -105,7 +105,7 @@ interface StructuredAIOutput {
 ## 7. Prediction Builder / Slip Flow
 
 ### 7.1 User Journey
-1. User selects risk profile (`conservative`, `balanced`, `aggressive`) — defines target/minimum probabilities and max selections.
+1. User selects risk profile (`conservative`, `balanced`, `aggressive`), which defines target/minimum probabilities and max selections.
 2. `POST /api/predictions/build` validates stake (positive, finite, max 1B), risk, optional user odds (`min 1`, max 1M), currency.
 3. `buildPredictionSlip` filters eligible fixtures (SCHEDULED, quality flags pass), scores options (`scoreOption`), selects top `maxSelections`, and builds `BuilderResult`.
 4. Combined decimal odds = product of implied odds; combined probability = product of individual probabilities; potential return = `stake * usedOdds`; net profit = return - stake.
@@ -123,7 +123,7 @@ interface StructuredAIOutput {
 - `canViewPremium(viewer)`: checks `Subscription.status` and `plan` features server-side.
 - `canUseFreePreview`: one preview per non-premium user; tracked in `UserFreePreview` linked to `PredictionSlip`.
 - Rate limits on `/api/predictions/build` (12/min per client key).
-- Admin routes protected server-side (`/admin/*`, `/api/admin/*`, `/api/cron/*`) — never hidden-only.
+- Admin routes protected server-side (`/admin/*`, `/api/admin/*`, `/api/cron/*`), never hidden-only.
 
 ## 9. Subscription & Billing
 
@@ -143,7 +143,7 @@ Account (authenticated):
 Admin (server-protected):
 - `/admin`, `/admin/data-health`, `/admin/predictions`, `/admin/users`, `/admin/subscriptions`, `/admin/settings`, `/api/admin/*`, `/api/cron/sync`
 
-API endpoints include `GET /api/fixtures`, `/api/predictions`, `/api/results`, `/api/plan`, protected `POST /api/predictions/build`, `POST /api/free-preview/claim`, protected billing endpoints (`/api/billing/checkout`, `/api/billing/portal` — disabled), webhook routes (`/api/webhooks/[provider]`).
+API endpoints include `GET /api/fixtures`, `/api/predictions`, `/api/results`, `/api/plan`, protected `POST /api/predictions/build`, `POST /api/free-preview/claim`, protected billing endpoints (`/api/billing/checkout`, `/api/billing/portal`, disabled), webhook routes (`/api/webhooks/[provider]`).
 
 ## 11. UI & Design System
 

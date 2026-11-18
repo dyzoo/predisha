@@ -321,7 +321,7 @@ export default async function MatchPage({ params }: { params: Promise<{ matchId:
                 <dl className="mt-4 space-y-3 text-xs">
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-muted-text">Model</dt>
-                    <dd className="font-semibold">{prediction?.modelVersion ?? '—'}</dd>
+                    <dd className="font-semibold">{prediction?.modelVersion ?? '-'}</dd>
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-muted-text">Home sample</dt>
@@ -342,7 +342,7 @@ export default async function MatchPage({ params }: { params: Promise<{ matchId:
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-muted-text">Data as of</dt>
                     <dd className="font-semibold">
-                      {prediction ? formatDateTime(prediction.inputDataAsOf) : '—'}
+                      {prediction ? formatDateTime(prediction.inputDataAsOf) : '-'}
                     </dd>
                   </div>
                 </dl>
@@ -386,15 +386,15 @@ export default async function MatchPage({ params }: { params: Promise<{ matchId:
                 <div className="mt-3 grid gap-2 text-xs text-muted-text">
                   <div className="flex justify-between"><span>Source providers</span> <span className="font-semibold text-main-text">{dataset.isDemo ? 'demo' : 'stored dataset'}</span></div>
                   <div className="flex justify-between"><span>Data freshness</span> <span className="font-semibold text-main-text">{dataset.health?.message ?? 'Unknown'}</span></div>
-                  <div className="flex justify-between"><span>Model version</span> <span className="font-semibold text-main-text">{prediction?.modelVersion ?? '—'}</span></div>
+                  <div className="flex justify-between"><span>Model version</span> <span className="font-semibold text-main-text">{prediction?.modelVersion ?? '-'}</span></div>
                   <div className="flex justify-between"><span>Historical matches used</span> <span className="font-semibold text-main-text">{features.home.matches + features.away.matches}</span></div>
-                  <div className="flex justify-between"><span>Prediction timestamp</span> <span className="font-semibold text-main-text">{prediction?.generatedAt ? new Date(prediction.generatedAt).toLocaleString() : '—'}</span></div>
+                  <div className="flex justify-between"><span>Prediction timestamp</span> <span className="font-semibold text-main-text">{prediction?.generatedAt ? new Date(prediction.generatedAt).toLocaleString() : '-'}</span></div>
                   <div className="flex justify-between"><span>Missing features</span> <span className="font-semibold text-main-text">{prediction?.qualityFlags?.join(', ') || 'None'}</span></div>
                   <div className="flex justify-between"><span>Odds source</span> <span className="font-semibold text-main-text">{analysis.prediction ? 'model-implied' : 'unavailable'}</span></div>
                 </div>
                 <p className="mt-3 text-[11px] leading-relaxed text-muted-text">
                   Data providers: {dataset.isDemo ? 'demo dataset' : 'football-data.org'}.
-                  Last refresh time: {dataset.health ? new Date().toISOString().slice(0,10) : '—'}.
+                  Last refresh time: {dataset.health ? new Date().toISOString().slice(0,10) : '-'}.
                   Historical matches used for ratings and form only.
                   Missing features are excluded rather than inferred.
                 </p>
@@ -447,11 +447,11 @@ export default async function MatchPage({ params }: { params: Promise<{ matchId:
                 </div>
                 <div className="rounded-xl border border-border bg-background/40 p-3">
                   <p className="text-muted-text">Form (home)</p>
-                  <p className="mt-1 font-semibold">{features.home.form.map(r => r === 'W' ? 'W' : r === 'D' ? 'D' : 'L').join(' · ') || '—'}</p>
+                  <p className="mt-1 font-semibold">{features.home.form.map(r => r === 'W' ? 'W' : r === 'D' ? 'D' : 'L').join(' · ') || '-'}</p>
                 </div>
                 <div className="rounded-xl border border-border bg-background/40 p-3">
                   <p className="text-muted-text">Form (away)</p>
-                  <p className="mt-1 font-semibold">{features.away.form.map(r => r === 'W' ? 'W' : r === 'D' ? 'D' : 'L').join(' · ') || '—'}</p>
+                  <p className="mt-1 font-semibold">{features.away.form.map(r => r === 'W' ? 'W' : r === 'D' ? 'D' : 'L').join(' · ') || '-'}</p>
                 </div>
               </div>
             </section>

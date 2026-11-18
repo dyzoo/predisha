@@ -36,7 +36,7 @@ Subject to coverage and licence verification, use OpenFootball for:
 
 Do not use it as the source for live scores, current bookmaker odds, injuries, suspensions, confirmed lineups, xG, shots, possession, or team news unless a particular dataset demonstrably contains the field and its provenance is verified.
 
-### 2.2 Licence and commercial-use review — mandatory
+### 2.2 Licence and commercial-use review: mandatory
 
 Before importing data into production or using it to train a commercial model:
 
@@ -526,28 +526,28 @@ Adapt endpoint names to existing conventions. Protect admin import/evaluation/mo
 
 ## 11. Implementation milestones
 
-### Milestone 0 — Repository audit (no code changes)
+### Milestone 0: Repository audit (no code changes)
 Report current stack, football-data.org integration, prediction generation path, schema, AI provider, UI routes, subscription gates, test coverage, and risks.
 
-### Milestone 1 — Data quality and provenance
+### Milestone 1: Data quality and provenance
 Audit current data; add source metadata, freshness, quality checks, and sync/import reports where missing.
 
-### Milestone 2 — OpenFootball adapter
+### Milestone 2: OpenFootball adapter
 Verify exact dataset licence and commercial suitability. Configure approved datasets only. Implement parser, importer, normalization, deduplication, dry-run report. Do not activate unapproved data in production.
 
-### Milestone 3 — Statistical model hardening
+### Milestone 3: Statistical model hardening
 Document current logic. Improve or add Elo/Poisson only where justified. Add quality gates, model versioning, and reproducibility. Compare with current model before activation.
 
-### Milestone 4 — Backtesting and evaluation
+### Milestone 4: Backtesting and evaluation
 Implement chronological evaluation, Brier score, log loss, calibration, and baseline comparison. Require approval before changing production default.
 
-### Milestone 5 — AI explanation hardening
+### Milestone 5: AI explanation hardening
 Separate AI explanation from probability generation. Add structured validated input/output, prompt constraints, timeouts, caching, and fallback.
 
-### Milestone 6 — Professional analysis UI
+### Milestone 6: Professional analysis UI
 Improve existing screens with freshness, sample size, model version, probabilities, limitations, and explanation. Preserve existing visual language and responsive behaviour.
 
-### Milestone 7 — Monitoring and release
+### Milestone 7: Monitoring and release
 Add logs/alerts, performance reporting, regression tests, and deployment documentation. Report remaining external dependencies.
 
 ## 12. OpenCode implementation instruction
@@ -619,4 +619,4 @@ The upgrade is complete only when:
 - Tests and type checks pass.
 - Licensing, API, hosting, and deployment requirements are documented.
 
-**Product principle:** Make the platform credible through evidence, measurable model performance, transparent limitations, and reproducible analysis—not exaggerated confidence scores or persuasive AI-generated language.
+**Product principle:** Make the platform credible through evidence, measurable model performance, transparent limitations, and reproducible analysis, not exaggerated confidence scores or persuasive AI-generated language.

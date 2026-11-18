@@ -1,4 +1,4 @@
-// OpenFootball adapter skeleton — disabled by default until exact dataset
+// OpenFootball adapter skeleton, disabled by default until exact dataset
 // licence (football.json / world / repo-specific) is verified and commercial
 // use is confirmed. See docs/OPENFOOTBALL_LICENSE.md before enabling.
 

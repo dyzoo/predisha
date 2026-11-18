@@ -18,7 +18,7 @@ export default function MethodologyPage() {
         <p className="mt-2">
           The first release focuses on football: 1X2 (home win, draw, away win), double chance, goal
           totals and both-teams-to-score. Probabilities come from a deterministic statistical
-          baseline — an Elo-style rating with home advantage, moving toward a Poisson goal model as
+          baseline, an Elo-style rating with home advantage, moving toward a Poisson goal model as
           validation improves. The derived markets are calculated from the same Poisson score
           distribution. Language models are used only to write explanations from verified structured
           facts, never to invent probabilities.

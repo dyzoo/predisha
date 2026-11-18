@@ -41,7 +41,7 @@ export function EventCard({ event }: { event: BetEvent }) {
             <span className="truncate text-sm font-semibold">{event.home.name}</span>
           </div>
           <span className="shrink-0 text-lg font-bold tabular-nums">
-            {event.score ? event.score.home : '—'}
+            {event.score ? event.score.home : '-'}
           </span>
         </div>
         <div className="flex items-center justify-between gap-3">
@@ -50,7 +50,7 @@ export function EventCard({ event }: { event: BetEvent }) {
             <span className="truncate text-sm font-semibold">{event.away.name}</span>
           </div>
           <span className="shrink-0 text-lg font-bold tabular-nums">
-            {event.score ? event.score.away : '—'}
+            {event.score ? event.score.away : '-'}
           </span>
         </div>
       </div>

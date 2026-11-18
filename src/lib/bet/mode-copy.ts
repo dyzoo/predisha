@@ -93,7 +93,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     badge: 'Sandbox mode',
     isLive: false,
     walletName: 'Sandbox wallet',
-    walletHint: 'Play money only — no real deposits or withdrawals.',
+    walletHint: 'Play money only. No real deposits or withdrawals.',
     addFunds: 'Add sandbox funds',
     depositTitle: 'Add sandbox funds',
     depositDescription:

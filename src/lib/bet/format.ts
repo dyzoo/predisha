@@ -32,30 +32,30 @@ export function formatTzs(minor: number): string {
 }
 
 export function formatOdds(odds: number): string {
-  if (!Number.isFinite(odds)) return '—'
+  if (!Number.isFinite(odds)) return '-'
   return odds.toFixed(2)
 }
 
 export function formatMultiplier(multiplier: number): string {
-  if (!Number.isFinite(multiplier)) return '—'
+  if (!Number.isFinite(multiplier)) return '-'
   return `${multiplier.toFixed(2)}x`
 }
 
 export function formatDateTimeLabel(iso: string): string {
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return `${dateTime.format(date)} ${BET_TIME_ZONE_LABEL}`
 }
 
 export function formatKickoffLabel(iso: string): string {
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return `${dateTime.format(date)} ${BET_TIME_ZONE_LABEL}`
 }
 
 export function formatTimeLabel(iso: string): string {
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return `${timeOnly.format(date)} ${BET_TIME_ZONE_LABEL}`
 }
 

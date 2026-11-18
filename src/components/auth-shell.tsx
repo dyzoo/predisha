@@ -11,6 +11,7 @@ import {
   Loader2,
   Lock,
   Mail,
+  Phone,
   User,
 } from 'lucide-react'
 import { signInSchema, signUpSchema, zodFieldErrors } from '@/lib/auth/credentials'
@@ -24,7 +25,7 @@ interface AuthShellProps {
   nextPath?: string
 }
 
-type FieldName = 'name' | 'email' | 'password' | 'confirmPassword' | 'acceptedTerms'
+type FieldName = 'name' | 'email' | 'phone' | 'password' | 'confirmPassword' | 'acceptedTerms'
 type FieldErrors = Partial<Record<FieldName, string>>
 
 interface AuthResponse {
@@ -50,7 +51,7 @@ const copy = {
   'sign-up': {
     eyebrow: 'Create account',
     title: 'Join Spotibet',
-    intro: 'Save matches, set your timezone, and follow the model — free to start.',
+    intro: 'Save matches, set your timezone, and follow the model. Free to start.',
     submit: 'Create account',
     pending: 'Creating account…',
     switchText: 'Already have an account?',
@@ -80,6 +81,7 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
   const { refreshViewer } = useViewer()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -103,7 +105,7 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
 
   function validate(): FieldErrors {
     if (mode === 'sign-up') {
-      const parsed = signUpSchema.safeParse({ name, email, password, acceptedTerms })
+      const parsed = signUpSchema.safeParse({ name, email, phone, password, acceptedTerms })
       const nextErrors: FieldErrors = parsed.success ? {} : zodFieldErrors(parsed.error)
       if (!nextErrors.password && confirmPassword !== password) {
         nextErrors.confirmPassword = 'Passwords do not match.'
@@ -143,7 +145,7 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           mode === 'sign-up'
-            ? { name, email, password, acceptedTerms }
+            ? { name, email, phone, password, acceptedTerms }
             : { email, password },
         ),
       })
@@ -294,6 +296,43 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
               <FieldError id="auth-email-error" message={fieldErrors.email} />
             </div>
 
+            {mode === 'sign-up' ? (
+              <div>
+                <label
+                  htmlFor="auth-phone"
+                  className="mb-1.5 block text-xs font-medium text-muted-text"
+                >
+                  Mobile number
+                </label>
+                <div className={inputShell('phone')}>
+                  <Phone className="h-4 w-4 text-muted-text" />
+                  <input
+                    id="auth-phone"
+                    type="tel"
+                    name="phone"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    required
+                    maxLength={30}
+                    value={phone}
+                    onChange={event => {
+                      setPhone(event.target.value)
+                      clearFieldError('phone')
+                    }}
+                    disabled={!authConfigured || pending}
+                    placeholder="0712 345 678"
+                    aria-invalid={Boolean(fieldErrors.phone)}
+                    aria-describedby={fieldErrors.phone ? 'auth-phone-error' : undefined}
+                    className="w-full bg-transparent text-sm outline-none placeholder:text-muted-text/60 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-text">
+                  Used for account messages from the operator.
+                </p>
+                <FieldError id="auth-phone-error" message={fieldErrors.phone} />
+              </div>
+            ) : null}
+
             <div>
               <label
                 htmlFor="auth-password"
@@ -309,7 +348,7 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
                   name="password"
                   autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
                   required
-                  minLength={mode === 'sign-up' ? 12 : 1}
+                  minLength={mode === 'sign-up' ? 8 : 1}
                   maxLength={200}
                   value={password}
                   onChange={event => {

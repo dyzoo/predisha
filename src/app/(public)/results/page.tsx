@@ -56,12 +56,12 @@ export default async function ResultsPage() {
                   { label: 'Sample size', value: String(summary.sampleSize) },
                   {
                     label: 'Brier score',
-                    value: summary.brierScore?.toFixed(4) ?? '—',
+                    value: summary.brierScore?.toFixed(4) ?? '-',
                   },
-                  { label: 'Log loss', value: summary.logLoss?.toFixed(4) ?? '—' },
+                  { label: 'Log loss', value: summary.logLoss?.toFixed(4) ?? '-' },
                   {
                     label: 'Accuracy',
-                    value: summary.accuracy !== null ? `${Math.round(summary.accuracy * 100)}%` : '—',
+                    value: summary.accuracy !== null ? `${Math.round(summary.accuracy * 100)}%` : '-',
                   },
                 ].map(item => (
                   <div key={item.label} className="rounded-2xl border border-border bg-surface/60 p-4">
@@ -77,7 +77,7 @@ export default async function ResultsPage() {
                 Date range:{' '}
                 {summary.from && summary.to
                   ? `${formatDateTime(summary.from)} to ${formatDateTime(summary.to)}`
-                  : '—'}
+                  : '-'}
                 . Lower Brier and log loss are better. These figures are not a profitability claim.
               </p>
 
@@ -113,7 +113,7 @@ export default async function ResultsPage() {
                         {row.score?.home}–{row.score?.away}
                       </span>
                       <span className="text-xs text-muted-text">
-                        {row.topOutcome ? outcomeLabel(row.topOutcome.key) : '—'}{' '}
+                        {row.topOutcome ? outcomeLabel(row.topOutcome.key) : '-'}{' '}
                         {row.topOutcome ? `(${Math.round(row.topOutcome.probability * 100)}%)` : ''}
                       </span>
                       <span className="text-xs tabular-nums text-muted-text">

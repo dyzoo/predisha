@@ -262,7 +262,7 @@ export default async function AdminUsersPage({
                           ? `${user.subscription.currentPeriodEnd.toISOString().slice(0, 10)}${
                               user.subscription.cancelAtPeriodEnd ? ' (cancels)' : ''
                             }`
-                          : '—'}
+                          : '-'}
                       </dd>
                     </div>
                     <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
@@ -274,7 +274,7 @@ export default async function AdminUsersPage({
                     <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
                       <dt className="text-muted-text">Phone</dt>
                       <dd className="mt-0.5 font-semibold text-main-text">
-                        {user.phone ? maskTzPhone(user.phone) : '—'}
+                        {user.phone ? maskTzPhone(user.phone) : '-'}
                       </dd>
                     </div>
                     <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">

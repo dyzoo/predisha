@@ -203,7 +203,7 @@ function LiveTicketBody({
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-lg font-bold leading-none tabular-nums">
-                    {score ? `${score.home} - ${score.away}` : '—'}
+                    {score ? `${score.home} - ${score.away}` : '-'}
                   </p>
                   {minute ? (
                     <p className="mt-1 text-[10px] font-semibold text-red-300">{minute}</p>
@@ -252,7 +252,7 @@ function WonTicketBody({ ticket }: { ticket: BetTicketView }) {
               You won
             </p>
             <p className="mt-0.5 text-[11px] text-muted-text">
-              Settled {ticket.settledAt ? formatDateTimeLabel(ticket.settledAt) : '—'}
+              Settled {ticket.settledAt ? formatDateTimeLabel(ticket.settledAt) : '-'}
             </p>
           </div>
         </div>
@@ -276,7 +276,7 @@ function WonTicketBody({ ticket }: { ticket: BetTicketView }) {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-base font-bold tabular-nums text-amber-200">
-                    {score ? `${score.home} - ${score.away}` : '—'}
+                    {score ? `${score.home} - ${score.away}` : '-'}
                   </p>
                   <p className="mt-0.5 text-[10px] text-muted-text">Final</p>
                 </div>

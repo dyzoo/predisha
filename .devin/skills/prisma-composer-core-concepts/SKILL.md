@@ -470,7 +470,7 @@ param, and what the producer did supply:
 
 ```text
 Connection input "auth.db" declares param "url", but its producer "db" did not
-supply it — the producer's outputs carry [host].
+supply it, and the producer's outputs carry [host].
 ```
 
 This is a deploy-time refusal, not a broken deploy, and it can appear on an

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { normalizeTzPhone } from '@/lib/bet/phone'
 
 export const emailSchema = z
   .string()
@@ -22,6 +23,14 @@ export const signUpSchema = z.object({
     .min(2, 'Enter your name (at least 2 characters).')
     .max(80, 'Name must be 80 characters or fewer.'),
   email: emailSchema,
+  phone: z
+    .string()
+    .trim()
+    .min(1, 'Enter your mobile number.')
+    .max(30, 'Mobile number must be 30 characters or fewer.')
+    .refine(value => normalizeTzPhone(value).ok, {
+      message: 'Enter a valid Tanzanian mobile number, for example 0712 345 678.',
+    }),
   password: z
     .string()
     .min(8, 'Use at least 8 characters for your password.')

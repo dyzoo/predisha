@@ -6,6 +6,7 @@ describe('signUpSchema', () => {
     const result = signUpSchema.safeParse({
       name: '  Ada Lovelace  ',
       email: '  ADA@Example.COM ',
+      phone: '0712 345 678',
       password: 'correct horse battery staple',
       acceptedTerms: true,
     })
@@ -20,6 +21,7 @@ describe('signUpSchema', () => {
     const result = signUpSchema.safeParse({
       name: 'Ada Lovelace',
       email: 'ada@example.com',
+      phone: '0712 345 678',
       password: 'password',
       acceptedTerms: true,
     })
@@ -31,6 +33,7 @@ describe('signUpSchema', () => {
     const result = signUpSchema.safeParse({
       name: 'Ada Lovelace',
       email: 'ada@example.com',
+      phone: '0712 345 678',
       password: 'short',
       acceptedTerms: false,
     })
@@ -43,10 +46,27 @@ describe('signUpSchema', () => {
     })
   })
 
+  it('rejects an invalid mobile number', () => {
+    const result = signUpSchema.safeParse({
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      phone: '123',
+      password: 'correct horse battery staple',
+      acceptedTerms: true,
+    })
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(zodFieldErrors(result.error)).toMatchObject({
+      phone: 'Enter a valid Tanzanian mobile number, for example 0712 345 678.',
+    })
+  })
+
   it('rejects invalid emails', () => {
     const result = signUpSchema.safeParse({
       name: 'Ada Lovelace',
       email: 'not-an-email',
+      phone: '0712 345 678',
       password: 'correct horse battery staple',
       acceptedTerms: true,
     })

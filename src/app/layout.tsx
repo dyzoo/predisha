@@ -25,7 +25,7 @@ const chivo = Chivo({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Spotibet — AI-assisted football analysis',
+    default: 'Spotibet: AI-assisted football analysis',
     template: '%s · Spotibet',
   },
   description:

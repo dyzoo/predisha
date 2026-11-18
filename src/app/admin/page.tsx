@@ -215,7 +215,7 @@ export default async function AdminPage() {
                 className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-background/40 px-3 py-2"
               >
                 <span className="font-semibold text-main-text">{log.action}</span>
-                <span>{log.target ?? '—'}</span>
+                <span>{log.target ?? '-'}</span>
                 <span className="text-[10px] text-muted-text">
                   {log.createdAt.toISOString().replace('T', ' ').slice(0, 16)} UTC
                 </span>

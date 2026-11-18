@@ -1,6 +1,7 @@
 import { apiError, json } from '@/lib/api'
 import { signUpSchema, zodFieldErrors } from '@/lib/auth/credentials'
 import { isSameOrigin } from '@/lib/auth/origin'
+import { normalizeTzPhone } from '@/lib/bet/phone'
 import { hashPassword } from '@/lib/auth/password'
 import { clientKey, rateLimit } from '@/lib/auth/rate-limit'
 import { createSession, isAuthConfigured } from '@/lib/auth/session'
@@ -52,6 +53,13 @@ export async function POST(request: Request) {
       return apiError(message, 409, { fields: { email: message } })
     }
 
+    const phone = normalizeTzPhone(parsed.data.phone)
+    if (!phone.ok) {
+      return apiError(phone.error ?? 'Enter a valid mobile number.', 422, {
+        fields: { phone: phone.error ?? 'Enter a valid mobile number.' },
+      })
+    }
+
     const passwordHash = await hashPassword(parsed.data.password)
     const user = guestUser
       ? await prisma.user.update({
@@ -59,6 +67,7 @@ export async function POST(request: Request) {
           data: {
             name: parsed.data.name,
             email: parsed.data.email,
+            phone: phone.phone,
             passwordHash,
           },
           select: { id: true, email: true, name: true, role: true },
@@ -67,6 +76,7 @@ export async function POST(request: Request) {
           data: {
             name: parsed.data.name,
             email: parsed.data.email,
+            phone: phone.phone,
             passwordHash,
             preferences: { create: {} },
           },

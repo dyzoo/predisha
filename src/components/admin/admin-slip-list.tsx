@@ -68,7 +68,7 @@ function statusClass(status: AdminSlipListItemView['status']): string {
 
 function freezeLabel(iso: string): string {
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`
 }
 

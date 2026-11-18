@@ -21,7 +21,7 @@ const features = [
   {
     icon: Clock3,
     title: 'Freshness first',
-    body: 'Kickoffs are stored in UTC and shown in your timezone. Stale or incomplete inputs are flagged — never guessed.',
+    body: 'Kickoffs are stored in UTC and shown in your timezone. Stale or incomplete inputs are flagged and never guessed.',
   },
   {
     icon: LineChart,

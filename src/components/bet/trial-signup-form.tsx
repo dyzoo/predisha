@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, type FormEvent } from 'react'
-import { CircleAlert, Loader2, ShieldCheck, UserPlus } from 'lucide-react'
+import { CircleAlert, Loader2, Phone, ShieldCheck, UserPlus } from 'lucide-react'
 
 interface SignupPayload {
   error?: string
@@ -13,6 +13,7 @@ interface SignupPayload {
 export function TrialSignupForm() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -36,7 +37,7 @@ export function TrialSignupForm() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, acceptedTerms }),
+        body: JSON.stringify({ name, email, phone, password, acceptedTerms }),
       })
       const payload = (await response.json().catch(() => ({}))) as SignupPayload
 
@@ -92,6 +93,28 @@ export function TrialSignupForm() {
           />
           {fields.email ? (
             <span className="mt-1 block text-[11px] text-red-300">{fields.email}</span>
+          ) : null}
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
+            Mobile number
+          </span>
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-background/50 px-3 focus-within:border-accent/60">
+            <Phone className="h-4 w-4 shrink-0 text-muted-text" />
+            <input
+              type="tel"
+              autoComplete="tel"
+              inputMode="tel"
+              maxLength={30}
+              value={phone}
+              onChange={event => setPhone(event.target.value)}
+              placeholder="0712 345 678"
+              className="w-full bg-transparent py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60"
+            />
+          </div>
+          {fields.phone ? (
+            <span className="mt-1 block text-[11px] text-red-300">{fields.phone}</span>
           ) : null}
         </label>
 

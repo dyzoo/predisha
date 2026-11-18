@@ -235,7 +235,7 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
                 <p className="mt-3 text-sm font-semibold">No fixtures available yet</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-text">
                   The stored dataset has no matches in range right now. Connect a provider or wait
-                  for the next sync — this page never invents fixtures or probabilities.
+                  for the next sync. This page never invents fixtures or probabilities.
                 </p>
                 <Link
                   href="/matches"

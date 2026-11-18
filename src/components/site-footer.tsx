@@ -74,7 +74,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 text-xs text-muted-text sm:flex-row sm:items-center sm:justify-between">
-          <p>© Spotibet. Informational analysis only — not betting advice.</p>
+          <p>© Spotibet. Informational analysis only, not betting advice.</p>
           <p>Predictions are probabilities, not certainties. 18+ where applicable.</p>
         </div>
       </div>
