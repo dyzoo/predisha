@@ -46,6 +46,7 @@ import { toMatchView } from '@/lib/sports/view-model'
 
 import { prisma } from '@/lib/prisma'
 import { formatTzs } from '@/lib/bet/format'
+import { formatPlanAmount } from '@/lib/billing/plans'
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -174,10 +175,7 @@ export default async function DashboardPage() {
   const premium = viewer.entitlement === 'PREMIUM' || viewer.entitlement === 'ADMIN'
   const subscription = account.subscription
   const price = subscription
-    ? new Intl.NumberFormat('en', {
-        style: 'currency',
-        currency: subscription.plan.currency,
-      }).format(subscription.plan.amountMinor / 100)
+    ? formatPlanAmount(subscription.plan.amountMinor, subscription.plan.currency)
     : null
 
   return (

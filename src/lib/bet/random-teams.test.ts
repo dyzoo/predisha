@@ -1,20 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { buildRandomSelections, RANDOM_TEAM_GROUPS } from './random-teams'
+import { settleMarket } from './odds'
+import { buildRandomSelections, RANDOM_MARKET_SPECS, RANDOM_TEAM_GROUPS } from './random-teams'
 
 describe('buildRandomSelections', () => {
-  it('builds unique custom one-result picks from the chosen pool', () => {
+  it('builds unique custom picks across the original markets from the chosen pool', () => {
     const picks = buildRandomSelections({
-      count: 8,
+      count: 30,
       kickoffIso: '2026-01-01T12:00:00.000Z',
       leagueName: 'Spain — Segunda División',
       prefix: 'test-random',
     })
 
-    expect(picks).toHaveLength(8)
-    expect(new Set(picks.map(pick => pick.fixtureId)).size).toBe(8)
+    expect(picks).toHaveLength(30)
+    expect(new Set(picks.map(pick => pick.fixtureId)).size).toBe(30)
     expect(picks.every(pick => pick.custom)).toBe(true)
-    expect(picks.every(pick => pick.marketId === '1x2')).toBe(true)
-    expect(picks.every(pick => ['HOME', 'DRAW', 'AWAY'].includes(pick.selectionId))).toBe(true)
+    expect(
+      picks.every(pick =>
+        RANDOM_MARKET_SPECS.some(spec =>
+          spec.marketId === pick.marketId &&
+          spec.selectionId === pick.selectionId &&
+          spec.selectionLabel === pick.selectionLabel &&
+          spec.probability === pick.probability,
+        ),
+      ),
+    ).toBe(true)
+    expect(new Set(picks.map(pick => pick.marketId)).size).toBeGreaterThan(1)
     expect(picks.every(pick => pick.odds >= 1.01 && pick.odds <= 1000)).toBe(true)
 
     const pool = RANDOM_TEAM_GROUPS.find(group => group.name === 'Spain — Segunda División')
@@ -25,6 +35,12 @@ describe('buildRandomSelections', () => {
       expect(pool?.teams).toContain(teams[0])
       expect(pool?.teams).toContain(teams[1])
     }
+  })
+
+  it('uses selections supported by the settlement engine', () => {
+    expect(
+      RANDOM_MARKET_SPECS.every(spec => settleMarket(spec.selectionId, 2, 1) !== null),
+    ).toBe(true)
   })
 
   it('reuses the same fixtures for the same seed', () => {

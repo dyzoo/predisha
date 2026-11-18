@@ -3,10 +3,14 @@
 import Link from 'next/link'
 import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
-import { MIN_WALLET_BALANCE_MINOR } from '@/lib/bet/types'
+import { MIN_DEPOSIT_MINOR } from '@/lib/bet/types'
+import { useBetMode } from './bet-mode-context'
 
-export function isBelowGameWalletMinimum(balanceMinor: number | null | undefined): boolean {
-  return typeof balanceMinor === 'number' && balanceMinor < MIN_WALLET_BALANCE_MINOR
+export function isBelowGameWalletMinimum(
+  balanceMinor: number | null | undefined,
+  minimumMinor: number = MIN_DEPOSIT_MINOR,
+): boolean {
+  return typeof balanceMinor === 'number' && balanceMinor < minimumMinor
 }
 
 export function WalletMinimumNotice({
@@ -16,7 +20,8 @@ export function WalletMinimumNotice({
   balanceMinor: number | null | undefined
   className?: string
 }) {
-  if (!isBelowGameWalletMinimum(balanceMinor)) return null
+  const { depositMinMinor } = useBetMode()
+  if (!isBelowGameWalletMinimum(balanceMinor, depositMinMinor)) return null
 
   return (
     <div
@@ -26,8 +31,8 @@ export function WalletMinimumNotice({
       <AlertTriangle className="h-4 w-4 shrink-0" />
       <p className="min-w-0 flex-1">
         A minimum wallet balance of{' '}
-        <span className="font-semibold">{formatTzs(MIN_WALLET_BALANCE_MINOR)}</span> is required to
-        play games. Your balance is {formatTzs(balanceMinor ?? 0)}.
+        <span className="font-semibold">{formatTzs(depositMinMinor)}</span> is required to play
+        games. Your balance is {formatTzs(balanceMinor ?? 0)}.
       </p>
       <Link
         href="/bet/deposit"

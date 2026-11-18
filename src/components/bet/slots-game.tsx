@@ -26,18 +26,18 @@ interface SlotsOutcome {
 
 export function SlotsGame() {
   const { wallet, refreshWallet } = useBetSlip()
-  const { mode } = useBetMode()
+  const { mode, depositMinMinor } = useBetMode()
   const [stakeMinor, setStakeMinor] = useState(1_000)
   const [outcome, setOutcome] = useState<SlotsOutcome | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const walletBlocked = isBelowGameWalletMinimum(wallet?.balanceMinor)
+  const walletBlocked = isBelowGameWalletMinimum(wallet?.balanceMinor, depositMinMinor)
 
   const reels = outcome?.reels ?? ['lemon', 'cherry', 'bell']
 
   async function play() {
     if (walletBlocked) {
-      setError('Deposit enough to meet the 5,000 TZS wallet minimum before playing.')
+      setError(`Deposit enough to meet the ${formatTzs(depositMinMinor)} wallet minimum before playing.`)
       return
     }
     setBusy(true)

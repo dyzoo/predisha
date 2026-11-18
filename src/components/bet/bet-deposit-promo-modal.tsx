@@ -3,15 +3,16 @@
 import Link from 'next/link'
 import { ArrowRight, Gamepad2, Sparkles, Wallet, X } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
-import { MIN_WALLET_BALANCE_MINOR } from '@/lib/bet/types'
 
 export function BetDepositPromoModal({
   open,
   balanceMinor,
+  minimumMinor,
   onClose,
 }: {
   open: boolean
   balanceMinor: number
+  minimumMinor: number
   onClose: () => void
 }) {
   if (!open) return null
@@ -52,7 +53,7 @@ export function BetDepositPromoModal({
 
           <p className="relative mt-4 text-sm leading-relaxed text-muted-text">
             A minimum wallet balance of{' '}
-            <span className="font-semibold text-main-text">{formatTzs(MIN_WALLET_BALANCE_MINOR)}</span>{' '}
+            <span className="font-semibold text-main-text">{formatTzs(minimumMinor)}</span>{' '}
             unlocks Aviator, Mines, Dice, Roulette and Slots.
           </p>
         </div>
@@ -72,7 +73,7 @@ export function BetDepositPromoModal({
                 Minimum to play
               </p>
               <p className="mt-1 font-display text-xl font-bold tabular-nums text-accent">
-                {formatTzs(MIN_WALLET_BALANCE_MINOR)}
+                {formatTzs(minimumMinor)}
               </p>
             </div>
           </div>

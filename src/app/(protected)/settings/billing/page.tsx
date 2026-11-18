@@ -9,7 +9,7 @@ import { SettingsLocked } from '@/components/settings/settings-locked'
 import { PlanCheckout } from '@/components/billing/plan-checkout'
 import { getBillingProvider, isBillingEnabled } from '@/lib/billing/provider'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
-import { getPublicPlans, type PublicPlan } from '@/lib/billing/plans'
+import { formatPlanAmount, getPublicPlans, type PublicPlan } from '@/lib/billing/plans'
 import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
@@ -43,14 +43,11 @@ export default async function BillingSettingsPage() {
         },
       })
       .catch(() => null),
-    Promise.resolve(getPublicPlans()),
+    getPublicPlans(),
   ])
 
   const price = subscription
-    ? new Intl.NumberFormat('en', {
-        style: 'currency',
-        currency: subscription.plan.currency,
-      }).format(subscription.plan.amountMinor / 100)
+    ? formatPlanAmount(subscription.plan.amountMinor, subscription.plan.currency)
     : null
 
   const provider = getBillingProvider().name

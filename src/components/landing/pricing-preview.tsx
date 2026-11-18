@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { ArrowRight, Check, Sparkles } from 'lucide-react'
-import { getPublicPlans, type PublicPlan } from '@/lib/billing/plans'
+import { formatPlanAmount, getPublicPlans } from '@/lib/billing/plans'
 import { getViewer } from '@/lib/auth/session'
 import { Reveal } from '@/components/ui/reveal'
 
@@ -11,21 +11,20 @@ const freeFeatures = [
   'Saved match limit',
 ]
 
-function formatPrice(plan: PublicPlan): string {
-  if (!plan.available || plan.amountMinor === null) return 'Not published'
-  try {
-    return new Intl.NumberFormat('en', {
-      style: 'currency',
-      currency: plan.currency,
-      minimumFractionDigits: 2,
-    }).format(plan.amountMinor / 100)
-  } catch {
-    return `${plan.amountMinor / 100} ${plan.currency}`
-  }
+function billingLabel(interval: string): string {
+  if (interval === 'WEEKLY') return 'Billed every week.'
+  if (interval === 'MONTHLY') return 'Billed every month.'
+  return 'Billed every 3 months.'
+}
+
+function intervalSuffix(interval: string): string {
+  if (interval === 'WEEKLY') return 'week'
+  if (interval === 'MONTHLY') return 'month'
+  return '3 months'
 }
 
 export async function PricingPreview() {
-  const { plans, billingEnabled, notice, provider } = getPublicPlans()
+  const { plans, billingEnabled, notice, provider } = await getPublicPlans()
   const viewer = await getViewer()
   const signedIn = Boolean(viewer.userId)
 
@@ -90,14 +89,12 @@ export async function PricingPreview() {
                   <Sparkles className="h-4 w-4 text-accent" />
                   <h3 className="font-display text-xl font-bold">{plan.name}</h3>
                 </div>
-                <p className="mt-2 text-sm text-muted-text">
-                  {plan.interval === 'WEEKLY' ? 'Billed every week.' : 'Billed every month.'}
-                </p>
+                <p className="mt-2 text-sm text-muted-text">{billingLabel(plan.interval)}</p>
                 <p className="mt-5 font-display text-2xl font-bold">
-                  {formatPrice(plan)}
+                  {plan.available ? formatPlanAmount(plan.amountMinor, plan.currency) : 'Not published'}
                   {plan.available ? (
                     <span className="ml-1 text-xs font-medium text-muted-text">
-                      / {plan.interval.toLowerCase()}
+                      / {intervalSuffix(plan.interval)}
                     </span>
                   ) : null}
                 </p>
@@ -111,7 +108,7 @@ export async function PricingPreview() {
                 </ul>
                 {plan.available ? (
                   <Link
-                    href="/settings/billing"
+                    href={signedIn ? '/settings/billing' : '/sign-up?next=/settings/billing'}
                     className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
                   >
                     {provider === 'manual' ? 'Activate test plan' : 'Upgrade with HarakaPay'}

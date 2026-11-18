@@ -25,7 +25,6 @@ import {
 } from 'lucide-react'
 import type { ClientViewer } from '@/lib/auth/entitlements'
 import { formatTzs } from '@/lib/bet/format'
-import { MIN_WALLET_BALANCE_MINOR } from '@/lib/bet/types'
 import type { BetMode } from '@/lib/bet/mode-copy'
 import { BetDepositPromoModal } from './bet-deposit-promo-modal'
 import { BetSlipDock } from './bet-slip-dock'
@@ -86,7 +85,7 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
   const pathname = usePathname()
   const navRef = useRef<HTMLElement | null>(null)
   const { wallet, walletLoading, items, slipOpen, openSlip } = useBetSlip()
-  const { mode } = useBetMode()
+  const { mode, depositMinMinor } = useBetMode()
   const copy = betModeCopy(mode)
   const isGamePage = pathname.startsWith('/bet/games/')
   const walletDisplay = viewer.userId
@@ -145,12 +144,12 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
       Boolean(viewer.userId) &&
       pathname === '/bet' &&
       Boolean(wallet) &&
-      balanceMinor < MIN_WALLET_BALANCE_MINOR &&
+      balanceMinor < depositMinMinor &&
       !isDepositPromoDismissed()
 
     const frame = requestAnimationFrame(() => setPromoOpen(shouldOpen))
     return () => cancelAnimationFrame(frame)
-  }, [pathname, viewer.userId, wallet])
+  }, [pathname, viewer.userId, wallet, depositMinMinor])
 
   useEffect(() => {
     const nav = navRef.current
@@ -425,6 +424,7 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
       <BetDepositPromoModal
         open={promoOpen}
         balanceMinor={wallet?.balanceMinor ?? 0}
+        minimumMinor={depositMinMinor}
         onClose={dismissPromo}
       />
 

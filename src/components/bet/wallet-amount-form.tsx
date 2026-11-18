@@ -10,7 +10,15 @@ import { MAX_DEPOSIT_MINOR, type BetWalletView } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 import { useBetMode } from './bet-mode-context'
 
-const QUICK_AMOUNTS = [5_000, 10_000, 50_000, 100_000]
+const WITHDRAWAL_QUICK_AMOUNTS = [1_000, 5_000, 10_000, 50_000]
+const DEPOSIT_AMOUNT_MULTIPLIERS = [1, 2, 5, 10]
+
+function depositQuickAmounts(minimumMinor: number): number[] {
+  const amounts = DEPOSIT_AMOUNT_MULTIPLIERS.map(multiplier => minimumMinor * multiplier).filter(
+    amount => amount <= MAX_DEPOSIT_MINOR,
+  )
+  return amounts.length > 0 ? amounts : [minimumMinor]
+}
 
 export function WalletAmountForm({
   mode,
@@ -23,7 +31,7 @@ export function WalletAmountForm({
   const { refreshWallet } = useBetSlip()
   const { mode: platformMode, depositMinMinor } = useBetMode()
   const copy = betModeCopy(platformMode)
-  const [amountMinor, setAmountMinor] = useState(() => Math.max(10_000, depositMinMinor))
+  const [amountMinor, setAmountMinor] = useState(() => depositMinMinor)
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,8 +42,9 @@ export function WalletAmountForm({
   const isLive = platformMode === 'LIVE'
   const needsPhone = !isDeposit || isLive
   const minAmountMinor = isDeposit ? depositMinMinor : 1
-  const quickAmounts = QUICK_AMOUNTS.filter(amount => amount >= minAmountMinor)
-  const depositQuickAmounts = quickAmounts.length > 0 ? quickAmounts : [minAmountMinor]
+  const quickAmounts = isDeposit
+    ? depositQuickAmounts(minAmountMinor)
+    : WITHDRAWAL_QUICK_AMOUNTS
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -150,7 +159,7 @@ export function WalletAmountForm({
         />
       </div>
       <div className="mt-2 grid grid-cols-4 gap-2">
-        {depositQuickAmounts.map(amount => (
+        {quickAmounts.map(amount => (
           <button
             key={amount}
             type="button"

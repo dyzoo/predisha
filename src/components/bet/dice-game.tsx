@@ -19,21 +19,21 @@ interface DiceOutcome {
 
 export function DiceGame() {
   const { wallet, refreshWallet } = useBetSlip()
-  const { mode } = useBetMode()
+  const { mode, depositMinMinor } = useBetMode()
   const [stakeMinor, setStakeMinor] = useState(1_000)
   const [target, setTarget] = useState(50)
   const [direction, setDirection] = useState<'OVER' | 'UNDER'>('OVER')
   const [outcome, setOutcome] = useState<DiceOutcome | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const walletBlocked = isBelowGameWalletMinimum(wallet?.balanceMinor)
+  const walletBlocked = isBelowGameWalletMinimum(wallet?.balanceMinor, depositMinMinor)
 
   const winChance = direction === 'OVER' ? (100 - target) / 100 : target / 100
   const multiplier = Math.max(1.01, Math.round((0.97 / Math.max(0.01, winChance)) * 100) / 100)
 
   async function play() {
     if (walletBlocked) {
-      setError('Deposit enough to meet the 5,000 TZS wallet minimum before playing.')
+      setError(`Deposit enough to meet the ${formatTzs(depositMinMinor)} wallet minimum before playing.`)
       return
     }
     setBusy(true)

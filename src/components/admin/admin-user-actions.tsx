@@ -9,6 +9,7 @@ const STATUSES = ['INACTIVE', 'TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'UNP
 const PLANS = [
   { id: 'weekly', label: 'Weekly' },
   { id: 'monthly', label: 'Monthly' },
+  { id: 'quarterly', label: '3 Months' },
 ] as const
 
 type Role = (typeof ROLES)[number] | 'SUPER_ADMIN'
@@ -39,7 +40,7 @@ export function AdminUserActions({
   const [nextRole, setNextRole] = useState<Role>(role)
   const [nextStatus, setNextStatus] = useState<Status>(status ?? 'INACTIVE')
   const [nextPlan, setNextPlan] = useState<string>(
-    planId === 'weekly' || planId === 'monthly' ? planId : 'monthly',
+    PLANS.some(plan => plan.id === planId) ? planId! : 'monthly',
   )
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)

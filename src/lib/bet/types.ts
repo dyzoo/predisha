@@ -5,7 +5,6 @@ export const BET_CURRENCY = 'TZS'
 export const BOOK_MARGIN = 0.06
 export const MIN_STAKE_MINOR = 500
 export const MAX_STAKE_MINOR = 500_000
-export const MIN_WALLET_BALANCE_MINOR = 5_000
 export const MIN_DEPOSIT_MINOR = 5_000
 export const MAX_DEPOSIT_MINOR = 1_000_000
 export const MIN_WITHDRAW_MINOR = 1_000

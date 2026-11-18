@@ -6,7 +6,7 @@ import { getBillingProvider } from '@/lib/billing/provider'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 
 const checkoutSchema = z.object({
-  planId: z.enum(['weekly', 'monthly']),
+  planId: z.enum(['weekly', 'monthly', 'quarterly']),
   phone: z
     .string()
     .trim()

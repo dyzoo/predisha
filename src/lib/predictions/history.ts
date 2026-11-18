@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { BuilderResult } from './builder-types'
 import {
@@ -20,46 +21,74 @@ export type {
 
 export const HISTORY_LIMIT = 25
 
+export class SlipLimitExceededError extends Error {
+  constructor(public readonly limit: number) {
+    super(`This plan includes ${limit} AI bet slips per billing period.`)
+    this.name = 'SlipLimitExceededError'
+  }
+}
+
 export async function savePredictionSlip(
   userId: string,
   result: BuilderResult,
+  options?: { limit: number | null; since: Date },
 ): Promise<string> {
-  const slip = await prisma.predictionSlip.create({
-    data: {
-      userId,
-      stake: result.stake,
-      currency: result.currency,
-      risk: result.risk,
-      odds: result.oddsSource === 'user' ? result.usedOdds : null,
-      oddsSource: result.oddsSource,
-      impliedCombinedOdds: result.impliedCombinedOdds,
-      combinedProbability: result.combinedProbability,
-      potentialReturn: result.potentialReturn,
-      netProfit: result.netProfit,
-      modelVersion: result.selections[0]?.modelVersion ?? null,
-      dataAsOf: result.dataAsOfIso ? new Date(result.dataAsOfIso) : null,
-      generatedAt: new Date(result.generatedAt),
-      demo: result.demo,
-      limited: result.limited,
-      selections: {
-        create: result.selections.map(selection => ({
-          fixtureId: selection.fixtureId,
-          competition: selection.competition,
-          homeName: selection.homeName,
-          awayName: selection.awayName,
-          kickoffUtc: new Date(selection.kickoffIso),
-          outcomeKey: selection.outcomeKey,
-          probability: selection.probability,
-          impliedOdds: selection.impliedOdds,
-          homeProbability: selection.homeProbability,
-          drawProbability: selection.drawProbability,
-          awayProbability: selection.awayProbability,
-        })),
+  const limit = options?.limit ?? null
+  const since = options?.since ?? new Date(0)
+
+  const createSlip = (tx: Prisma.TransactionClient) =>
+    tx.predictionSlip.create({
+      data: {
+        userId,
+        stake: result.stake,
+        currency: result.currency,
+        risk: result.risk,
+        odds: result.oddsSource === 'user' ? result.usedOdds : null,
+        oddsSource: result.oddsSource,
+        impliedCombinedOdds: result.impliedCombinedOdds,
+        combinedProbability: result.combinedProbability,
+        potentialReturn: result.potentialReturn,
+        netProfit: result.netProfit,
+        modelVersion: result.selections[0]?.modelVersion ?? null,
+        dataAsOf: result.dataAsOfIso ? new Date(result.dataAsOfIso) : null,
+        generatedAt: new Date(result.generatedAt),
+        demo: result.demo,
+        limited: result.limited,
+        selections: {
+          create: result.selections.map(selection => ({
+            fixtureId: selection.fixtureId,
+            competition: selection.competition,
+            homeName: selection.homeName,
+            awayName: selection.awayName,
+            kickoffUtc: new Date(selection.kickoffIso),
+            outcomeKey: selection.outcomeKey,
+            probability: selection.probability,
+            impliedOdds: selection.impliedOdds,
+            homeProbability: selection.homeProbability,
+            drawProbability: selection.drawProbability,
+            awayProbability: selection.awayProbability,
+          })),
+        },
       },
+      select: { id: true },
+    })
+
+  if (limit === null) {
+    const slip = await prisma.$transaction(tx => createSlip(tx))
+    return slip.id
+  }
+
+  return prisma.$transaction(
+    async tx => {
+      const used = await tx.predictionSlip.count({
+        where: { userId, generatedAt: { gte: since } },
+      })
+      if (used >= limit) throw new SlipLimitExceededError(limit)
+      const slip = await createSlip(tx)
+      return slip.id
     },
-    select: { id: true },
-  })
-  return slip.id
+    { isolationLevel: 'Serializable' },
+  )
 }
 
 function settlementChanged(

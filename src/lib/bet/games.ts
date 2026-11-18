@@ -1,13 +1,10 @@
 import { Prisma, type BetGameRound } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { getDepositMinMinor } from './deposit-settings'
 import { BetError } from './errors'
 import { pickWeighted, secureInt } from './random'
 import { creditWallet, debitWallet, getWalletView } from './wallet'
-import {
-  MIN_WALLET_BALANCE_MINOR,
-  type BetGameRoundView,
-  type BetWalletView,
-} from './types'
+import type { BetGameRoundView, BetWalletView } from './types'
 import type { GamePlayInput as GamePlaySchemaInput, MinesStartInput as MinesStartSchemaInput } from './validation'
 
 interface MinesDetail {
@@ -76,13 +73,16 @@ async function assertGameWalletMinimum(
   tx: Prisma.TransactionClient,
   userId: string,
 ): Promise<void> {
-  const wallet = await tx.betWallet.findUnique({
-    where: { userId },
-    select: { balanceMinor: true },
-  })
-  if ((wallet?.balanceMinor ?? 0) < MIN_WALLET_BALANCE_MINOR) {
+  const [wallet, minimumMinor] = await Promise.all([
+    tx.betWallet.findUnique({
+      where: { userId },
+      select: { balanceMinor: true },
+    }),
+    getDepositMinMinor(),
+  ])
+  if ((wallet?.balanceMinor ?? 0) < minimumMinor) {
     throw new BetError(
-      `A minimum wallet balance of ${MIN_WALLET_BALANCE_MINOR.toLocaleString('en-US')} TZS is required to play games. Deposit to continue.`,
+      `A minimum wallet balance of ${minimumMinor.toLocaleString('en-US')} TZS is required to play games. Deposit to continue.`,
       422,
       'WALLET_MINIMUM',
     )

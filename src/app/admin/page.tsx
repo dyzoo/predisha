@@ -90,7 +90,8 @@ export default async function AdminPage() {
   ])
 
   const summary = summarizeEvaluations(analyses)
-  const plans = getPublicPlans()
+  const plans = await getPublicPlans()
+
   const scheduled = analyses.filter(item => item.fixture.status === 'SCHEDULED').length
   const live = analyses.filter(item => item.fixture.status === 'LIVE').length
   const finished = analyses.filter(item => item.fixture.status === 'FINISHED').length

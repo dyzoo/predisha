@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
+import { planDurationMs } from './duration'
 import {
   HARAKAPAY_PROVIDER_NAME,
   confirmHarakaPayOrder,
@@ -9,7 +10,6 @@ import {
   type HarakaPayWebhookEvent,
 } from '@/lib/billing/harakapay'
 
-const DAY_MS = 24 * 60 * 60 * 1000
 const MANUAL_PROVIDER_NAME = 'manual'
 
 export interface BillingPlan {
@@ -142,8 +142,7 @@ export class ManualBillingProvider implements BillingProvider {
     if (!plan || !plan.active || plan.amountMinor === null) return null
 
     const now = new Date()
-    const length = plan.interval === 'WEEKLY' ? 7 * DAY_MS : 30 * DAY_MS
-    const currentPeriodEnd = new Date(now.getTime() + length)
+    const currentPeriodEnd = new Date(now.getTime() + planDurationMs(plan))
 
     await prisma.subscription.upsert({
       where: { userId },

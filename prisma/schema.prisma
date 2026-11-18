@@ -358,11 +358,13 @@ model SubscriptionPlan {
   currency        String       @default("USD")
   features        Json
   providerPriceId String?
-  active          Boolean      @default(true)
-  dailyLimit      Int?         @default(1)
-  weeklyLimit     Int?         @default(5)
-  monthlyLimit    Int?         @default(10)
-  createdAt       DateTime     @default(now())
+  active          Boolean            @default(true)
+  durationDays    Int                @default(30)
+  dailyLimit      Int?               @default(1)
+  weeklyLimit     Int?               @default(5)
+  monthlyLimit    Int?               @default(10)
+  slipLimit       Int                @default(5)
+  createdAt       DateTime           @default(now())
   updatedAt       DateTime     @updatedAt
 
   subscriptions Subscription[]

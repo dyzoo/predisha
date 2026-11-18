@@ -4,15 +4,14 @@ import { apiError, json } from '@/lib/api'
 import { getAdminAccess } from '@/lib/auth/admin'
 import { isSuperAdmin } from '@/lib/auth/entitlements'
 import { isSameOrigin } from '@/lib/auth/origin'
-
-const DAY_MS = 24 * 60 * 60 * 1000
+import { planDurationMs, type PlanDurationSource } from '@/lib/billing/duration'
 
 const updateUserSchema = z.object({
   role: z.enum(['USER', 'ADMIN']).optional(),
   subscriptionStatus: z
     .enum(['INACTIVE', 'TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'UNPAID'])
     .optional(),
-  planId: z.enum(['weekly', 'monthly']).optional(),
+  planId: z.enum(['weekly', 'monthly', 'quarterly']).optional(),
 })
 
 function requestIp(request: Request): string | null {
@@ -21,10 +20,9 @@ function requestIp(request: Request): string | null {
   return request.headers.get('x-real-ip')
 }
 
-function subscriptionWindow(interval: 'WEEKLY' | 'MONTHLY'): { start: Date; end: Date } {
+function subscriptionWindow(plan: PlanDurationSource): { start: Date; end: Date } {
   const now = Date.now()
-  const length = interval === 'WEEKLY' ? 7 * DAY_MS : 30 * DAY_MS
-  return { start: new Date(now), end: new Date(now + length) }
+  return { start: new Date(now), end: new Date(now + planDurationMs(plan)) }
 }
 
 export async function PATCH(
@@ -130,7 +128,7 @@ export async function PATCH(
           target.subscription?.status !== nextStatus || currentPlanId !== plan.id
 
         if (changed) {
-          const window = subscriptionWindow(plan.interval)
+          const window = subscriptionWindow(plan)
           await prisma.subscription.upsert({
             where: { userId: target.id },
             update: {

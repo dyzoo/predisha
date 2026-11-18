@@ -8,10 +8,11 @@ import {
 } from '@/lib/auth/free-preview'
 import { isSameOrigin } from '@/lib/auth/origin'
 import { clientKey, rateLimit } from '@/lib/auth/rate-limit'
+import { hasSlipLimitRemaining, resolveSlipLimit } from '@/lib/billing/slip-limits'
 import { getViewer } from '@/lib/auth/session'
 import { buildPredictionSlip } from '@/lib/predictions/builder'
 import { defaultCurrency, normalizeCurrency } from '@/lib/predictions/builder-types'
-import { savePredictionSlip } from '@/lib/predictions/history'
+import { savePredictionSlip, SlipLimitExceededError } from '@/lib/predictions/history'
 import { prisma } from '@/lib/prisma'
 import { getMatchAnalyses } from '@/lib/sports/service'
 import { toMatchView } from '@/lib/sports/view-model'
@@ -51,19 +52,31 @@ export async function POST(request: Request) {
   }
 
   const premium = canViewPremium(viewer)
-  let slipLimits = { daily: 1, weekly: 5, monthly: 10 }
-  if (premium) {
-    const sub = await prisma.subscription.findUnique({
-      where: { userId: viewer.userId! },
-      include: { plan: true },
+  const subscription =
+    premium && viewer.entitlement !== 'ADMIN'
+      ? await prisma.subscription.findUnique({
+          where: { userId: viewer.userId! },
+          include: { plan: true },
+        })
+      : null
+  const slipLimit = resolveSlipLimit({
+    entitlement: viewer.entitlement,
+    plan: subscription?.plan ?? null,
+  })
+  const periodStart = subscription?.currentPeriodStart ?? new Date(0)
+  const usedSlips =
+    slipLimit === null
+      ? 0
+      : await prisma.predictionSlip.count({
+          where: { userId: viewer.userId!, generatedAt: { gte: periodStart } },
+        })
+
+  if (!hasSlipLimitRemaining(slipLimit, usedSlips)) {
+    return apiError('Your plan’s AI bet slip limit has been reached. Upgrade or wait for renewal.', 402, {
+      code: 'SLIP_LIMIT_REACHED',
+      limit: slipLimit,
+      used: usedSlips,
     })
-    if (sub && sub.status === 'ACTIVE' && sub.plan) {
-      slipLimits = {
-        daily: sub.plan.dailyLimit ?? 1,
-        weekly: sub.plan.weeklyLimit ?? 5,
-        monthly: sub.plan.monthlyLimit ?? 10,
-      }
-    }
   }
   const freePreviewState =
     viewer.userId && !premium && !dataset.isDemo
@@ -132,7 +145,21 @@ export async function POST(request: Request) {
 
   let slipId: string | undefined
   if (viewer.userId) {
-    slipId = await savePredictionSlip(viewer.userId, result)
+    try {
+      slipId = await savePredictionSlip(viewer.userId, result, {
+        limit: slipLimit,
+        since: periodStart,
+      })
+    } catch (error) {
+      if (error instanceof SlipLimitExceededError) {
+        return apiError('Your plan’s AI bet slip limit has been reached. Upgrade or wait for renewal.', 402, {
+          code: 'SLIP_LIMIT_REACHED',
+          limit: slipLimit,
+          used: usedSlips,
+        })
+      }
+      throw error
+    }
 
     if (
       shouldClaimFreePreview({
@@ -167,6 +194,14 @@ export async function POST(request: Request) {
       freePreview: freePreviewState
         ? { claimedAt: freePreviewState.claimedAt, used: true }
         : null,
+      slipLimit:
+        slipLimit === null
+          ? null
+          : {
+              limit: slipLimit,
+              used: usedSlips + 1,
+              remaining: Math.max(0, slipLimit - usedSlips - 1),
+            },
     },
   })
 }

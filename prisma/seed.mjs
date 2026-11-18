@@ -55,28 +55,43 @@ async function seedAdmin() {
 }
 
 async function seedPlans() {
-  const currency = (process.env.BILLING_CURRENCY ?? 'USD').toUpperCase()
+  const currency = (process.env.BILLING_CURRENCY ?? 'TZS').toUpperCase()
   const planConfigs = [
     {
       id: 'weekly',
-      name: 'Weekly Premium',
+      name: 'Weekly',
       interval: 'WEEKLY',
-      amount: required('BILLING_WEEKLY_AMOUNT_MINOR', process.env.BILLING_WEEKLY_AMOUNT_MINOR),
+      durationDays: 7,
+      slipLimit: 5,
+      amount: required('BILLING_WEEKLY_AMOUNT_MINOR', process.env.BILLING_WEEKLY_AMOUNT_MINOR) ?? '2000',
       priceId: process.env.BILLING_WEEKLY_PRICE_ID,
-      features: ['Full prediction board', 'Match explanations and input snapshots', 'Saved matches and preferences'],
+      features: ['Create 5 AI bet slips', 'Full prediction board', 'Saved matches and preferences'],
     },
     {
       id: 'monthly',
-      name: 'Monthly Premium',
+      name: 'Monthly',
       interval: 'MONTHLY',
-      amount: required('BILLING_MONTHLY_AMOUNT_MINOR', process.env.BILLING_MONTHLY_AMOUNT_MINOR),
+      durationDays: 30,
+      slipLimit: 15,
+      amount: required('BILLING_MONTHLY_AMOUNT_MINOR', process.env.BILLING_MONTHLY_AMOUNT_MINOR) ?? '5000',
       priceId: process.env.BILLING_MONTHLY_PRICE_ID,
-      features: ['Everything in Weekly', 'Historical performance and evaluation detail', 'Priority access to validated markets'],
+      features: ['Create 15 AI bet slips', 'Everything in Weekly', 'Historical performance and evaluation detail'],
+    },
+    {
+      id: 'quarterly',
+      name: '3 Months',
+      interval: 'MONTHLY',
+      durationDays: 90,
+      slipLimit: 25,
+      amount: required('BILLING_QUARTERLY_AMOUNT_MINOR', process.env.BILLING_QUARTERLY_AMOUNT_MINOR) ?? '12000',
+      priceId: process.env.BILLING_QUARTERLY_PRICE_ID,
+      features: ['Create 25 AI bet slips', 'Everything in Monthly', 'Priority access to new validated markets'],
     },
   ]
 
   for (const plan of planConfigs) {
-    if (!plan.amount) {
+    const amountMinor = Number.parseInt(plan.amount, 10)
+    if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
       console.warn(`[seed] no amount configured for ${plan.id}; skipped plan.`)
       continue
     }
@@ -85,7 +100,11 @@ async function seedPlans() {
       update: {
         name: plan.name,
         interval: plan.interval,
-        amountMinor: Number.parseInt(plan.amount, 10),
+        durationDays: plan.durationDays,
+        slipLimit: plan.slipLimit,
+        weeklyLimit: plan.slipLimit,
+        monthlyLimit: plan.slipLimit,
+        amountMinor,
         currency,
         features: plan.features,
         providerPriceId: plan.priceId ?? null,
@@ -95,7 +114,11 @@ async function seedPlans() {
         id: plan.id,
         name: plan.name,
         interval: plan.interval,
-        amountMinor: Number.parseInt(plan.amount, 10),
+        durationDays: plan.durationDays,
+        slipLimit: plan.slipLimit,
+        weeklyLimit: plan.slipLimit,
+        monthlyLimit: plan.slipLimit,
+        amountMinor,
         currency,
         features: plan.features,
         providerPriceId: plan.priceId ?? null,
@@ -109,17 +132,30 @@ async function seedPlans() {
 const DEMO_PLANS = {
   weekly: {
     id: 'weekly',
-    name: 'Weekly Premium',
+    name: 'Weekly',
     interval: 'WEEKLY',
-    amountMinor: 499,
-    features: ['Full prediction board', 'Match explanations and input snapshots', 'Saved matches and preferences'],
+    durationDays: 7,
+    slipLimit: 5,
+    amountMinor: 2000,
+    features: ['Create 5 AI bet slips', 'Full prediction board', 'Saved matches and preferences'],
   },
   monthly: {
     id: 'monthly',
-    name: 'Monthly Premium',
+    name: 'Monthly',
     interval: 'MONTHLY',
-    amountMinor: 1499,
-    features: ['Everything in Weekly', 'Historical performance and evaluation detail', 'Priority access to validated markets'],
+    durationDays: 30,
+    slipLimit: 15,
+    amountMinor: 5000,
+    features: ['Create 15 AI bet slips', 'Everything in Weekly', 'Historical performance and evaluation detail'],
+  },
+  quarterly: {
+    id: 'quarterly',
+    name: '3 Months',
+    interval: 'MONTHLY',
+    durationDays: 90,
+    slipLimit: 25,
+    amountMinor: 12000,
+    features: ['Create 25 AI bet slips', 'Everything in Monthly', 'Priority access to new validated markets'],
   },
 }
 
@@ -205,32 +241,46 @@ const DEMO_USERS = [
 const DAY_MS = 24 * 60 * 60 * 1000
 
 async function ensureDemoPlans() {
-  const currency = (process.env.BILLING_CURRENCY ?? 'USD').toUpperCase()
+  const currency = (process.env.BILLING_CURRENCY ?? 'TZS').toUpperCase()
   const plans = {}
 
   for (const plan of Object.values(DEMO_PLANS)) {
-    const existing = await prisma.subscriptionPlan.findUnique({ where: { id: plan.id } })
-    plans[plan.id] =
-      existing ??
-      (await prisma.subscriptionPlan.create({
-        data: {
-          id: plan.id,
-          name: plan.name,
-          interval: plan.interval,
-          amountMinor: plan.amountMinor,
-          currency,
-          features: plan.features,
-          active: true,
-        },
-      }))
+    plans[plan.id] = await prisma.subscriptionPlan.upsert({
+      where: { id: plan.id },
+      update: {
+        name: plan.name,
+        interval: plan.interval,
+        durationDays: plan.durationDays,
+        slipLimit: plan.slipLimit,
+        weeklyLimit: plan.slipLimit,
+        monthlyLimit: plan.slipLimit,
+        amountMinor: plan.amountMinor,
+        currency,
+        features: plan.features,
+        active: true,
+      },
+      create: {
+        id: plan.id,
+        name: plan.name,
+        interval: plan.interval,
+        durationDays: plan.durationDays,
+        slipLimit: plan.slipLimit,
+        weeklyLimit: plan.slipLimit,
+        monthlyLimit: plan.slipLimit,
+        amountMinor: plan.amountMinor,
+        currency,
+        features: plan.features,
+        active: true,
+      },
+    })
   }
 
   return plans
 }
 
-function subscriptionWindow(interval, status) {
+function subscriptionWindow(plan, status) {
   const now = Date.now()
-  const length = interval === 'WEEKLY' ? 7 * DAY_MS : 30 * DAY_MS
+  const length = (plan.durationDays ?? 30) * DAY_MS
 
   if (status === 'PAST_DUE') {
     return { start: new Date(now - length), end: new Date(now - 3 * DAY_MS) }
@@ -280,7 +330,7 @@ async function seedDemoUsers() {
 
     if (entry.plan && entry.status) {
       const plan = plans[entry.plan]
-      const window = subscriptionWindow(plan.interval, entry.status)
+      const window = subscriptionWindow(plan, entry.status)
       await prisma.subscription.upsert({
         where: { userId: user.id },
         update: {

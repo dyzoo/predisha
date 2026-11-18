@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { HarakaPayWebhookEvent } from '@/lib/billing/harakapay'
-
-const DAY_MS = 24 * 60 * 60 * 1000
+import { planDurationMs } from './duration'
 
 const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed'])
 const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired'])
@@ -52,9 +51,6 @@ export async function applyBillingWebhookEvent(
     const plan = planId
       ? await prisma.subscriptionPlan.findUnique({ where: { id: planId } })
       : null
-    const interval = plan?.interval ?? 'MONTHLY'
-    const length = interval === 'WEEKLY' ? 7 * DAY_MS : 30 * DAY_MS
-
     if (userId && plan) {
       await prisma.subscription.upsert({
         where: { userId },
@@ -62,7 +58,7 @@ export async function applyBillingWebhookEvent(
           planId,
           status: 'ACTIVE',
           currentPeriodStart: processedAt,
-          currentPeriodEnd: new Date(processedAt.getTime() + length),
+          currentPeriodEnd: new Date(processedAt.getTime() + planDurationMs(plan)),
           cancelAtPeriodEnd: false,
         },
         create: {
@@ -70,7 +66,7 @@ export async function applyBillingWebhookEvent(
           planId,
           status: 'ACTIVE',
           currentPeriodStart: processedAt,
-          currentPeriodEnd: new Date(processedAt.getTime() + length),
+          currentPeriodEnd: new Date(processedAt.getTime() + planDurationMs(plan)),
           cancelAtPeriodEnd: false,
         },
       })

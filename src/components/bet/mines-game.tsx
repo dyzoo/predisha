@@ -29,14 +29,14 @@ const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
 
 export function MinesGame() {
   const { wallet, refreshWallet } = useBetSlip()
-  const { mode } = useBetMode()
+  const { mode, depositMinMinor } = useBetMode()
   const [round, setRound] = useState<BetGameRoundView | null>(null)
   const [stakeMinor, setStakeMinor] = useState(1_000)
   const [mines, setMines] = useState(3)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const walletBlocked = isBelowGameWalletMinimum(wallet?.balanceMinor)
+  const walletBlocked = isBelowGameWalletMinimum(wallet?.balanceMinor, depositMinMinor)
 
   const detail = (round?.detail ?? {}) as MinesDetail
   const revealed = new Set(detail.revealed ?? [])
@@ -74,7 +74,7 @@ export function MinesGame() {
 
   async function start() {
     if (walletBlocked) {
-      setError('Deposit enough to meet the 5,000 TZS wallet minimum before playing.')
+      setError(`Deposit enough to meet the ${formatTzs(depositMinMinor)} wallet minimum before playing.`)
       return
     }
     const payload = await call<{ round: BetGameRoundView }>('/api/bet/games/mines/start', {

@@ -1,15 +1,19 @@
-import { isBillingEnabled } from '@/lib/billing/provider'
+import { formatTzs } from '@/lib/bet/format'
+import { prisma } from '@/lib/prisma'
+import { isBillingEnabled } from './provider'
 
-export type PlanInterval = 'WEEKLY' | 'MONTHLY'
+export type PlanInterval = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY'
 
 export interface PublicPlan {
   id: string
   name: string
   interval: PlanInterval
-  amountMinor: number | null
+  amountMinor: number
   currency: string
   available: boolean
   features: string[]
+  slipLimit: number
+  durationDays: number
 }
 
 export interface PublicPlanResponse {
@@ -19,50 +23,117 @@ export interface PublicPlanResponse {
   plans: PublicPlan[]
 }
 
-function readAmount(value: string | undefined): number | null {
-  if (!value) return null
-  const parsed = Number.parseInt(value, 10)
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+export interface PlanDefinition {
+  id: string
+  name: string
+  interval: PlanInterval
+  amountMinor: number
+  currency: string
+  slipLimit: number
+  durationDays: number
+  features: string[]
 }
 
-/**
- * Prices are configuration, never hardcoded constants. When no approved
- * billing provider is configured the plans are returned as unavailable so the
- * UI can show an honest "coming soon" state.
- */
-export function getPublicPlans(): PublicPlanResponse {
+export const PLAN_DEFAULTS: PlanDefinition[] = [
+  {
+    id: 'weekly',
+    name: 'Weekly',
+    interval: 'WEEKLY',
+    amountMinor: 2000,
+    currency: 'TZS',
+    slipLimit: 5,
+    durationDays: 7,
+    features: [
+      'Create 5 AI bet slips',
+      'Full prediction board',
+      'Saved matches and preferences',
+    ],
+  },
+  {
+    id: 'monthly',
+    name: 'Monthly',
+    interval: 'MONTHLY',
+    amountMinor: 5000,
+    currency: 'TZS',
+    slipLimit: 15,
+    durationDays: 30,
+    features: [
+      'Create 15 AI bet slips',
+      'Everything in Weekly',
+      'Historical performance and evaluation detail',
+    ],
+  },
+  {
+    id: 'quarterly',
+    name: '3 Months',
+    interval: 'QUARTERLY',
+    amountMinor: 12000,
+    currency: 'TZS',
+    slipLimit: 25,
+    durationDays: 90,
+    features: [
+      'Create 25 AI bet slips',
+      'Everything in Monthly',
+      'Priority access to new validated markets',
+    ],
+  },
+]
+
+export const PLAN_IDS = PLAN_DEFAULTS.map(plan => plan.id)
+
+export function planIntervalForDuration(days: number): PlanInterval {
+  if (days <= 7) return 'WEEKLY'
+  if (days <= 30) return 'MONTHLY'
+  return 'QUARTERLY'
+}
+
+export function formatPlanAmount(amountMinor: number | null, currency: string): string {
+  if (amountMinor === null) return 'Not published'
+  if (currency.trim().toUpperCase() === 'TZS') return formatTzs(amountMinor)
+  try {
+    return new Intl.NumberFormat('en', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+    }).format(amountMinor / 100)
+  } catch {
+    return `${amountMinor / 100} ${currency}`
+  }
+}
+
+function normalizeFeatures(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback
+  const features = value.filter(
+    (item): item is string => typeof item === 'string' && item.trim().length > 0,
+  )
+  return features.length > 0 ? features : fallback
+}
+
+export async function getPublicPlans(): Promise<PublicPlanResponse> {
   const provider = process.env.BILLING_PROVIDER ?? 'disabled'
   const billingEnabled = isBillingEnabled()
-  const currency = (process.env.BILLING_CURRENCY ?? 'USD').toUpperCase()
+  const rows = await prisma.subscriptionPlan
+    .findMany({ where: { id: { in: [...PLAN_IDS] } } })
+    .catch(() => [])
+  const rowsById = new Map(rows.map(row => [row.id, row]))
 
-  const plans: PublicPlan[] = [
-    {
-      id: 'weekly',
-      name: 'Weekly Premium',
-      interval: 'WEEKLY',
-      amountMinor: readAmount(process.env.BILLING_WEEKLY_AMOUNT_MINOR),
+  const plans: PublicPlan[] = PLAN_DEFAULTS.map(definition => {
+    const row = rowsById.get(definition.id)
+    const amountMinor = row?.amountMinor ?? definition.amountMinor
+    const currency = row?.currency ?? definition.currency
+    const durationDays = row?.durationDays ?? definition.durationDays
+    return {
+      id: definition.id,
+      name: row?.name ?? definition.name,
+      interval: planIntervalForDuration(durationDays),
+      amountMinor,
       currency,
-      available: billingEnabled && readAmount(process.env.BILLING_WEEKLY_AMOUNT_MINOR) !== null,
-      features: [
-        'Full prediction board',
-        'Match explanations and input snapshots',
-        'Saved matches and preferences',
-      ],
-    },
-    {
-      id: 'monthly',
-      name: 'Monthly Premium',
-      interval: 'MONTHLY',
-      amountMinor: readAmount(process.env.BILLING_MONTHLY_AMOUNT_MINOR),
-      currency,
-      available: billingEnabled && readAmount(process.env.BILLING_MONTHLY_AMOUNT_MINOR) !== null,
-      features: [
-        'Everything in Weekly',
-        'Historical performance and evaluation detail',
-        'Priority access to new validated markets',
-      ],
-    },
-  ]
+      available: billingEnabled && (row?.active ?? true) && amountMinor > 0,
+      features: normalizeFeatures(row?.features, definition.features),
+      slipLimit: row?.slipLimit ?? definition.slipLimit,
+      durationDays,
+    }
+  })
 
   return {
     billingEnabled,

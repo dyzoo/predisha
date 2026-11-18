@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { CircleAlert, CircleCheck, Loader2, Smartphone } from 'lucide-react'
-import type { PublicPlan } from '@/lib/billing/plans'
+import { formatPlanAmount, type PublicPlan } from '@/lib/billing/plans'
 
 interface PlanCheckoutProps {
   plans: PublicPlan[]
@@ -21,22 +21,14 @@ interface CheckoutResult {
 
 type Confirmation = 'idle' | 'waiting' | 'active' | 'failed'
 
+function intervalLabel(plan: PublicPlan): string {
+  if (plan.interval === 'WEEKLY') return 'week'
+  if (plan.interval === 'MONTHLY') return 'month'
+  return '3 months'
+}
+
 const SUCCESS_STATUSES = ['completed', 'success', 'succeeded', 'paid', 'confirmed']
 const FAILURE_STATUSES = ['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired']
-
-function formatAmount(amountMinor: number | null, currency: string): string {
-  if (amountMinor === null) return 'Not available'
-  try {
-    return new Intl.NumberFormat('en', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amountMinor / 100)
-  } catch {
-    return `${amountMinor / 100} ${currency}`
-  }
-}
 
 export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
   const router = useRouter()
@@ -222,7 +214,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
               <div className="rounded-lg border border-border bg-background/40 p-2.5">
                 <dt className="text-muted-text">Amount</dt>
                 <dd className="mt-0.5 font-semibold text-main-text">
-                  {formatAmount(result.amountMinor, result.currency ?? 'USD')}
+                  {formatPlanAmount(result.amountMinor, result.currency ?? 'USD')}
                 </dd>
               </div>
             ) : null}
@@ -261,7 +253,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
           >
             {plans.map(item => (
               <option key={item.id} value={item.id}>
-                {item.name} - {formatAmount(item.amountMinor, item.currency)}
+                {item.name} - {formatPlanAmount(item.amountMinor, item.currency)}
               </option>
             ))}
           </select>
@@ -313,7 +305,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
       </button>
       {plan ? (
         <p className="mt-2 text-center text-[11px] leading-relaxed text-muted-text">
-          {formatAmount(plan.amountMinor, plan.currency)} per {plan.interval.toLowerCase()}.
+          {formatPlanAmount(plan.amountMinor, plan.currency)} per {intervalLabel(plan)}.
           {isHarakaPay ? ' The provider fee is applied by HarakaPay.' : ''}
         </p>
       ) : null}

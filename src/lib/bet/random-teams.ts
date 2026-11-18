@@ -1,5 +1,7 @@
 import { formatKickoffLabel } from './format'
+import { marketNameForId, oddsForProbability } from './odds'
 import { hashString, mulberry32 } from './random-pure'
+import type { BetMarketId } from './types'
 
 export interface RandomTeamGroup {
   name: string
@@ -143,10 +145,43 @@ export const RANDOM_TEAM_GROUPS: RandomTeamGroup[] = [
   },
 ]
 
-const OUTCOMES = [
-  { selectionId: 'HOME', selectionLabel: 'Home win' },
-  { selectionId: 'DRAW', selectionLabel: 'Draw' },
-  { selectionId: 'AWAY', selectionLabel: 'Away win' },
+export interface RandomMarketSpec {
+  marketId: BetMarketId
+  selectionId: string
+  selectionLabel: string
+  probability: number
+}
+
+export const RANDOM_MARKET_SPECS: RandomMarketSpec[] = [
+  { marketId: '1x2', selectionId: 'HOME', selectionLabel: 'Home win', probability: 0.42 },
+  { marketId: '1x2', selectionId: 'DRAW', selectionLabel: 'Draw', probability: 0.27 },
+  { marketId: '1x2', selectionId: 'AWAY', selectionLabel: 'Away win', probability: 0.31 },
+  { marketId: 'double-chance', selectionId: 'DC_HOME_DRAW', selectionLabel: 'Home or draw', probability: 0.68 },
+  { marketId: 'double-chance', selectionId: 'DC_DRAW_AWAY', selectionLabel: 'Draw or away', probability: 0.62 },
+  { marketId: 'double-chance', selectionId: 'DC_HOME_AWAY', selectionLabel: 'Home or away', probability: 0.74 },
+  { marketId: 'total-goals', selectionId: 'OVER_1_5', selectionLabel: 'Over 1.5 goals', probability: 0.76 },
+  { marketId: 'total-goals', selectionId: 'OVER_2_5', selectionLabel: 'Over 2.5 goals', probability: 0.52 },
+  { marketId: 'total-goals', selectionId: 'UNDER_3_5', selectionLabel: 'Under 3.5 goals', probability: 0.58 },
+  { marketId: 'btts', selectionId: 'BTTS_YES', selectionLabel: 'Both teams to score: Yes', probability: 0.54 },
+  { marketId: 'btts', selectionId: 'BTTS_NO', selectionLabel: 'Both teams to score: No', probability: 0.46 },
+  { marketId: 'total-corners', selectionId: 'CORNERS_OVER_3_5', selectionLabel: 'Over 3.5 corners', probability: 0.55 },
+  { marketId: 'total-corners', selectionId: 'CORNERS_UNDER_25_5', selectionLabel: 'Under 25.5 corners', probability: 0.78 },
+  { marketId: 'shots-on-target', selectionId: 'SOT_OVER_3_5', selectionLabel: 'Over 3.5 shots on target', probability: 0.6 },
+  { marketId: 'shots-on-target', selectionId: 'SOT_UNDER_25_5', selectionLabel: 'Under 25.5 shots on target', probability: 0.82 },
+  { marketId: 'substitutions-2h', selectionId: 'SUBS_2H_OVER_0_5', selectionLabel: 'Over 0.5 substitutions', probability: 0.55 },
+  { marketId: 'substitutions-2h', selectionId: 'SUBS_2H_UNDER_3_5', selectionLabel: 'Under 3.5 substitutions', probability: 0.8 },
+  { marketId: 'yellow-cards-1h', selectionId: 'YC1H_OVER_0_5', selectionLabel: 'Over 0.5 yellow cards', probability: 0.62 },
+  { marketId: 'yellow-cards-1h', selectionId: 'YC1H_UNDER_6_5', selectionLabel: 'Under 6.5 yellow cards', probability: 0.85 },
+  { marketId: 'red-card', selectionId: 'RED_YES', selectionLabel: 'Red card: Yes', probability: 0.18 },
+  { marketId: 'red-card', selectionId: 'RED_NO', selectionLabel: 'Red card: No', probability: 0.82 },
+  { marketId: 'goalkeeper-score', selectionId: 'GK_SCORE_YES', selectionLabel: 'Goalkeeper to score: Yes', probability: 0.03 },
+  { marketId: 'goalkeeper-score', selectionId: 'GK_SCORE_NO', selectionLabel: 'Goalkeeper to score: No', probability: 0.97 },
+  { marketId: 'first-goal', selectionId: 'FIRST_GOAL_1_30', selectionLabel: 'First goal in 1-30', probability: 0.62 },
+  { marketId: 'first-goal', selectionId: 'FIRST_GOAL_31_60', selectionLabel: 'First goal in 31-60', probability: 0.25 },
+  { marketId: 'first-goal', selectionId: 'FIRST_GOAL_61_90', selectionLabel: 'First goal in 61-90', probability: 0.13 },
+  { marketId: 'goals-0-5', selectionId: 'GOALS05_HOME', selectionLabel: '0-5 goals: Home', probability: 0.36 },
+  { marketId: 'goals-0-5', selectionId: 'GOALS05_DRAW', selectionLabel: '0-5 goals: Draw', probability: 0.26 },
+  { marketId: 'goals-0-5', selectionId: 'GOALS05_AWAY', selectionLabel: '0-5 goals: Away', probability: 0.22 },
 ]
 
 function slugify(value: string): string {
@@ -157,10 +192,6 @@ function slugify(value: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 32)
-}
-
-function oddsFor(probability: number): number {
-  return Math.max(1.01, Math.round((1 / probability) * 0.94 * 100) / 100)
 }
 
 export function buildRandomSelections({
@@ -205,8 +236,7 @@ export function buildRandomSelections({
       }
     }
 
-    const outcome = OUTCOMES[Math.floor(random() * OUTCOMES.length)]
-    const probability = Math.round((0.34 + random() * 0.24) * 100) / 100
+    const spec = RANDOM_MARKET_SPECS[Math.floor(random() * RANDOM_MARKET_SPECS.length)]
     const fixtureId = `${prefix}-${index + 1}-${slugify(home)}-${slugify(away)}`
 
     drafts.push({
@@ -215,12 +245,12 @@ export function buildRandomSelections({
       competition: group.name,
       kickoffIso: kickoffAt,
       kickoffLabel: formatKickoffLabel(kickoffAt),
-      marketId: '1x2',
-      marketName: 'Match result',
-      selectionId: outcome.selectionId,
-      selectionLabel: outcome.selectionLabel,
-      odds: oddsFor(probability),
-      probability,
+      marketId: spec.marketId,
+      marketName: marketNameForId(spec.marketId),
+      selectionId: spec.selectionId,
+      selectionLabel: spec.selectionLabel,
+      odds: oddsForProbability(spec.probability),
+      probability: spec.probability,
       custom: true,
     })
   }

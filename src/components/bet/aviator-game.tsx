@@ -12,6 +12,7 @@ import type {
 } from '@/lib/bet/types'
 import { MIN_STAKE_MINOR } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
+import { useBetMode } from './bet-mode-context'
 import { isBelowGameWalletMinimum, WalletMinimumNotice } from './wallet-minimum-gate'
 
 interface AviatorState {
@@ -42,6 +43,7 @@ function toPhase(phase: AviatorRoundView['phase']): Phase {
 
 export function AviatorGame() {
   const { wallet, refreshWallet } = useBetSlip()
+  const { depositMinMinor } = useBetMode()
   const skyRef = useRef<HTMLDivElement | null>(null)
   const pathRef = useRef<SVGPathElement | null>(null)
   const planeRef = useRef<HTMLDivElement | null>(null)
@@ -61,6 +63,7 @@ export function AviatorGame() {
   const [success, setSuccess] = useState<string | null>(null)
   const walletBlocked = isBelowGameWalletMinimum(
     state?.wallet.balanceMinor ?? wallet?.balanceMinor,
+    depositMinMinor,
   )
 
   const paintAviator = useCallback((data: AviatorState) => {
@@ -473,7 +476,7 @@ export function AviatorGame() {
           } else if (phase === 'crash') {
             note = 'Waiting for the next round.'
           } else if (walletBlocked) {
-            note = 'Deposit to reach the 5,000 TZS wallet minimum.'
+            note = `Deposit to reach the ${formatTzs(depositMinMinor)} wallet minimum.`
             noteClass = 'is-lost'
           }
 
