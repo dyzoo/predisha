@@ -110,9 +110,9 @@ export async function startWalletDeposit(input: {
 }
 
 async function completeDeposit(orderId: string): Promise<void> {
-  await prisma.$transaction(async tx => {
+  const completed = await prisma.$transaction(async tx => {
     const order = await tx.betPaymentOrder.findUnique({ where: { orderId } })
-    if (!order || order.status === 'PAID') return
+    if (!order || order.status === 'PAID') return null
 
     await creditWallet(tx, {
       userId: order.userId,
@@ -128,13 +128,16 @@ async function completeDeposit(orderId: string): Promise<void> {
       data: { status: 'PAID', completedAt: new Date() },
     })
 
-    await sendBetTransactionSms({
-      userId: order.userId,
-      amountMinor: order.amountMinor,
-      source: 'deposit',
-      reference: order.orderId,
-    }).catch(() => undefined)
+    return { userId: order.userId, amountMinor: order.amountMinor, orderId: order.orderId }
   })
+  if (!completed) return
+
+  await sendBetTransactionSms({
+    userId: completed.userId,
+    amountMinor: completed.amountMinor,
+    source: 'deposit',
+    reference: completed.orderId,
+  }).catch(() => undefined)
 }
 
 export async function refreshWalletDeposit(

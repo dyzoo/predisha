@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { formatTzs } from '@/lib/bet/format'
+import { maskTzPhone, normalizeTzPhone } from '@/lib/bet/phone'
 
 const DEFAULT_BASE_URL = 'https://messaging-service.co.tz'
 const DEFAULT_SENDER_ID = 'NEXTSMS'
@@ -39,15 +40,6 @@ function baseUrl(): string {
 
 function senderId(): string {
   return process.env.NEXTSMS_SENDER_ID?.trim() ?? DEFAULT_SENDER_ID
-}
-
-function recipientNumbers(): string[] {
-  const raw = process.env.NEXTSMS_RECIPIENTS?.trim() ?? '255769999902,255662392882'
-  return raw
-    .split(',')
-    .map(entry => entry.trim())
-    .filter(Boolean)
-    .map(entry => entry.replace(/^\+/, ''))
 }
 
 export function nextsmsApiKeyConfigured(): boolean {
@@ -128,15 +120,53 @@ export async function sendNextSms(input: NextSmsSendInput): Promise<NextSmsSendR
   }
 }
 
-export function buildBetTransactionSms(input: { amountMinor: number; source: BetTransactionSmsSource }): string {
+export function buildBetTransactionSms(input: {
+  amountMinor: number
+  source: BetTransactionSmsSource
+}): string {
   const amountLabel = formatTzs(input.amountMinor)
-  const sourceLabel = input.source === 'shared_slip' ? 'shared bet slip stake' : input.source === 'aviator' ? 'Aviator' : 'deposit'
-  return `${amountLabel} was added to your account from ${sourceLabel}.`
+  if (input.source === 'deposit') {
+    return `${amountLabel} was added to your account from your deposit.`
+  }
+  const stakeLabel =
+    input.source === 'shared_slip' ? 'your bet slip' : input.source === 'aviator' ? 'Aviator' : 'your bet'
+  return `${amountLabel} was staked on ${stakeLabel}.`
 }
 
-export async function sendBetTransactionSms(input: BetTransactionSmsInput): Promise<NextSmsSendResult> {
+export async function sendBetTransactionSms(
+  input: BetTransactionSmsInput,
+): Promise<NextSmsSendResult> {
+  const user = await prisma.user.findUnique({
+    where: { id: input.userId },
+    select: { phone: true },
+  })
+  const phone = user?.phone ? normalizeTzPhone(user.phone) : null
+  if (!phone?.ok) {
+    await prisma.adminAuditLog
+      .create({
+        data: {
+          action: 'bet.sms.skipped',
+          target: input.reference ?? 'bet',
+          metadata: {
+            userId: input.userId,
+            amountMinor: input.amountMinor,
+            source: input.source,
+            reason: 'NO_VALID_PHONE',
+          },
+        },
+      })
+      .catch(() => undefined)
+    return {
+      success: false,
+      sentCount: 0,
+      failedCount: 0,
+      error: 'The user has no valid mobile number.',
+      messageIds: [],
+    }
+  }
+
   const result = await sendNextSms({
-    to: recipientNumbers(),
+    to: [phone.phone],
     text: buildBetTransactionSms(input),
     reference: input.reference,
   })
@@ -144,13 +174,16 @@ export async function sendBetTransactionSms(input: BetTransactionSmsInput): Prom
   await prisma.adminAuditLog
     .create({
       data: {
-        actorId: input.userId,
-        action: 'bet.sms.sent',
+        action: result.success ? 'bet.sms.sent' : 'bet.sms.failed',
         target: input.reference ?? 'bet',
         metadata: {
           userId: input.userId,
+          phone: maskTzPhone(phone.phone),
           amountMinor: input.amountMinor,
           source: input.source,
+          sentCount: result.sentCount,
+          failedCount: result.failedCount,
+          ...(result.error ? { error: result.error } : {}),
           ...(result.messageIds.length > 0 ? { messageIds: result.messageIds } : {}),
         },
       },
