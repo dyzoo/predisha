@@ -684,6 +684,16 @@ export async function startAdminSlipSimulation(input: {
   return toAdminSlipView(updated, now)
 }
 
+export function canDeleteAdminBetSlip(slip: {
+  status: AdminBetSlipStatusView
+  entries: Array<{ status: string; ticketId: string | null }>
+}): boolean {
+  if (slip.status === 'CLOSED') return true
+  return !slip.entries.some(
+    entry => entry.ticketId !== null || entry.status === 'PAID' || entry.status === 'PENDING',
+  )
+}
+
 export async function deleteAdminBetSlip(input: {
   id: string
   actorId: string
@@ -701,15 +711,9 @@ export async function deleteAdminBetSlip(input: {
     throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
   }
 
-  const blocked = slip.entries.some(
-    entry =>
-      entry.ticketId !== null ||
-      entry.status === 'PAID' ||
-      entry.status === 'PENDING',
-  )
-  if (blocked) {
+  if (!canDeleteAdminBetSlip(slip)) {
     throw new BetError(
-      'This slip has paid or pending entries and cannot be deleted.',
+      'Close this slip before deleting it.',
       409,
       'SLIP_HAS_ACTIVE_ENTRIES',
     )

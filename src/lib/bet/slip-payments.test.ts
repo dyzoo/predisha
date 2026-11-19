@@ -201,12 +201,21 @@ describe('startSlipPayment', () => {
     expect(state.createOrder).not.toHaveBeenCalled()
   })
 
-  it('rejects a frozen slip before creating an entry', async () => {
+  it('rejects a frozen slip without exposing the admin reason', async () => {
     state.frozen = true
+    state.slipRecord = { ...baseSlip(), freezeReason: 'Internal admin note' }
 
-    await expect(
-      startSlipPayment({ code: 'ABC123', phone: '0712345678', userId: 'user-1' }),
-    ).rejects.toMatchObject({ code: 'SLIP_FROZEN' })
+    const error = await startSlipPayment({
+      code: 'ABC123',
+      phone: '0712345678',
+      userId: 'user-1',
+    }).catch(caught => caught)
+    expect(error).toMatchObject({
+      code: 'SLIP_FROZEN',
+      message: 'Betting is closed for this slip.',
+    })
+    expect(error).toHaveProperty('extra.autoFreezeAt', '2099-01-01T13:00:00.000Z')
+    expect(error).not.toHaveProperty('extra.freezeReason')
     expect(state.createEntry).not.toHaveBeenCalled()
   })
 

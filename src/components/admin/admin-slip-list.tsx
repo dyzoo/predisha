@@ -343,8 +343,9 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
         const busy = pendingCode === slip.code
         const confirming = confirmAction?.code === slip.code ? confirmAction.action : null
         const protectedEntries =
-          slip.paidCount > 0 ||
-          slip.entries.some(entry => entry.status === 'PENDING' || Boolean(entry.ticketId))
+          slip.status !== 'CLOSED' &&
+          (slip.paidCount > 0 ||
+            slip.entries.some(entry => entry.status === 'PENDING' || Boolean(entry.ticketId)))
         return (
           <article key={slip.id} className="rounded-2xl border border-border bg-surface/60 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -480,7 +481,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                     disabled={busy || protectedEntries}
                     title={
                       protectedEntries
-                        ? 'Slips with paid, pending or placed entries cannot be deleted.'
+                        ? 'Close this slip before deleting it.'
                         : 'Delete this slip'
                     }
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-muted-text transition-colors hover:border-red-400/40 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
@@ -499,7 +500,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
             ) : null}
             {protectedEntries ? (
               <p className="mt-2 text-[10px] text-muted-text">
-                This slip has paid, pending or placed entries. Close it instead of deleting it.
+                This slip has paid, pending or placed entries. Close it to enable deletion.
               </p>
             ) : null}
 

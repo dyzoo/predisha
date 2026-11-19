@@ -138,13 +138,9 @@ export async function startSlipPayment(input: {
   const record = await prisma.adminBetSlip.findUniqueOrThrow({ where: { code: slip.code } })
 
   if (isSlipFrozen(record, now)) {
-    throw new BetError(
-      record.freezeReason ??
-        'Betting is closed for this slip. One of the matches has started or an administrator paused it.',
-      409,
-      'SLIP_FROZEN',
-      { freezeReason: record.freezeReason, autoFreezeAt: record.autoFreezeAt.toISOString() },
-    )
+    throw new BetError('Betting is closed for this slip.', 409, 'SLIP_FROZEN', {
+      autoFreezeAt: record.autoFreezeAt.toISOString(),
+    })
   }
 
   const normalized = normalizeTzPhone(input.phone)

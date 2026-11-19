@@ -44,7 +44,7 @@ export async function GET(
       const view = toAdminSlipView(slip, now)
       return json({
         share: { code: view.code, selections: view.selections, expiresAt: view.autoFreezeAt, stale: false },
-        slip: view,
+        slip: { ...view, frozenReason: null },
         live: await liveMatchesFor(view.selections, now),
         liveGames,
         upcomingGames,

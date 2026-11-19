@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Clock, Radio } from 'lucide-react'
+import { ArrowLeft, Radio } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
 import { matchClock, type MatchClockState } from '@/lib/bet/match-clock'
 import { simulatedScore } from '@/lib/bet/simulation'
@@ -82,12 +82,6 @@ export function LiveSlipDetails({ slip: view }: { slip: AdminBetSlipView }) {
           <span className="inline-flex items-center gap-1.5">
             <Radio className="h-3.5 w-3.5" />
             {live ? 'Live match clock' : 'Match clock'}: {match?.label ?? 'Not started'}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" />
-            {view.timeMode === 'SIMULATED'
-              ? `${view.simulatedDurationMinutes} minute match`
-              : `Closes ${view.autoFreezeAt ? new Date(view.autoFreezeAt).toLocaleString() : 'at kickoff'}`}
           </span>
           {match ? (
             <span className="font-semibold">{Math.round(match.progress * 100)}% complete</span>

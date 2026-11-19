@@ -57,7 +57,6 @@ interface AdminSlip {
   simulatedDurationMinutes: number
   liveStartedAt: string | null
   frozen: boolean
-  frozenReason: string | null
   inPlay: boolean
   matchClock: Pick<
     MatchClockState,
@@ -450,7 +449,7 @@ export function ShareLoader({ code }: { code: string }) {
         (slip.status !== 'OPEN' && !slip.inPlay) ||
         (!slip.inPlay && new Date(slip.autoFreezeAt).getTime() <= Date.now()))
     ) {
-      setPayError(slip.frozenReason ?? 'Betting is closed for this slip because a match has started.')
+      setPayError('Betting is closed for this slip.')
       return
     }
 
@@ -822,9 +821,7 @@ export function ShareLoader({ code }: { code: string }) {
                   <Clock className="h-3.5 w-3.5 text-accent" />
                   {activeMatch?.live
                     ? `Match clock ${activeMatch.label}`
-                    : slip.timeMode === 'SIMULATED'
-                      ? `${slip.simulatedDurationMinutes}min match`
-                      : `Closes ${formatDateTimeLabel(slip.autoFreezeAt)}`}
+                    : `Closes ${formatDateTimeLabel(slip.autoFreezeAt)}`}
                 </span>
 
               <span className="inline-flex items-center gap-1.5">
@@ -1020,10 +1017,7 @@ export function ShareLoader({ code }: { code: string }) {
               {frozen ? (
                 <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-xs text-amber-900">
                   <Lock className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    {slip.frozenReason ??
-                      'Betting is closed for this slip because a match has started or an administrator paused it.'}
-                  </span>
+                  <span>Betting is closed for this slip.</span>
                 </div>
               ) : null}
             </div>

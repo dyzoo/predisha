@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { computeTicketTotals } from './bets'
-import { isSlipFrozen, maskPhone, toAdminSlipView } from './slips'
+import { canDeleteAdminBetSlip, isSlipFrozen, maskPhone, toAdminSlipView } from './slips'
 import { type TicketSelection } from './types'
 
 function selection(odds: number): TicketSelection {
@@ -71,6 +71,28 @@ describe('isSlipFrozen', () => {
     }
     expect(isSlipFrozen(liveSlip, new Date('2026-01-01T12:05:00.000Z'))).toBe(false)
     expect(isSlipFrozen(liveSlip, new Date('2026-01-01T13:45:00.000Z'))).toBe(true)
+  })
+})
+
+describe('canDeleteAdminBetSlip', () => {
+  const placedEntries = [{ status: 'PAID', ticketId: 'ticket-1' }]
+
+  it('allows a closed slip to be deleted even with paid entries', () => {
+    expect(canDeleteAdminBetSlip({ status: 'CLOSED', entries: placedEntries })).toBe(true)
+  })
+
+  it('blocks an open slip with placed entries', () => {
+    expect(canDeleteAdminBetSlip({ status: 'OPEN', entries: placedEntries })).toBe(false)
+    expect(canDeleteAdminBetSlip({ status: 'FROZEN', entries: placedEntries })).toBe(false)
+  })
+
+  it('allows a slip with no placed entries', () => {
+    expect(
+      canDeleteAdminBetSlip({
+        status: 'OPEN',
+        entries: [{ status: 'FAILED', ticketId: null }],
+      }),
+    ).toBe(true)
   })
 })
 
