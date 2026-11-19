@@ -1,3 +1,5 @@
+import { buildCashoutQuote, type CashoutOutcome } from './cashout'
+import { matchClock } from './match-clock'
 import { settleMarket } from './odds'
 import { hashString, mulberry32 } from './random-pure'
 import type { TicketSelection, TicketSimulationMeta } from './types'
@@ -26,8 +28,7 @@ export function simulationElapsedMs(clock: SimulationClock, now: number = Date.n
 }
 
 export function simulationMinute(clock: SimulationClock, now: number = Date.now()): number {
-  const duration = Math.max(1, clock.durationMinutes)
-  return Math.min(duration, Math.max(1, Math.floor(simulationElapsedMs(clock, now) / 60_000) + 1))
+  return matchClock(clock, now).minute
 }
 
 export function simulationRemainingSeconds(clock: SimulationClock, now: number = Date.now()): number {
@@ -38,7 +39,7 @@ export function simulationRemainingSeconds(clock: SimulationClock, now: number =
 export function simulationIsLive(clock: SimulationClock, now: number = Date.now()): boolean {
   const started = new Date(clock.liveStartedAt).getTime()
   if (Number.isNaN(started)) return false
-  return now >= started && simulationRemainingSeconds(clock, now) > 0
+  return matchClock(clock, now).live
 }
 
 export function simulatedScore(
@@ -68,25 +69,29 @@ export function simulatedCashoutOffer(input: {
 }): { offer: number; blocked: boolean } {
   const now = input.now ?? Date.now()
   const minute = simulationMinute(input.clock, now)
-  let allWinning = true
+  let wins = 0
+  let losses = 0
 
   for (const selection of input.selections) {
     const score = simulatedScore(selection, input.clock, minute)
     const outcome = settleMarket(selection.selectionId, score.home, score.away)
-    if (outcome === false) return { offer: 0, blocked: true }
-    if (outcome !== true) allWinning = false
+    if (outcome === true) wins += 1
+    if (outcome === false) losses += 1
   }
 
-  const base = allWinning
-    ? Math.floor(input.potentialReturnMinor * 0.65)
-    : Math.floor(input.stakeMinor * 0.5)
-  const progress = minute / Math.max(1, input.clock.durationMinutes)
-  const bucket = Math.floor(now / 30_000)
-  const jitter = ((hashString(`${input.clock.seed}:cashout:${bucket}`) % 17) - 8) / 100
-  const multiplier = Math.min(1.08, Math.max(0.55, 0.72 + progress * 0.28 + jitter))
-  const offer = Math.max(1, Math.min(input.potentialReturnMinor, Math.floor(base * multiplier)))
+  let outcome: CashoutOutcome = 'UNKNOWN'
+  if (losses > 0 && wins > 0) outcome = 'MIXED'
+  else if (losses > 0) outcome = 'LOSE'
+  else if (wins === input.selections.length) outcome = 'WIN'
 
-  return { offer, blocked: false }
+  return buildCashoutQuote({
+    stakeMinor: input.stakeMinor,
+    potentialReturnMinor: input.potentialReturnMinor,
+    outcome,
+    progress: matchClock(input.clock, now).progress,
+    seed: input.clock.seed,
+    now,
+  })
 }
 
 export function formatSimulationClock(seconds: number): string {

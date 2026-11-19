@@ -5,6 +5,7 @@ import { BetError } from './errors'
 import { formatKickoffLabel } from './format'
 import { combineOdds } from './odds'
 import { randomCode } from './random'
+import { toAdminSlipView } from './slips'
 import {
   MAX_SELECTIONS,
   MAX_STAKE_MINOR,
@@ -63,6 +64,41 @@ export interface PublicWinnerSlipView {
   ticketCode: string | null
   creditedAt: string | null
   createdAt: string
+}
+
+export interface WinnerSlipSourceView {
+  id: string
+  code: string
+  title: string | null
+  status: string
+  stakeMinor: number
+  totalOdds: number
+  potentialReturnMinor: number
+  inPlay: boolean
+  matchLabel: string | null
+  selectionCount: number
+  entryCount: number
+  createdAt: string
+  selections: TicketSelection[]
+}
+
+export interface WinnerTicketSourceView {
+  id: string
+  code: string
+  userId: string
+  userName: string | null
+  userEmail: string
+  slipCode: string | null
+  stakeMinor: number
+  totalOdds: number
+  potentialReturnMinor: number
+  placedAt: string
+  selections: TicketSelection[]
+}
+
+export interface ActiveWinnerSources {
+  slips: WinnerSlipSourceView[]
+  tickets: WinnerTicketSourceView[]
 }
 
 interface WinnerUser {
@@ -324,6 +360,201 @@ export async function listWinnerSlips(limit = 20): Promise<WinnerSlipView[]> {
       slip.ticketId ? codeByTicket.get(slip.ticketId) ?? null : null,
     ),
   )
+}
+
+export async function listActiveWinnerSources(
+  now: Date = new Date(),
+): Promise<ActiveWinnerSources> {
+  const [slipRecords, ticketRecords] = await Promise.all([
+    prisma.adminBetSlip.findMany({
+      where: { status: { in: ['OPEN', 'FROZEN'] } },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    }),
+    prisma.betTicket.findMany({
+      where: { status: 'OPEN' },
+      orderBy: { placedAt: 'desc' },
+      take: 40,
+      include: { user: { select: { id: true, name: true, email: true } } },
+    }),
+  ])
+
+  const slipIds = slipRecords.map(slip => slip.id)
+  const entries =
+    slipIds.length > 0
+      ? await prisma.adminBetEntry.findMany({
+          where: { slipId: { in: slipIds } },
+          select: { slipId: true },
+        })
+      : []
+  const entryCounts = new Map<string, number>()
+  for (const entry of entries) {
+    entryCounts.set(entry.slipId, (entryCounts.get(entry.slipId) ?? 0) + 1)
+  }
+
+  const slips: WinnerSlipSourceView[] = slipRecords.map(record => {
+    const view = toAdminSlipView(record, now)
+    return {
+      id: record.id,
+      code: record.code,
+      title: record.title,
+      status: record.status,
+      stakeMinor: record.stakeMinor,
+      totalOdds: view.quote.totalOdds,
+      potentialReturnMinor: view.quote.potentialReturnMinor,
+      inPlay: view.inPlay,
+      matchLabel: view.matchClock?.label ?? null,
+      selectionCount: view.selections.length,
+      entryCount: entryCounts.get(record.id) ?? 0,
+      createdAt: record.createdAt.toISOString(),
+      selections: view.selections,
+    }
+  })
+
+  const ticketIds = ticketRecords.map(ticket => ticket.id)
+  const shareEntries =
+    ticketIds.length > 0
+      ? await prisma.adminBetEntry.findMany({
+          where: { ticketId: { in: ticketIds } },
+          select: { ticketId: true, slip: { select: { code: true } } },
+        })
+      : []
+  const slipCodeByTicket = new Map(
+    shareEntries
+      .filter(entry => entry.ticketId)
+      .map(entry => [entry.ticketId as string, entry.slip.code] as const),
+  )
+
+  const tickets: WinnerTicketSourceView[] = ticketRecords.map(ticket => ({
+    id: ticket.id,
+    code: ticket.code,
+    userId: ticket.userId,
+    userName: ticket.user.name,
+    userEmail: ticket.user.email,
+    slipCode: slipCodeByTicket.get(ticket.id) ?? null,
+    stakeMinor: ticket.stakeMinor,
+    totalOdds: ticket.totalOdds,
+    potentialReturnMinor: ticket.potentialReturnMinor,
+    placedAt: ticket.placedAt.toISOString(),
+    selections: parseSelections(ticket.selections),
+  }))
+
+  return { slips, tickets }
+}
+
+export async function createWinnerFromTicket(input: {
+  ticketId: string
+  title?: string | null
+  note?: string | null
+  createdBy: string
+  now?: Date
+}): Promise<WinnerSlipView> {
+  const now = input.now ?? new Date()
+  const ticket = await prisma.betTicket.findUnique({
+    where: { id: input.ticketId.trim() },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  })
+  if (!ticket) {
+    throw new BetError('That ticket does not exist.', 404, 'TICKET_NOT_FOUND')
+  }
+
+  const existing = await prisma.betWinnerSlip.findUnique({
+    where: { ticketId: ticket.id },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  })
+  if (existing) {
+    return toWinnerView(existing, ticket.code)
+  }
+  if (ticket.status !== 'OPEN') {
+    throw new BetError('This ticket is already settled.', 409, 'TICKET_CLOSED')
+  }
+
+  const selections = parseSelections(ticket.selections).map(selection => ({
+    ...selection,
+    result: 'WON' as const,
+  }))
+  if (selections.length === 0) {
+    throw new BetError('This ticket has no selections to settle.', 422, 'EMPTY_TICKET')
+  }
+
+  const vat = applyVat(ticket.potentialReturnMinor)
+  const code = await generateWinnerCode()
+
+  return prisma.$transaction(async tx => {
+    const updated = await tx.betTicket.updateMany({
+      where: { id: ticket.id, status: 'OPEN' },
+      data: {
+        status: 'WON',
+        payoutMinor: vat.netPayoutMinor,
+        settledAt: now,
+        selections: selections as unknown as Prisma.InputJsonValue,
+      },
+    })
+    if (updated.count === 0) {
+      throw new BetError('This ticket is already settled.', 409, 'TICKET_CLOSED')
+    }
+
+    const slip = await tx.betWinnerSlip.create({
+      data: {
+        code,
+        userId: ticket.userId,
+        title: input.title?.trim().slice(0, 120) || null,
+        selections: selections as unknown as Prisma.InputJsonValue,
+        stakeMinor: ticket.stakeMinor,
+        totalOdds: ticket.totalOdds,
+        grossPayoutMinor: vat.grossMinor,
+        vatMinor: vat.vatMinor,
+        netPayoutMinor: vat.netPayoutMinor,
+        ticketId: ticket.id,
+        createdBy: input.createdBy,
+        creditedAt: now,
+      },
+    })
+
+    await creditWallet(tx, {
+      userId: ticket.userId,
+      amountMinor: vat.netPayoutMinor,
+      type: 'BET_WIN',
+      reference: `winner:${code}:payout`,
+      note: `Winner payout ${code} (${VAT_PERCENT}% VAT deducted)`,
+      metadata: {
+        winnerSlipId: slip.id,
+        ticketId: ticket.id,
+        ticketCode: ticket.code,
+        stakeMinor: ticket.stakeMinor,
+        totalOdds: ticket.totalOdds,
+        grossPayoutMinor: vat.grossMinor,
+        vatMinor: vat.vatMinor,
+        vatPercent: VAT_PERCENT,
+      },
+    })
+
+    await tx.adminAuditLog.create({
+      data: {
+        actorId: input.createdBy,
+        action: 'admin.winner.create-from-ticket',
+        target: code,
+        metadata: {
+          ticketId: ticket.id,
+          ticketCode: ticket.code,
+          userId: ticket.userId,
+          userEmail: ticket.user.email,
+          stakeMinor: ticket.stakeMinor,
+          totalOdds: ticket.totalOdds,
+          grossPayoutMinor: vat.grossMinor,
+          vatMinor: vat.vatMinor,
+          netPayoutMinor: vat.netPayoutMinor,
+          creditedAt: now.toISOString(),
+          note: input.note?.trim() || null,
+        },
+      },
+    })
+
+    return toWinnerView(
+      { ...slip, user: ticket.user },
+      ticket.code,
+    )
+  })
 }
 
 export async function getWinnerSlipByCode(code: string): Promise<WinnerSlipView> {

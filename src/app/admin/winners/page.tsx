@@ -14,7 +14,7 @@ import {
 } from '@/components/admin/admin-winner-form'
 import { canViewAdmin } from '@/lib/auth/entitlements'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
-import { listWinnerSlips } from '@/lib/bet/winners'
+import { listActiveWinnerSources, listWinnerSlips } from '@/lib/bet/winners'
 import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
@@ -42,7 +42,7 @@ export default async function AdminWinnersPage() {
     )
   }
 
-  const [users, winners] = await Promise.all([
+  const [users, winners, sources] = await Promise.all([
     prisma.user.findMany({
       where: {
         email: { not: { endsWith: '@guest.spotibet.invalid' } },
@@ -57,6 +57,7 @@ export default async function AdminWinnersPage() {
       },
     }),
     listWinnerSlips(),
+    listActiveWinnerSources(),
   ])
 
   const userOptions: WinnerUserOption[] = users.map(user => ({
@@ -103,7 +104,7 @@ export default async function AdminWinnersPage() {
         after submitting their mobile number.
       </section>
 
-      <AdminWinnerForm users={userOptions} />
+      <AdminWinnerForm users={userOptions} sources={sources} />
 
       <AdminWinnerList winners={winnerItems} />
     </AdminShell>

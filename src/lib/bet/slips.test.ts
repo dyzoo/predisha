@@ -58,6 +58,20 @@ describe('isSlipFrozen', () => {
       true,
     )
   })
+
+  it('allows in-play stakes after kickoff and freezes again at full time', () => {
+    const liveSlip = {
+      status: 'FROZEN' as const,
+      autoFreezeAt: new Date('2026-01-01T11:59:59.000Z'),
+      code: 'ABC123',
+      timeMode: 'MANUAL' as const,
+      manualKickoffAt: new Date('2026-01-01T12:00:00.000Z'),
+      simulatedDurationMinutes: 90,
+      selections: [],
+    }
+    expect(isSlipFrozen(liveSlip, new Date('2026-01-01T12:05:00.000Z'))).toBe(false)
+    expect(isSlipFrozen(liveSlip, new Date('2026-01-01T13:45:00.000Z'))).toBe(true)
+  })
 })
 
 describe('maskPhone', () => {
@@ -74,7 +88,7 @@ describe('maskPhone', () => {
 describe('toAdminSlipView', () => {
   const now = new Date('2026-01-01T12:00:00.000Z')
 
-  it('maps stored fields and auto-freezes expired slips', () => {
+  it('maps stored fields and opens started slips for in-play stakes', () => {
     const view = toAdminSlipView(
       {
         id: 'slip-1',
@@ -105,10 +119,12 @@ describe('toAdminSlipView', () => {
     expect(view).toMatchObject({
       code: 'ABC123',
       mode: 'SANDBOX',
-      frozen: true,
-      frozenReason: 'Betting closed because the first match has started.',
+      frozen: false,
+      inPlay: true,
+      frozenReason: null,
       autoFreezeAt: '2026-01-01T11:00:00.000Z',
     })
+    expect(view.matchClock?.label).toBe("1'")
     expect(view.selections).toHaveLength(1)
   })
 
@@ -177,7 +193,11 @@ describe('toAdminSlipView', () => {
       selectionSource: 'RANDOM',
       simulatedDurationMinutes: 45,
       liveStartedAt: '2026-01-01T12:00:00.000Z',
-      frozen: true,
+      frozen: false,
+      inPlay: true,
     })
+    expect(view.matchClock?.label).toBe("1'")
+    expect(view.quote.factor).toBeLessThan(1)
+    expect(view.quote.totalOdds).toBeLessThan(2)
   })
 })

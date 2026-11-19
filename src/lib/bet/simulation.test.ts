@@ -71,14 +71,11 @@ describe('simulated cashout', () => {
       now,
     })
 
-    if (outcome === false) {
-      expect(quote.blocked).toBe(true)
-      expect(quote.offer).toBe(0)
-    } else {
-      expect(quote.blocked).toBe(false)
-      expect(quote.offer).toBeGreaterThan(0)
-      expect(quote.offer).toBeLessThanOrEqual(2200)
-    }
+    expect(quote.blocked).toBe(false)
+    expect(quote.offer).toBeGreaterThan(0)
+    expect(quote.offer).toBeLessThanOrEqual(2200)
+    const expectedMinimum = outcome === false ? Math.floor(1000 * 0.4) : 1000
+    expect(quote.offer).toBeGreaterThanOrEqual(expectedMinimum)
   })
 
   it('is deterministic for the same clock and selection', () => {

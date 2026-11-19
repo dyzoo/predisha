@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowUpRight, Radio } from 'lucide-react'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { statusLabel } from '@/lib/bet/format'
+import { formatMatchMinuteFromElapsed } from '@/lib/bet/match-clock'
 import type { BetEvent } from '@/lib/bet/types'
 import { EventMoreMarkets } from './event-more-markets'
 import { OddsButton } from './odds-button'
@@ -17,7 +18,9 @@ export function EventCard({ event }: { event: BetEvent }) {
         <div className="min-w-0">
           <p className="truncate text-[11px] font-medium text-muted-text">{event.competition}</p>
           <p className="mt-0.5 text-[11px] text-muted-text/80">
-            {event.live ? `${event.minute ?? 1}' in play` : event.kickoffLabel}
+            {event.live
+              ? `${formatMatchMinuteFromElapsed(event.minute ?? 1)} in play`
+              : event.kickoffLabel}
           </p>
         </div>
         <span

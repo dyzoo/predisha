@@ -119,6 +119,8 @@ export interface TicketSelection {
   selectionId: string
   selectionLabel: string
   odds: number
+  baseOdds?: number
+  inPlayFactor?: number
   probability: number
   result: TicketResult
   finalScore: { home: number; away: number } | null

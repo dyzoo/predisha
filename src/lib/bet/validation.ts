@@ -193,6 +193,13 @@ export const adminWinnerCreateSchema = z.object({
   note: z.string().trim().max(280).optional(),
 })
 
+export const adminWinnerFromTicketSchema = z.object({
+  ticketId: z.string().trim().min(1, 'Choose an active ticket.').max(80),
+  title: z.string().trim().max(120).optional(),
+  date: z.string().datetime().optional(),
+  note: z.string().trim().max(280).optional(),
+})
+
 export const slipPaySchema = z.object({
   phone: z.string().trim().min(7).max(20),
 })
@@ -236,6 +243,7 @@ export const aviatorSettingsSchema = z
 export type PlaceBetInput = z.infer<typeof placeBetSchema>
 export type AdminSlipCreateInput = z.infer<typeof adminSlipCreateSchema>
 export type AdminWinnerCreateInput = z.infer<typeof adminWinnerCreateSchema>
+export type AdminWinnerFromTicketInput = z.infer<typeof adminWinnerFromTicketSchema>
 export type SelectionInput = z.infer<typeof selectionInputSchema>
 export type DepositInput = z.infer<typeof depositSchema>
 export type WithdrawInput = z.infer<typeof withdrawSchema>

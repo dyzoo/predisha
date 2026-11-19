@@ -4,7 +4,11 @@ import { isSameOrigin } from '@/lib/auth/origin'
 import { handleBetError } from '@/lib/bet/errors'
 import { readJson } from '@/lib/bet/security'
 import { adminWinnerCreateSchema } from '@/lib/bet/validation'
-import { createWinnerSlip, listWinnerSlips } from '@/lib/bet/winners'
+import {
+  createWinnerSlip,
+  listActiveWinnerSources,
+  listWinnerSlips,
+} from '@/lib/bet/winners'
 
 export async function GET() {
   try {
@@ -15,7 +19,11 @@ export async function GET() {
     if (access.status !== 'ok') {
       return json({ error: 'Admin access required.' }, { status: 403 })
     }
-    return json({ winners: await listWinnerSlips() })
+    const [winners, sources] = await Promise.all([
+      listWinnerSlips(),
+      listActiveWinnerSources(),
+    ])
+    return json({ winners, ...sources })
   } catch (error) {
     return handleBetError(error)
   }

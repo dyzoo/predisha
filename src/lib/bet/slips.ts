@@ -13,6 +13,8 @@ import { BetError, isUniqueConstraintError } from './errors'
 import { formatKickoffLabel } from './format'
 import { randomCode } from './random'
 import { getBetMode, type BetMode } from './mode'
+import { clockFromKickoff, inPlayQuote } from './in-play'
+import { matchClock, type MatchClockState } from './match-clock'
 import { attachSimulationClock, DEFAULT_SIMULATED_DURATION_MINUTES } from './simulation'
 import {
   MAX_SELECTIONS,
@@ -22,8 +24,8 @@ import {
   type AdminSlipTimeMode,
   type BetTicketView,
   type TicketSelection,
+  type TicketSimulationMeta,
 } from './types'
-import { applyVat } from './vat'
 
 export type AdminBetSlipStatusView = 'OPEN' | 'FROZEN' | 'CLOSED'
 
@@ -41,6 +43,23 @@ export interface AdminSlipSelectionInput {
   probability?: number
 }
 
+export interface AdminSlipMatchView {
+  phase: MatchClockState['phase']
+  label: string
+  minute: number
+  progress: number
+  live: boolean
+  finished: boolean
+}
+
+export interface AdminSlipQuoteView {
+  factor: number
+  totalOdds: number
+  potentialReturnMinor: number
+  vatMinor: number
+  netPayoutMinor: number
+}
+
 export interface AdminBetSlipView {
   id: string
   code: string
@@ -54,6 +73,10 @@ export interface AdminBetSlipView {
   liveStartedAt: string | null
   frozen: boolean
   frozenReason: string | null
+  inPlay: boolean
+  matchClock: AdminSlipMatchView | null
+  clock: TicketSimulationMeta | null
+  quote: AdminSlipQuoteView
   autoFreezeAt: string
   createdAt: string
   stakeMinor: number
@@ -98,12 +121,70 @@ export function maskPhone(phone: string): string {
   return `${digits.slice(0, 5)}•••${digits.slice(-2)}`
 }
 
-export function isSlipFrozen(slip: Pick<AdminBetSlip, 'status' | 'autoFreezeAt'>, now = new Date()): boolean {
+type SlipClockSource = Pick<AdminBetSlip, 'status' | 'autoFreezeAt'> &
+  Partial<
+    Pick<
+      AdminBetSlip,
+      'code' | 'timeMode' | 'manualKickoffAt' | 'liveStartedAt' | 'simulatedDurationMinutes' | 'selections'
+    >
+  >
+
+function toIso(value: unknown): string | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString()
+  if (typeof value === 'string') {
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
+  }
+  return null
+}
+
+export function resolveMatchClock(
+  slip: SlipClockSource,
+  now: Date = new Date(),
+): TicketSimulationMeta | null {
+  if (slip.status === 'CLOSED') return null
+
+  const durationMinutes = slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES
+  const seed = slip.code ?? 'slip'
+  const startedIso = toIso(slip.liveStartedAt)
+  if (startedIso) {
+    return {
+      liveStartedAt: startedIso,
+      durationMinutes,
+      seed,
+      kickoffIso: toIso(slip.manualKickoffAt) ?? startedIso,
+    }
+  }
+
+  let kickoffIso: string | null = null
+  if (slip.timeMode === 'MANUAL') {
+    kickoffIso = toIso(slip.manualKickoffAt)
+  } else if (slip.timeMode === 'ORIGINAL' && slip.selections) {
+    const kickoffs = parseSelections(slip.selections)
+      .map(selection => toIso(selection.kickoffIso))
+      .filter((value): value is string => Boolean(value))
+      .sort()
+    kickoffIso = kickoffs[0] ?? null
+  }
+
+  if (!kickoffIso || new Date(kickoffIso).getTime() > now.getTime()) return null
+  return clockFromKickoff(kickoffIso, durationMinutes, seed, now.getTime())
+}
+
+export function isSlipFrozen(slip: SlipClockSource, now = new Date()): boolean {
+  if (slip.status === 'CLOSED') return true
+  const clock = resolveMatchClock(slip, now)
+  if (clock) return matchClock(clock, now.getTime()).finished
   return slip.status !== 'OPEN' || slip.autoFreezeAt.getTime() <= now.getTime()
 }
 
 export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetSlipView {
-  const vat = applyVat(slip.potentialReturnMinor)
+  const selections = parseSelections(slip.selections)
+  const clock = resolveMatchClock(slip, now)
+  const match = clock ? matchClock(clock, now.getTime()) : null
+  const frozen = isSlipFrozen(slip, now)
+  const inPlay = Boolean(clock && match?.live)
+  const quote = inPlayQuote(slip.stakeMinor, selections, clock, now.getTime())
   return {
     id: slip.id,
     code: slip.code,
@@ -118,20 +199,42 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
     manualKickoffAt: slip.manualKickoffAt?.toISOString() ?? null,
     simulatedDurationMinutes: slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES,
     liveStartedAt: slip.liveStartedAt?.toISOString() ?? null,
-    frozen: isSlipFrozen(slip, now),
-    frozenReason:
-      slip.freezeReason ??
-      (slip.autoFreezeAt.getTime() <= now.getTime()
-        ? 'Betting closed because the first match has started.'
-        : null),
+    frozen,
+    frozenReason: clock
+      ? match?.finished
+        ? 'Full time. Betting is closed for this slip.'
+        : null
+      : slip.freezeReason ??
+        (slip.autoFreezeAt.getTime() <= now.getTime()
+          ? 'Betting closed because the first match has started.'
+          : null),
+    inPlay,
+    clock,
+    matchClock: match
+      ? {
+          phase: match.phase,
+          label: match.label,
+          minute: match.minute,
+          progress: match.progress,
+          live: match.live,
+          finished: match.finished,
+        }
+      : null,
+    quote: {
+      factor: quote.factor,
+      totalOdds: quote.totalOdds,
+      potentialReturnMinor: quote.potentialReturnMinor,
+      vatMinor: quote.vatMinor,
+      netPayoutMinor: quote.netPayoutMinor,
+    },
     autoFreezeAt: slip.autoFreezeAt.toISOString(),
     createdAt: slip.createdAt.toISOString(),
     stakeMinor: slip.stakeMinor,
-    totalOdds: slip.totalOdds,
-    potentialReturnMinor: slip.potentialReturnMinor,
-    vatMinor: vat.vatMinor,
-    netPayoutMinor: vat.netPayoutMinor,
-    selections: parseSelections(slip.selections),
+    totalOdds: quote.totalOdds,
+    potentialReturnMinor: quote.potentialReturnMinor,
+    vatMinor: quote.vatMinor,
+    netPayoutMinor: quote.netPayoutMinor,
+    selections: quote.selections,
   }
 }
 
@@ -544,7 +647,7 @@ export async function startAdminSlipSimulation(input: {
       where: { id: slip.id, status: { in: ['OPEN', 'FROZEN'] }, liveStartedAt: null },
       data: {
         status: 'FROZEN',
-        freezeReason: 'Simulated matches are live. Betting is closed.',
+        freezeReason: 'Match has started. In-play stakes are available at reduced prices.',
         liveStartedAt: now,
         frozenAt: now,
         frozenBy: input.actorId,
@@ -674,17 +777,11 @@ export async function placeAdminSlipBet(input: {
   if (slipSelections.length === 0) {
     throw new BetError('This slip has no selections to place.', 422, 'EMPTY_SLIP')
   }
-  const selections =
-    slip.timeMode === 'SIMULATED' && slip.liveStartedAt
-      ? attachSimulationClock(slipSelections, {
-          liveStartedAt: slip.liveStartedAt.toISOString(),
-          durationMinutes: slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES,
-          seed: slip.code,
-          kickoffIso: slip.manualKickoffAt?.toISOString() ?? slip.autoFreezeAt.toISOString(),
-        })
-      : slipSelections
-
-  const { totalOdds, potentialReturnMinor } = computeTicketTotals(slip.stakeMinor, selections)
+  const clock = resolveMatchClock(slip, now)
+  const clocked = clock ? attachSimulationClock(slipSelections, clock) : slipSelections
+  const quote = inPlayQuote(slip.stakeMinor, clocked, clock, now.getTime())
+  const selections = quote.selections
+  const { totalOdds, potentialReturnMinor } = quote
   const code = await generateTicketCode()
   const draft: TicketDraft = {
     code,

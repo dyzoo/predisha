@@ -2,6 +2,8 @@ import { Prisma, type BetTicket } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getBetCatalog, getFixtureResults, type FixtureResult } from './catalog'
 import { BetError, isUniqueConstraintError } from './errors'
+import { buildCashoutQuote, type CashoutOutcome } from './cashout'
+import { matchClockFromKickoff } from './match-clock'
 import { combineOdds, findSelection, settleMarket } from './odds'
 import { hashString, mulberry32, randomCode } from './random'
 import { simulatedCashoutOffer } from './simulation'
@@ -450,8 +452,13 @@ export async function getTicket(
   return ticket ? ticketWithCashoutQuote(ticket, now) : null
 }
 
+function selectionClockProgress(selection: TicketSelection, now: number): number {
+  const clock = matchClockFromKickoff(selection.kickoffIso, 90, now)
+  return clock.started ? clock.progress : 0
+}
+
 function cashoutOffer(
-  ticket: Pick<BetTicket, 'stakeMinor' | 'potentialReturnMinor'>,
+  ticket: Pick<BetTicket, 'stakeMinor' | 'potentialReturnMinor' | 'code'>,
   selections: TicketSelection[],
   results: Map<string, FixtureResult>,
   eventById: Map<string, Awaited<ReturnType<typeof getBetCatalog>>['events'][number]>,
@@ -468,8 +475,9 @@ function cashoutOffer(
     })
   }
 
-  let allWinning = true
-  let anyLosing = false
+  let wins = 0
+  let losses = 0
+  let progress = 0
 
   for (const selection of selections) {
     const result = results.get(selection.fixtureId)
@@ -479,28 +487,36 @@ function cashoutOffer(
       typeof result.awayScore === 'number'
     ) {
       const won = settleMarket(selection.selectionId, result.homeScore, result.awayScore)
-      if (won === false) anyLosing = true
-      if (won !== true) allWinning = false
+      if (won === true) wins += 1
+      if (won === false) losses += 1
       continue
     }
 
     const event = eventById.get(selection.fixtureId)
     if (event?.live && event.score) {
       const won = settleMarket(selection.selectionId, event.score.home, event.score.away)
-      if (won === false) anyLosing = true
-      if (won !== true) allWinning = false
+      if (won === true) wins += 1
+      if (won === false) losses += 1
+      progress = Math.max(progress, selectionClockProgress(selection, now.getTime()))
       continue
     }
 
-    allWinning = false
+    progress = Math.max(progress, selectionClockProgress(selection, now.getTime()))
   }
 
-  return {
-    offer: allWinning
-      ? Math.max(1, Math.floor(ticket.potentialReturnMinor * 0.65))
-      : Math.max(1, Math.floor(ticket.stakeMinor * 0.5)),
-    blocked: anyLosing,
-  }
+  let outcome: CashoutOutcome = 'UNKNOWN'
+  if (losses > 0 && wins > 0) outcome = 'MIXED'
+  else if (losses > 0) outcome = 'LOSE'
+  else if (wins === selections.length) outcome = 'WIN'
+
+  return buildCashoutQuote({
+    stakeMinor: ticket.stakeMinor,
+    potentialReturnMinor: ticket.potentialReturnMinor,
+    outcome,
+    progress,
+    seed: ticket.code,
+    now: now.getTime(),
+  })
 }
 
 export async function cashoutTicket(

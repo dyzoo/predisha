@@ -21,19 +21,14 @@ import {
 } from 'lucide-react'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
-import {
-  formatSimulationClock,
-  simulatedScore,
-  simulationClockFromSelection,
-  simulationIsLive,
-  simulationMinute,
-  simulationRemainingSeconds,
-} from '@/lib/bet/simulation'
+import { matchClock, type MatchClockState } from '@/lib/bet/match-clock'
+import { simulatedScore } from '@/lib/bet/simulation'
 import type {
   BetEvent,
   BetSlipItem,
   BetTicketView,
   TicketSelection,
+  TicketSimulationMeta,
 } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { BrandLogo } from '@/components/brand-logo'
@@ -63,6 +58,19 @@ interface AdminSlip {
   liveStartedAt: string | null
   frozen: boolean
   frozenReason: string | null
+  inPlay: boolean
+  matchClock: Pick<
+    MatchClockState,
+    'phase' | 'label' | 'minute' | 'progress' | 'live' | 'finished'
+  > | null
+  clock: TicketSimulationMeta | null
+  quote: {
+    factor: number
+    totalOdds: number
+    potentialReturnMinor: number
+    vatMinor: number
+    netPayoutMinor: number
+  }
   autoFreezeAt: string
   createdAt: string
   stakeMinor: number
@@ -158,7 +166,8 @@ function kickoffLabel(selection: TicketSelection): string {
   return formatDateTimeLabel(selection.kickoffIso)
 }
 
-function statusClass(status: SlipStatus): string {
+function statusClass(status: SlipStatus | 'LIVE'): string {
+  if (status === 'LIVE') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
   if (status === 'OPEN') return 'border-accent/30 bg-accent/10 text-accent'
   if (status === 'FROZEN') return 'border-amber-700/30 bg-amber-700/10 text-amber-900'
   return 'border-red-700/30 bg-red-700/10 text-red-800'
@@ -208,26 +217,27 @@ export function ShareLoader({ code }: { code: string }) {
   const loaded = useRef(false)
   const promoStarted = useRef(false)
 
+  const activeClock = slip?.clock ?? null
+  const activeMatch = activeClock ? matchClock(activeClock, now) : null
+
   const simulatedLiveMatches = useMemo<SharedLiveMatch[]>(() => {
-    if (!slip || slip.timeMode !== 'SIMULATED' || !slip.liveStartedAt) return []
+    if (!slip || !activeClock || !activeMatch?.live) return []
     return slip.selections.flatMap(selection => {
-      const clock = simulationClockFromSelection(selection)
-      if (!clock || !simulationIsLive(clock, now)) return []
       const teams = teamsFromFixtureLabel(selection.fixtureLabel, selection.fixtureId)
-      const minute = simulationMinute(clock, now)
+      const minute = activeMatch.minute
       return [
         {
           fixtureId: selection.fixtureId,
           competition: selection.competition,
-          kickoffIso: clock.kickoffIso,
+          kickoffIso: activeClock.kickoffIso ?? selection.kickoffIso,
           minute,
-          score: simulatedScore(selection, clock, minute),
+          score: simulatedScore(selection, activeClock, minute),
           ...teams,
           simulated: true,
         },
       ]
     })
-  }, [slip, now])
+  }, [slip, activeClock, activeMatch])
 
   const simulatedLive = simulatedLiveMatches.length > 0
   const awaitingSimulatedStart =
@@ -367,10 +377,10 @@ export function ShareLoader({ code }: { code: string }) {
   }, [entry])
 
   useEffect(() => {
-    if (!simulatedLive) return
+    if (!simulatedLive && !slip?.inPlay) return
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
-  }, [ticket, simulatedLive])
+  }, [ticket, simulatedLive, slip?.inPlay])
 
   useEffect(() => {
     const ticketId = entry?.ticketId ?? ''
@@ -437,8 +447,8 @@ export function ShareLoader({ code }: { code: string }) {
     if (
       slip &&
       (slip.frozen ||
-        slip.status !== 'OPEN' ||
-        new Date(slip.autoFreezeAt).getTime() <= Date.now())
+        (slip.status !== 'OPEN' && !slip.inPlay) ||
+        (!slip.inPlay && new Date(slip.autoFreezeAt).getTime() <= Date.now()))
     ) {
       setPayError(slip.frozenReason ?? 'Betting is closed for this slip because a match has started.')
       return
@@ -619,17 +629,35 @@ export function ShareLoader({ code }: { code: string }) {
   const paid = entry?.status === 'PAID'
   const pending = entry?.status === 'PENDING'
   const failed = entry?.status === 'FAILED' || entry?.status === 'CANCELLED'
-  const frozen = slip.frozen || slip.status !== 'OPEN'
+  const frozen = slip.frozen || (slip.status !== 'OPEN' && !slip.inPlay)
   const canPay = !frozen && !paid && !pending
   const isSandbox = slip.mode === 'SANDBOX'
   const signedIn = Boolean(viewer?.userId)
-  const simulatedClock = slip.selections
-    .map(selection => simulationClockFromSelection(selection))
-    .find((clock): clock is NonNullable<typeof clock> => Boolean(clock))
+  const displayOdds = slip.inPlay ? slip.quote.totalOdds : slip.totalOdds
+  const displayGross = slip.inPlay ? slip.quote.potentialReturnMinor : slip.potentialReturnMinor
+  const displayNet = slip.inPlay ? slip.quote.netPayoutMinor : slip.netPayoutMinor
+  const displayVat = slip.inPlay ? slip.quote.vatMinor : slip.vatMinor
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <AviatorPromoBanner />
+      {slip.inPlay ? (
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-800">
+          <span className="inline-flex items-center gap-2 font-semibold">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-600 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
+            </span>
+            Match has started{activeMatch ? ` · ${activeMatch.label}` : ''}. New stakes use live odds.
+          </span>
+          <Link
+            href={`/bet/live?slip=${encodeURIComponent(slip.code)}`}
+            className="font-bold underline underline-offset-4 hover:no-underline"
+          >
+            See live updates →
+          </Link>
+        </div>
+      ) : null}
       <section className="mx-auto max-w-2xl">
         <div className="receipt-paper receipt-sheet">
           <div className="px-5 pb-8 pt-5 sm:px-6">
@@ -752,18 +780,20 @@ export function ShareLoader({ code }: { code: string }) {
                 </div>
                 <span
                   className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                    paid ? 'border-accent/30 bg-accent/10 text-accent' : statusClass(slip.status)
+                    paid
+                      ? 'border-accent/30 bg-accent/10 text-accent'
+                      : statusClass(slip.inPlay ? 'LIVE' : slip.status)
                   }`}
                 >
-                  {paid ? 'PAID' : slip.status}
+                  {paid ? 'PAID' : slip.inPlay ? 'LIVE' : slip.status}
                 </span>
-                {simulatedLive && simulatedClock ? (
+                {activeMatch?.live ? (
                   <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-red-400/30 bg-red-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-700">
                     <span className="relative flex h-2 w-2">
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-600 opacity-75" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600" />
                     </span>
-                    Live {formatSimulationClock(simulationRemainingSeconds(simulatedClock, now))}
+                    Live {activeMatch.label}
                   </span>
                 ) : null}
                 <button
@@ -790,9 +820,11 @@ export function ShareLoader({ code }: { code: string }) {
               </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-accent" />
-                  {slip.timeMode === 'SIMULATED'
-                    ? `Simulated ${slip.simulatedDurationMinutes}min`
-                    : `Closes ${formatDateTimeLabel(slip.autoFreezeAt)}`}
+                  {activeMatch?.live
+                    ? `Match clock ${activeMatch.label}`
+                    : slip.timeMode === 'SIMULATED'
+                      ? `${slip.simulatedDurationMinutes}min match`
+                      : `Closes ${formatDateTimeLabel(slip.autoFreezeAt)}`}
                 </span>
 
               <span className="inline-flex items-center gap-1.5">
@@ -811,25 +843,33 @@ export function ShareLoader({ code }: { code: string }) {
               <div className="rounded-xl border border-accent/35 bg-accent/10 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Total odds</p>
                 <p className="mt-0.5 font-mono text-sm font-black tabular-nums text-accent">
-                  {formatOdds(slip.totalOdds)}
+                  {formatOdds(displayOdds)}
                 </p>
               </div>
               <div className="rounded-xl border border-border bg-white/50 px-3 py-2 text-center">
-                <p className="text-[10px] uppercase tracking-wide text-muted-text">Gross return</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-text">
+                  {slip.inPlay ? 'Live return' : 'Gross return'}
+                </p>
                 <p className="mt-0.5 font-mono text-base font-bold tabular-nums text-main-text">
-                  {formatTzs(slip.potentialReturnMinor)}
+                  {formatTzs(displayGross)}
                 </p>
               </div>
               <div className="rounded-xl border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Net payout</p>
                 <p className="mt-0.5 font-mono text-base font-bold tabular-nums text-black">
-                  {formatTzs(slip.netPayoutMinor)}
+                  {formatTzs(displayNet)}
                 </p>
               </div>
             </div>
             <p className="mt-2 text-center text-[10px] text-muted-text">
-              Includes {formatTzs(slip.vatMinor)} VAT (10%) deducted from the gross return.
+              Includes {formatTzs(displayVat)} VAT (10%) deducted from the gross return.
             </p>
+            {slip.inPlay ? (
+              <p className="mt-1 text-center text-[10px] font-semibold text-emerald-700">
+                Live prices are reduced as the match progresses. A stake placed now settles at
+                these odds.
+              </p>
+            ) : null}
 
             {simulatedLiveMatches.length > 0 ? (
               <div className="receipt-rule mt-4 pt-4">
@@ -839,7 +879,7 @@ export function ShareLoader({ code }: { code: string }) {
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-600 opacity-75" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600" />
                     </span>
-                    Simulated live
+                    Live matches
                   </h2>
                   <span className="text-[10px] uppercase tracking-wide text-muted-text">
                     {simulatedLiveMatches.length} in play
@@ -870,7 +910,7 @@ export function ShareLoader({ code }: { code: string }) {
                         </div>
                       </div>
                       <p className="mt-1.5 text-center text-[10px] font-semibold text-red-700">
-                        {match.minute ? `${match.minute}'` : 'In play'}
+                        {activeMatch?.label ?? (match.minute ? `${match.minute}'` : 'In play')}
                       </p>
                     </li>
                   ))}
@@ -917,7 +957,7 @@ export function ShareLoader({ code }: { code: string }) {
                         </div>
                       </div>
                       <p className="mt-1.5 text-center text-[10px] font-semibold text-red-700">
-                        {match.minute ? `${match.minute}'` : 'In play'}
+                        {activeMatch?.label ?? (match.minute ? `${match.minute}'` : 'In play')}
                       </p>
                     </li>
                   ))}
@@ -936,9 +976,9 @@ export function ShareLoader({ code }: { code: string }) {
                   return (
                     <li
                       key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
-                      className="receipt-item flex items-stretch gap-3"
+                      className="receipt-item flex items-stretch gap-3 border-emerald-600/20 bg-emerald-50/50"
                     >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-full border border-border bg-white/60 text-[11px] font-bold tabular-nums text-muted-text">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-full border border-emerald-600/25 bg-emerald-100 text-[11px] font-bold tabular-nums text-emerald-700">
                         {index + 1}
                       </span>
                       <div className="min-w-0 flex-1">
@@ -948,6 +988,13 @@ export function ShareLoader({ code }: { code: string }) {
                         <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-text">
                           {selection.competition}
                         </p>
+                        {slip.inPlay ? (
+                          <p className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                            In play · {formatOdds(selection.baseOdds ?? selection.odds)} →{' '}
+                            {formatOdds(selection.odds)}
+                          </p>
+                        ) : null}
                         <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
                           <span className="font-semibold text-accent">{selection.marketName}</span>
                           <span className="text-muted-text">{selection.selectionLabel}</span>
@@ -957,11 +1004,11 @@ export function ShareLoader({ code }: { code: string }) {
                           {kickoffLabel(selection)}
                         </p>
                       </div>
-                      <div className="flex shrink-0 flex-col items-center justify-center rounded-xl border border-accent/35 bg-accent/10 px-3 py-1.5 text-center">
-                        <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-text">
+                      <div className="flex shrink-0 flex-col items-center justify-center rounded-xl border border-emerald-600/35 bg-emerald-100 px-3 py-1.5 text-center">
+                        <span className="text-[9px] font-semibold uppercase tracking-wide text-emerald-700">
                           Odds
                         </span>
-                        <span className="font-mono text-base font-black tabular-nums text-accent">
+                        <span className="font-mono text-base font-black tabular-nums text-emerald-700">
                           {formatOdds(selection.odds)}
                         </span>
                       </div>
@@ -999,7 +1046,7 @@ export function ShareLoader({ code }: { code: string }) {
                       </p>
                     </div>
                    ) : null}
-                   {simulatedLive && entry.ticketId ? (
+                    {entry.ticketId && (ticket?.status === 'OPEN' || ticket?.status === 'CASHED_OUT') ? (
                      <div className="mx-auto mt-4 max-w-sm rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2.5 text-center">
                        <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                          Cash-out offer
@@ -1026,9 +1073,9 @@ export function ShareLoader({ code }: { code: string }) {
                            Cash out now
                          </button>
                        ) : (
-                         <p className="mt-1 text-[10px] text-muted-text">
-                           Cash out is unavailable while a selection is losing.
-                         </p>
+                          <p className="mt-1 text-[10px] text-muted-text">
+                            Cash-out offer recalculates as the match progresses.
+                          </p>
                        )}
                        {cashoutError ? (
                          <p className="mt-1 text-[10px] text-red-700">{cashoutError}</p>

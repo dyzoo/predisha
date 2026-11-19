@@ -7,15 +7,22 @@ import {
   CircleAlert,
   CircleCheck,
   Database,
+  Dices,
+  Layers3,
   Loader2,
+  Plus,
+  RefreshCw,
   Search,
   Trash2,
   Trophy,
   UserRound,
 } from 'lucide-react'
-import { formatOdds, formatTzs } from '@/lib/bet/format'
+import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
+import { buildRandomSelections, RANDOM_TEAM_GROUPS } from '@/lib/bet/random-teams'
 import type { AdminRecommendationPick } from '@/lib/bet/recommendation'
+import { MAX_SELECTIONS, type TicketSelection } from '@/lib/bet/types'
 import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
+import type { ActiveWinnerSources } from '@/lib/bet/winners'
 import { AdminSelectionPicker } from './admin-selection-picker'
 
 export interface WinnerUserOption {
@@ -56,11 +63,48 @@ interface WinnerResponse {
 const MIN_ODDS = 1.01
 const MAX_ODDS = 1000
 const WINNER_STATUSES = ['SCHEDULED', 'LIVE', 'FINISHED'] as const
+const MANUAL_MARKETS = [
+  {
+    id: '1x2',
+    name: 'Match result',
+    options: [
+      { id: 'HOME', label: 'Home win' },
+      { id: 'DRAW', label: 'Draw' },
+      { id: 'AWAY', label: 'Away win' },
+    ],
+  },
+  {
+    id: 'total-goals',
+    name: 'Total goals',
+    options: [
+      { id: 'OVER_2_5', label: 'Over 2.5 goals' },
+      { id: 'UNDER_3_5', label: 'Under 3.5 goals' },
+    ],
+  },
+] as const
 
 function todayDateValue(): string {
   const now = new Date()
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
   return local.toISOString().slice(0, 10)
+}
+
+function selectionToDraft(selection: TicketSelection, index: number): SelectionDraft {
+  const kickoffIso = selection.kickoffIso || new Date().toISOString()
+  return {
+    fixtureId: selection.fixtureId || `source-${index + 1}`,
+    fixtureLabel: selection.fixtureLabel,
+    competition: selection.competition || '',
+    kickoffIso,
+    kickoffLabel: selection.kickoffLabel || formatDateTimeLabel(kickoffIso),
+    marketId: selection.marketId || 'winner',
+    marketName: selection.marketName || 'Winner',
+    selectionId: selection.selectionId || `WINNER_${index + 1}`,
+    selectionLabel: selection.selectionLabel || 'Winning selection',
+    odds: String(selection.odds),
+    homeScore: selection.finalScore ? String(selection.finalScore.home) : '',
+    awayScore: selection.finalScore ? String(selection.finalScore.away) : '',
+  }
 }
 
 function normalizeOdds(value: string): number {
@@ -86,7 +130,13 @@ function scoreValue(value: string): number | null {
   return Number.isInteger(score) && score >= 0 ? score : null
 }
 
-export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
+export function AdminWinnerForm({
+  users,
+  sources: initialSources,
+}: {
+  users: WinnerUserOption[]
+  sources: ActiveWinnerSources
+}) {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [userId, setUserId] = useState('')
@@ -98,6 +148,16 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<WinnerResponse | null>(null)
+  const [sourceKey, setSourceKey] = useState('MANUAL')
+  const [homeTeam, setHomeTeam] = useState('')
+  const [awayTeam, setAwayTeam] = useState('')
+  const [manualMarketId, setManualMarketId] = useState<string>('1x2')
+  const [manualSelectionId, setManualSelectionId] = useState<string>('HOME')
+  const [manualOdds, setManualOdds] = useState('1.85')
+  const [manualKickoff, setManualKickoff] = useState(todayDateValue)
+  const [randomLeague, setRandomLeague] = useState('ANY')
+  const [randomCount, setRandomCount] = useState('5')
+  const [randomKickoff, setRandomKickoff] = useState(todayDateValue)
 
   const filteredUsers = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -115,6 +175,129 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
       ? Math.floor(stakeMinor * totalOdds)
       : 0
   const vat = applyVat(grossPayoutMinor)
+  const sources = initialSources
+  const selectedSlip = sources.slips.find(source => `SLIP:${source.id}` === sourceKey) ?? null
+  const selectedTicket = sources.tickets.find(source => `TICKET:${source.id}` === sourceKey) ?? null
+
+  function loadSelectedSource() {
+    setError(null)
+    setResult(null)
+    if (selectedSlip) {
+      setRows(selectedSlip.selections.map(selectionToDraft))
+      setStake(String(selectedSlip.stakeMinor))
+      setTitle(selectedSlip.title ?? '')
+      return
+    }
+    if (selectedTicket) {
+      setRows(selectedTicket.selections.map(selectionToDraft))
+      setStake(String(selectedTicket.stakeMinor))
+      setTitle(selectedTicket.slipCode ? `Winner · ${selectedTicket.slipCode}` : '')
+      if (selectedTicket.userId && users.some(user => user.id === selectedTicket.userId)) {
+        setUserId(selectedTicket.userId)
+        setQuery('')
+      }
+      return
+    }
+    setError('Choose an active slip or ticket to load.')
+  }
+
+  function applyWinnerPayload(payload: WinnerResponse): void {
+    if (!payload.winner) {
+      setError(payload.error ?? 'Could not create the winner slip.')
+      return
+    }
+    setResult(payload)
+    router.refresh()
+  }
+
+  async function createFromTicket() {
+    if (pending || !selectedTicket) return
+    setPending(true)
+    setError(null)
+    setResult(null)
+    try {
+      const response = await fetch('/api/admin/winners/from-ticket', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticketId: selectedTicket.id,
+          title: title.trim() || undefined,
+          date: date ? new Date(`${date}T12:00:00.000Z`).toISOString() : undefined,
+          note: note.trim() || undefined,
+        }),
+      })
+      applyWinnerPayload((await response.json().catch(() => ({}))) as WinnerResponse)
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  function addManualTeam() {
+    setError(null)
+    setResult(null)
+    const home = homeTeam.trim()
+    const away = awayTeam.trim()
+    if (!home || !away) {
+      setError('Enter both team names before adding a selection.')
+      return
+    }
+    if (rows.length >= MAX_SELECTIONS) {
+      setError(`A winner slip can hold at most ${MAX_SELECTIONS} selections.`)
+      return
+    }
+    const market = MANUAL_MARKETS.find(option => option.id === manualMarketId) ?? MANUAL_MARKETS[0]
+    const selection =
+      market.options.find(option => option.id === manualSelectionId) ?? market.options[0]
+    const kickoffIso = manualKickoff
+      ? new Date(`${manualKickoff}T12:00:00.000Z`).toISOString()
+      : new Date().toISOString()
+    setRows(current => [
+      ...current,
+      {
+        fixtureId: `manual-${Date.now()}-${current.length + 1}`,
+        fixtureLabel: `${home} vs ${away}`,
+        competition: 'Manually added teams',
+        kickoffIso,
+        kickoffLabel: formatDateTimeLabel(kickoffIso),
+        marketId: market.id,
+        marketName: market.name,
+        selectionId: selection.id,
+        selectionLabel: selection.label,
+        odds: manualOdds,
+        homeScore: '',
+        awayScore: '',
+      },
+    ])
+    setHomeTeam('')
+    setAwayTeam('')
+  }
+
+  function generateRandomTeams() {
+    setError(null)
+    setResult(null)
+    const count = Number(randomCount)
+    if (!Number.isInteger(count) || count < 1 || count > MAX_SELECTIONS) {
+      setError(`Choose between 1 and ${MAX_SELECTIONS} random selections.`)
+      return
+    }
+    const kickoffIso = randomKickoff
+      ? new Date(`${randomKickoff}T12:00:00.000Z`).toISOString()
+      : new Date(Date.now() + 3_600_000).toISOString()
+    const drafts = buildRandomSelections({
+      count,
+      kickoffIso,
+      leagueName: randomLeague,
+      prefix: `winner-random-${Date.now()}`,
+    })
+    if (drafts.length === 0) {
+      setError('No teams are available for that league.')
+      return
+    }
+    setRows(drafts.map(draft => selectionToDraft(draft as unknown as TicketSelection, 0)))
+  }
 
   function updateRow(index: number, patch: Partial<SelectionDraft>) {
     setResult(null)
@@ -232,13 +415,7 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
           })),
         }),
       })
-      const payload = (await response.json().catch(() => ({}))) as WinnerResponse
-      if (!response.ok || !payload.winner) {
-        setError(payload.error ?? 'Could not create the winner slip.')
-        return
-      }
-      setResult(payload)
-      router.refresh()
+      applyWinnerPayload((await response.json().catch(() => ({}))) as WinnerResponse)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -263,6 +440,93 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
             Fixture API | {VAT_PERCENT}% VAT deducted automatically
           </p>
         </div>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-accent/25 bg-accent/5 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-accent">
+            <Layers3 className="h-3.5 w-3.5" />
+            Active betslips
+          </p>
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface/60 px-2.5 py-1.5 text-[11px] font-semibold text-main-text hover:border-accent/40"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </button>
+        </div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+          <select
+            value={sourceKey}
+            onChange={event => {
+              setSourceKey(event.target.value)
+              setResult(null)
+              setError(null)
+            }}
+            className="w-full rounded-lg border border-border bg-surface/60 px-3 py-2 text-xs text-main-text outline-none focus:border-accent/60"
+          >
+            <option value="MANUAL">Manual / fixture API selections</option>
+            <optgroup label="Active admin slips">
+              {sources.slips.map(source => (
+                <option key={source.id} value={`SLIP:${source.id}`}>
+                  {source.code}
+                  {source.title ? ` - ${source.title}` : ''} ·{' '}
+                  {source.inPlay ? `live ${source.matchLabel ?? ''}` : source.status} ·{' '}
+                  {source.selectionCount} selections
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Open tickets">
+              {sources.tickets.map(source => (
+                <option key={source.id} value={`TICKET:${source.id}`}>
+                  {source.code} · {source.userName || source.userEmail} ·{' '}
+                  {source.selections.length} selections
+                </option>
+              ))}
+            </optgroup>
+          </select>
+          <button
+            type="button"
+            onClick={loadSelectedSource}
+            disabled={sourceKey === 'MANUAL' || pending}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-[11px] font-bold text-accent hover:bg-accent/15 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Database className="h-3.5 w-3.5" />
+            Load selections
+          </button>
+          {selectedTicket ? (
+            <button
+              type="button"
+              onClick={() => void createFromTicket()}
+              disabled={pending}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
+              Settle ticket as winner
+            </button>
+          ) : (
+            <span className="hidden text-[10px] text-muted-text sm:block">
+              {sources.slips.length} slips · {sources.tickets.length} tickets
+            </span>
+          )}
+        </div>
+        {selectedSlip ? (
+          <p className="mt-2 text-[10px] text-muted-text">
+            {selectedSlip.code} · stake {formatTzs(selectedSlip.stakeMinor)} ·{' '}
+            {selectedSlip.inPlay ? `in play ${selectedSlip.matchLabel ?? ''}` : 'pre-match'} ·{' '}
+            {selectedSlip.entryCount} paid entries
+          </p>
+        ) : null}
+        {selectedTicket ? (
+          <p className="mt-2 text-[10px] text-muted-text">
+            {selectedTicket.code} · {selectedTicket.userName || selectedTicket.userEmail} · stake{' '}
+            {formatTzs(selectedTicket.stakeMinor)} · possible{' '}
+            {formatTzs(selectedTicket.potentialReturnMinor)}
+            {selectedTicket.slipCode ? ` · from slip ${selectedTicket.slipCode}` : ''}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
@@ -425,17 +689,160 @@ export function AdminWinnerForm({ users }: { users: WinnerUserOption[] }) {
           <span className="text-[11px] text-muted-text">{rows.length} selections</span>
         </div>
 
+        <div className="mt-3 grid gap-3 rounded-xl border border-border bg-surface/50 p-3 lg:grid-cols-2">
+          <div>
+            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-text">
+              <Plus className="h-3.5 w-3.5 text-accent" />
+              Add teams manually
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                value={homeTeam}
+                onChange={event => setHomeTeam(event.target.value)}
+                placeholder="Home team"
+                maxLength={80}
+                className="rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60"
+              />
+              <input
+                type="text"
+                value={awayTeam}
+                onChange={event => setAwayTeam(event.target.value)}
+                placeholder="Away team"
+                maxLength={80}
+                className="rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60"
+              />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <select
+                value={manualMarketId}
+                onChange={event => {
+                  const market =
+                    MANUAL_MARKETS.find(option => option.id === event.target.value) ??
+                    MANUAL_MARKETS[0]
+                  setManualMarketId(market.id)
+                  setManualSelectionId(market.options[0].id)
+                }}
+                className="rounded-lg border border-border bg-background/60 px-2 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
+              >
+                {MANUAL_MARKETS.map(market => (
+                  <option key={market.id} value={market.id}>
+                    {market.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={manualSelectionId}
+                onChange={event => setManualSelectionId(event.target.value)}
+                className="rounded-lg border border-border bg-background/60 px-2 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
+              >
+                {(MANUAL_MARKETS.find(option => option.id === manualMarketId) ?? MANUAL_MARKETS[0])
+                  .options.map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+              </select>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={MIN_ODDS}
+                max={MAX_ODDS}
+                step={0.01}
+                value={manualOdds}
+                onChange={event => setManualOdds(event.target.value)}
+                aria-label="Manual odds"
+                className="rounded-lg border border-border bg-background/60 px-2 py-2 text-[11px] font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
+              />
+              <button
+                type="button"
+                onClick={addManualTeam}
+                className="rounded-lg border border-accent/40 bg-accent/10 px-2 py-2 text-[11px] font-bold text-accent hover:bg-accent/15"
+              >
+                Add team
+              </button>
+            </div>
+            <input
+              type="date"
+              value={manualKickoff}
+              onChange={event => setManualKickoff(event.target.value)}
+              aria-label="Manual kickoff date"
+              className="mt-2 w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
+            />
+          </div>
+
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+              <Dices className="h-3.5 w-3.5" />
+              Load random team list
+            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <select
+                value={randomLeague}
+                onChange={event => setRandomLeague(event.target.value)}
+                aria-label="Random team league"
+                className="rounded-lg border border-border bg-background/60 px-2 py-2 text-[11px] text-main-text outline-none focus:border-emerald-400/60"
+              >
+                <option value="ANY">Any league</option>
+                {RANDOM_TEAM_GROUPS.map(group => (
+                  <option key={group.name} value={group.name}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={randomCount}
+                onChange={event => setRandomCount(event.target.value)}
+                aria-label="Random selection count"
+                className="rounded-lg border border-border bg-background/60 px-2 py-2 text-[11px] font-semibold tabular-nums text-main-text outline-none focus:border-emerald-400/60"
+              >
+                {Array.from({ length: MAX_SELECTIONS }, (_, index) => index + 1).map(value => (
+                  <option key={value} value={value}>
+                    {value} matches
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={generateRandomTeams}
+                className="rounded-lg bg-emerald-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-emerald-700"
+              >
+                Generate
+              </button>
+            </div>
+            <input
+              type="date"
+              value={randomKickoff}
+              onChange={event => setRandomKickoff(event.target.value)}
+              aria-label="Random kickoff date"
+              className="mt-2 w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none focus:border-emerald-400/60"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setRows([])
+                setResult(null)
+                setError(null)
+              }}
+              disabled={rows.length === 0}
+              className="mt-2 text-[10px] font-semibold text-muted-text underline underline-offset-2 hover:text-main-text disabled:opacity-50"
+            >
+              Clear all selections
+            </button>
+          </div>
+        </div>
+
         <div className="mt-3 space-y-3">
           {rows.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-[11px] leading-relaxed text-muted-text">
-              No winning selections yet. Use the fixture API picker below to choose a match,
-              market and winning selection.
+              No winning selections yet. Load an active slip or ticket, add teams manually,
+              generate a random list, or use the fixture API picker below.
             </p>
           ) : null}
 
           {rows.map((row, index) => (
             <div
-              key={row.fixtureId}
+              key={`${row.fixtureId}:${index}`}
               className="rounded-xl border border-border bg-surface/60 p-3"
             >
               <div className="flex items-start justify-between gap-2">

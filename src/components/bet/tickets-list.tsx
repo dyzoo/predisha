@@ -23,6 +23,7 @@ import {
   formatTzs,
   statusLabel,
 } from '@/lib/bet/format'
+import { formatMatchMinuteFromElapsed, matchClock } from '@/lib/bet/match-clock'
 import {
   simulatedScore,
   simulationClockFromSelection,
@@ -105,11 +106,11 @@ function selectionScore(selection: TicketSelection, event: BetEvent | undefined,
 
 function liveMinute(selection: TicketSelection, event: BetEvent | undefined, now: number): string | null {
   const clock = simulationClockFromSelection(selection)
-  if (clock) return `${simulationMinute(clock, now)}'`
+  if (clock) return matchClock(clock, now).label
   if (!event?.live) return null
-  const elapsed = now - new Date(selection.kickoffIso).getTime()
-  const minute = Math.min(90, Math.max(1, Math.floor(elapsed / 60_000)))
-  return `${minute}'`
+  const elapsed = Math.max(0, Math.floor((now - new Date(selection.kickoffIso).getTime()) / 60_000))
+  if (elapsed >= 100) return 'FT'
+  return formatMatchMinuteFromElapsed(elapsed)
 }
 
 function TicketRef({ code }: { code: string }) {
