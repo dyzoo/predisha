@@ -1,4 +1,5 @@
 import { json, apiError } from '@/lib/api'
+import { settleAllOpenTickets } from '@/lib/bet/bets'
 import { syncFootballData } from '@/lib/sports/sync'
 
 export async function POST(request: Request): Promise<Response> {
@@ -15,7 +16,13 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const result = await syncFootballData()
-    return json({ ok: true, synced: result })
+    let settled = 0
+    try {
+      settled = await settleAllOpenTickets()
+    } catch (error) {
+      console.error('[cron] could not settle tickets', error)
+    }
+    return json({ ok: true, synced: result, settled })
   } catch (error) {
     return apiError(
       error instanceof Error ? error.message : 'Sync failed.',

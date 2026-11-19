@@ -2,7 +2,9 @@
 
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { CircleAlert, CircleCheck, Loader2, Save } from 'lucide-react'
+import { CircleAlert, CircleCheck, Loader2, Save, WalletCards } from 'lucide-react'
+import { formatTzs } from '@/lib/bet/format'
+import { MAX_DEPOSIT_MINOR } from '@/lib/bet/types'
 
 const ROLES = ['USER', 'ADMIN'] as const
 const STATUSES = ['INACTIVE', 'TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'UNPAID'] as const
@@ -20,6 +22,7 @@ interface AdminUserActionsProps {
   role: Role
   status: Status | null
   planId: string | null
+  walletBalanceMinor: number
   isSelf: boolean
   canManageRoles: boolean
 }
@@ -28,11 +31,17 @@ interface UpdateResponse {
   error?: string
 }
 
+interface FundResponse {
+  error?: string
+  wallet?: { balanceMinor: number }
+}
+
 export function AdminUserActions({
   userId,
   role,
   status,
   planId,
+  walletBalanceMinor,
   isSelf,
   canManageRoles,
 }: AdminUserActionsProps) {
@@ -45,6 +54,47 @@ export function AdminUserActions({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [fundAmount, setFundAmount] = useState('')
+  const [funding, setFunding] = useState(false)
+  const [fundError, setFundError] = useState<string | null>(null)
+  const [funded, setFunded] = useState(false)
+  const [updatedBalanceMinor, setUpdatedBalanceMinor] = useState<number | null>(null)
+
+  async function onFundWallet(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (funding) return
+
+    const amountMinor = Math.round(Number(fundAmount))
+    if (!Number.isFinite(amountMinor) || amountMinor < 1 || amountMinor > MAX_DEPOSIT_MINOR) {
+      setFundError(`Enter an amount between 1 and ${formatTzs(MAX_DEPOSIT_MINOR)}.`)
+      return
+    }
+
+    setFunding(true)
+    setFundError(null)
+    setFunded(false)
+    try {
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/wallet`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amountMinor }),
+      })
+      const payload = (await response.json().catch(() => ({}))) as FundResponse
+      if (!response.ok) {
+        setFundError(payload.error ?? 'Could not add funds.')
+        return
+      }
+      if (payload.wallet) setUpdatedBalanceMinor(payload.wallet.balanceMinor)
+      setFundAmount('')
+      setFunded(true)
+      router.refresh()
+    } catch {
+      setFundError('Network error. Please try again.')
+    } finally {
+      setFunding(false)
+    }
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -85,8 +135,9 @@ export function AdminUserActions({
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-3 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+    <div className="mt-3 space-y-3">
+      <form onSubmit={onSubmit} className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-3">
         <label className="block">
           <span className="mb-1.5 block text-[11px] font-medium text-muted-text">Role</span>
           <select
@@ -178,7 +229,58 @@ export function AdminUserActions({
             {error}
           </span>
         ) : null}
-      </div>
-    </form>
+        </div>
+      </form>
+
+      <form
+        onSubmit={onFundWallet}
+        className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-background/40 p-3"
+      >
+        <label className="min-w-0 flex-1">
+          <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
+            Wallet balance {formatTzs(updatedBalanceMinor ?? walletBalanceMinor)}
+          </span>
+          <input
+            type="number"
+            min="1"
+            max={MAX_DEPOSIT_MINOR}
+            step="1"
+            inputMode="numeric"
+            value={fundAmount}
+            onChange={event => {
+              setFundAmount(event.target.value)
+              setFunded(false)
+              setFundError(null)
+            }}
+            placeholder="Amount in TZS"
+            className="w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-xs font-semibold text-main-text outline-none focus:border-accent/60"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={funding}
+          className="inline-flex items-center gap-2 rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {funding ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <WalletCards className="h-3.5 w-3.5" />
+          )}
+          {funding ? 'Adding…' : 'Add funds'}
+        </button>
+        {funded ? (
+          <span className="flex items-center gap-1.5 text-[11px] text-accent">
+            <CircleCheck className="h-3.5 w-3.5" />
+            Funds added
+          </span>
+        ) : null}
+        {fundError ? (
+          <span className="flex items-center gap-1.5 text-[11px] text-red-300">
+            <CircleAlert className="h-3.5 w-3.5" />
+            {fundError}
+          </span>
+        ) : null}
+      </form>
+    </div>
   )
 }

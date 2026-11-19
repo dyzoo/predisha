@@ -87,6 +87,7 @@ export default async function AdminUsersPage({
         role: true,
         emailVerified: true,
         createdAt: true,
+        betWallet: { select: { balanceMinor: true } },
         subscription: {
           select: {
             status: true,
@@ -296,6 +297,7 @@ export default async function AdminUsersPage({
                     role={user.role}
                     status={subscriptionStatus}
                     planId={user.subscription?.planId ?? null}
+                    walletBalanceMinor={user.betWallet?.balanceMinor ?? 0}
                     isSelf={user.id === viewer.userId}
                     canManageRoles={superAdmin}
                   />

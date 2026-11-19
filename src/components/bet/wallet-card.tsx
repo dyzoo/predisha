@@ -54,9 +54,7 @@ export function WalletCard({
           <h2 className="text-sm font-semibold">Recent activity</h2>
           {wallet.transactions.length === 0 ? (
             <p className="mt-2 text-sm text-muted-text">
-              {wallet.mode === 'SANDBOX'
-                ? 'No sandbox transactions yet. Add play funds to start.'
-                : 'No transactions yet. Deposit funds to start.'}
+              No transactions yet. Deposit funds to start.
             </p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
@@ -66,7 +64,7 @@ export function WalletCard({
                   className="flex items-center justify-between gap-3 py-2.5 text-sm"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{transactionLabel(transaction.type, wallet.mode)}</p>
+                    <p className="truncate font-medium">{transactionLabel(transaction.type)}</p>
                     <p className="text-[11px] text-muted-text">
                       {formatDateTimeLabel(transaction.createdAt)}
                       {transaction.note ? ` ${transaction.note}` : ''}

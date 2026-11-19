@@ -1,8 +1,6 @@
 import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { BetMode } from '@/lib/bet/mode-copy'
-
 export interface GameCardDefinition {
   href: string
   title: string
@@ -11,7 +9,7 @@ export interface GameCardDefinition {
   tag: string
 }
 
-export function GameCard({ game, mode = 'LIVE' }: { game: GameCardDefinition; mode?: BetMode }) {
+export function GameCard({ game }: { game: GameCardDefinition }) {
   const Icon = game.icon
   return (
     <Link
@@ -29,7 +27,7 @@ export function GameCard({ game, mode = 'LIVE' }: { game: GameCardDefinition; mo
       <h2 className="mt-3 font-display text-lg font-semibold">{game.title}</h2>
       <p className="mt-1 flex-1 text-sm leading-relaxed text-muted-text">{game.description}</p>
       <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-accent">
-        {mode === 'SANDBOX' ? 'Play sandbox' : 'Play now'}
+        Play now
         <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
       </span>
     </Link>

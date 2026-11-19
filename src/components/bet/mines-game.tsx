@@ -127,7 +127,7 @@ export function MinesGame() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-              Mines {mode === 'SANDBOX' ? 'Sandbox' : 'Live'}
+              Mines {mode === 'SANDBOX' ? 'Wallet' : 'Live'}
             </p>
             <h1 className="mt-1 font-display text-2xl font-semibold">Reveal gems, avoid mines</h1>
             <p className="mt-1 text-sm text-muted-text">

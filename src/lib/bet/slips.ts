@@ -793,7 +793,7 @@ export async function placeAdminSlipBet(input: {
     selections,
     totalOdds,
     potentialReturnMinor,
-    debitBalance: entry.provider === 'sandbox',
+    debitBalance: entry.provider === 'sandbox' || entry.provider === 'wallet',
     reference: `slip:${slip.code}:entry:${entry.id}:stake`,
     note: `Slip ${slip.code}`,
   }

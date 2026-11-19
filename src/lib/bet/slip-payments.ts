@@ -70,6 +70,7 @@ function entryView(
     status: string
     phone: string
     stakeMinor: number
+    provider: string | null
     providerOrderId: string | null
     ticketId: string | null
     paidAt: Date | null
@@ -89,11 +90,15 @@ function entryView(
     paidAt: entry.paidAt?.toISOString() ?? null,
     createdAt: entry.createdAt.toISOString(),
     message:
-      status === 'PAID'
-        ? 'Your bet is confirmed. Keep this page and your slip code for reference.'
-        : status === 'FAILED'
-          ? 'The payment was not completed. You can try again with the same phone number.'
-          : 'Approve the mobile-money prompt on your phone to complete this bet.',
+      status === 'PAID' && entry.provider === 'wallet'
+        ? 'Your bet is confirmed. The stake came from your wallet.'
+        : status === 'PAID'
+          ? 'Your bet is confirmed. Keep this page and your slip code for reference.'
+          : status === 'FAILED' && entry.provider === 'wallet'
+            ? 'The bet could not be placed. Your wallet was not charged.'
+            : status === 'FAILED'
+              ? 'The payment was not completed. You can try again.'
+              : 'Approve the mobile-money prompt on your phone to complete this bet.',
   }
 }
 
@@ -131,6 +136,7 @@ export async function startSlipPayment(input: {
   code: string
   phone: string
   userId?: string | null
+  source?: 'wallet' | 'phone'
   now?: Date
 }): Promise<SlipPaymentResult> {
   const now = input.now ?? new Date()
@@ -141,6 +147,46 @@ export async function startSlipPayment(input: {
     throw new BetError('Betting is closed for this slip.', 409, 'SLIP_FROZEN', {
       autoFreezeAt: record.autoFreezeAt.toISOString(),
     })
+  }
+
+  if (input.source === 'wallet') {
+    if (!input.userId) {
+      throw new BetError('Sign in to pay from your wallet.', 401, 'AUTH_REQUIRED')
+    }
+    const wallet = await prisma.betWallet.findUnique({
+      where: { userId: input.userId },
+      select: { balanceMinor: true },
+    })
+    const balanceMinor = wallet?.balanceMinor ?? 0
+    if (balanceMinor < record.stakeMinor) {
+      throw new BetError('Not enough balance in your wallet. Add funds to take this slip.', 422, 'INSUFFICIENT_FUNDS', {
+        balanceMinor,
+        stakeMinor: record.stakeMinor,
+      })
+    }
+    const entry = await prisma.adminBetEntry.create({
+      data: {
+        slipId: record.id,
+        userId: input.userId,
+        phone: input.phone.trim(),
+        stakeMinor: record.stakeMinor,
+        status: 'PAID',
+        provider: 'wallet',
+        paidAt: now,
+      },
+    })
+    try {
+      await placeAdminSlipBet({ entryId: entry.id, now })
+    } catch (error) {
+      await prisma.adminBetEntry.update({
+        where: { id: entry.id },
+        data: { status: 'FAILED', failureReason: 'BET_FAILED' },
+      })
+      throw error instanceof BetError
+        ? error
+        : new BetError('The bet could not be placed. Your wallet was not charged.', 409, 'BET_FAILED')
+    }
+    return { entry: await loadEntryView(entry.id), slip, mode: slip.mode }
   }
 
   const normalized = normalizeTzPhone(input.phone)
@@ -168,7 +214,7 @@ export async function startSlipPayment(input: {
           amountMinor: record.stakeMinor,
           type: 'DEPOSIT',
           reference: `slip:${record.code}:entry:${entry.id}:sandbox-float`,
-          note: 'Sandbox guest stake',
+          note: 'Guest stake',
           metadata: { mode: 'SANDBOX' },
         }),
       )
@@ -179,7 +225,7 @@ export async function startSlipPayment(input: {
 
   if (!harakapayApiKeyConfigured()) {
     throw new BetError(
-      'Card and mobile-money payments are not configured on this server yet. The operator must add HARAKAPAY_API_KEY and restart the app, or switch the platform to Sandbox mode for test slips.',
+      'Mobile-money payments are not configured on this server yet. Add funds to your wallet or try again later.',
       503,
       'PAYMENT_UNAVAILABLE',
     )
@@ -289,7 +335,7 @@ export async function retrySlipEntry(entryId: string): Promise<SlipPaymentEntryV
   if (entry.status === 'PAID') {
     await placeEntryBet(entry.id)
   } else if (entry.status === 'FAILED') {
-    if (entry.provider !== 'sandbox') {
+    if (entry.provider !== 'sandbox' && entry.provider !== 'wallet') {
       if (entry.provider !== HARAKAPAY_PROVIDER_NAME || !entry.providerOrderId) {
         throw new BetError('This payment cannot be retried.', 409, 'NOT_RETRYABLE')
       }

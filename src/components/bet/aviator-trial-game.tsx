@@ -220,7 +220,7 @@ export function AviatorTrialGame({
       ) : null}
 
       <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface/60 p-4 text-xs text-muted-text sm:flex-row">
-        <span>Your trial is separate from the real betting wallet.</span>
+        <span>This bonus is separate from your betting wallet.</span>
         <Link
           href={won ? withdrawHref : '/bet'}
           className="inline-flex items-center gap-1.5 font-semibold text-accent hover:underline"

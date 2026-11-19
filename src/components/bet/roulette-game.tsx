@@ -87,7 +87,7 @@ export function RouletteGame() {
     <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
       <div className="rounded-3xl border border-border bg-gradient-to-br from-surface via-surface to-accent/10 p-5 sm:p-6">
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-          Roulette {mode === 'SANDBOX' ? 'Sandbox' : 'Live'}
+          Roulette {mode === 'SANDBOX' ? 'Wallet' : 'Live'}
         </p>
         <h1 className="mt-1 font-display text-2xl font-semibold">Single-zero roulette</h1>
         <p className="mt-1 text-sm text-muted-text">

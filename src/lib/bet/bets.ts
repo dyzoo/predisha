@@ -417,6 +417,35 @@ export async function settleTicketsForUser(
   return settled
 }
 
+async function settleTicketRecord(ticket: BetTicket, now: Date): Promise<BetTicket> {
+  if (ticket.status !== 'OPEN') return ticket
+  const results = await getFixtureResults(now)
+  const evaluation = evaluateTicket(parseSelections(ticket.selections), ticket.stakeMinor, results)
+  if (evaluation.status === 'OPEN' && !evaluation.changed) return ticket
+  return (await persistSettlement(ticket, evaluation, now)) ?? ticket
+}
+
+export async function settleAllOpenTickets(
+  now: Date = new Date(),
+  take = 200,
+): Promise<number> {
+  const results = await getFixtureResults(now)
+  const tickets = await prisma.betTicket.findMany({
+    where: { status: 'OPEN' },
+    orderBy: { placedAt: 'desc' },
+    take,
+  })
+
+  let settled = 0
+  for (const ticket of tickets) {
+    const evaluation = evaluateTicket(parseSelections(ticket.selections), ticket.stakeMinor, results)
+    if (evaluation.status === 'OPEN' && !evaluation.changed) continue
+    const updated = await persistSettlement(ticket, evaluation, now)
+    if (updated && evaluation.status !== 'OPEN') settled += 1
+  }
+  return settled
+}
+
 async function ticketWithCashoutQuote(
   ticket: BetTicket,
   now: Date,
@@ -449,7 +478,9 @@ export async function getTicket(
   now: Date = new Date(),
 ): Promise<BetTicketView | null> {
   const ticket = await prisma.betTicket.findFirst({ where: { id: ticketId, userId } })
-  return ticket ? ticketWithCashoutQuote(ticket, now) : null
+  if (!ticket) return null
+  const settled = await settleTicketRecord(ticket, now)
+  return ticketWithCashoutQuote(settled, now)
 }
 
 function selectionClockProgress(selection: TicketSelection, now: number): number {

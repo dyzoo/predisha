@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   updateManyEntry: vi.fn(),
   findTicket: vi.fn(),
   findManyTicket: vi.fn(),
+  findWallet: vi.fn(),
   findSlip: vi.fn(),
   createOrder: vi.fn(),
   orderStatus: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock('@/lib/prisma', () => ({
       updateMany: state.updateManyEntry,
     },
     betTicket: { findUnique: state.findTicket, findMany: state.findManyTicket },
+    betWallet: { findUnique: state.findWallet },
   },
 }))
 
@@ -178,6 +180,9 @@ beforeEach(() => {
   state.findSlip.mockReset()
   state.findSlip.mockImplementation(async () => state.slipRecord)
 
+  state.findWallet.mockReset()
+  state.findWallet.mockImplementation(async () => ({ balanceMinor: 10_000 }))
+
   state.createOrder.mockReset()
   state.createOrder.mockImplementation(async () => ({ success: true, orderId: 'HP1' }))
   state.orderStatus.mockReset()
@@ -243,6 +248,35 @@ describe('startSlipPayment', () => {
         }),
       }),
     )
+    expect(state.place).not.toHaveBeenCalled()
+  })
+
+  it('places a wallet-funded entry immediately for a signed-in user', async () => {
+    const result = await startSlipPayment({
+      code: 'ABC123',
+      phone: '',
+      userId: 'user-1',
+      source: 'wallet',
+    })
+
+    expect(result.entry.status).toBe('PAID')
+    expect(result.entry.ticketCode).toBe('TCK12345')
+    expect(state.createEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ provider: 'wallet', status: 'PAID', userId: 'user-1' }),
+      }),
+    )
+    expect(state.place).toHaveBeenCalledWith(expect.objectContaining({ entryId: 'entry-1' }))
+    expect(state.createOrder).not.toHaveBeenCalled()
+  })
+
+  it('rejects wallet payment when balance is below stake', async () => {
+    state.findWallet.mockImplementation(async () => ({ balanceMinor: 500 }))
+
+    await expect(
+      startSlipPayment({ code: 'ABC123', phone: '', userId: 'user-1', source: 'wallet' }),
+    ).rejects.toMatchObject({ code: 'INSUFFICIENT_FUNDS' })
+    expect(state.createEntry).not.toHaveBeenCalled()
     expect(state.place).not.toHaveBeenCalled()
   })
 })
@@ -320,6 +354,22 @@ describe('retrySlipEntry', () => {
         data: expect.objectContaining({ status: 'PAID', failureReason: null }),
       }),
     )
+  })
+
+  it('retries a failed wallet placement without a second charge', async () => {
+    state.entry = baseEntry({
+      status: 'FAILED',
+      provider: 'wallet',
+      providerOrderId: null,
+      failureReason: 'INSUFFICIENT_FUNDS',
+    })
+
+    const entry = await retrySlipEntry('entry-1')
+
+    expect(entry.status).toBe('PAID')
+    expect(entry.ticketId).toBe('ticket-1')
+    expect(state.place).toHaveBeenCalledTimes(1)
+    expect(state.orderStatus).not.toHaveBeenCalled()
   })
 
   it('refuses to retry when the HarakaPay payment was not confirmed', async () => {

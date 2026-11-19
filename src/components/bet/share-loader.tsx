@@ -18,6 +18,7 @@ import {
   Share2,
   Smartphone,
   UserPlus,
+  WalletCards,
 } from 'lucide-react'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
@@ -191,7 +192,8 @@ function dismissPromo(key: string): void {
 export function ShareLoader({ code }: { code: string }) {
   const router = useRouter()
   const { refreshViewer } = useViewer()
-  const { viewer, setSharedSlip, unlockSlip, openSlip, refreshWallet } = useBetSlip()
+  const { viewer, wallet, walletLoading, setSharedSlip, unlockSlip, openSlip, refreshWallet } =
+    useBetSlip()
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [message, setMessage] = useState<string | null>(null)
   const [stale, setStale] = useState(false)
@@ -401,10 +403,12 @@ export function ShareLoader({ code }: { code: string }) {
       }
     }
     void loadTicket()
+    const timer = setInterval(() => void loadTicket(), ticket?.status === 'OPEN' ? 10_000 : 30_000)
     return () => {
       cancelled = true
+      clearInterval(timer)
     }
-  }, [entry?.status, entry?.ticketId])
+  }, [entry?.status, entry?.ticketId, ticket?.status])
 
   function closePromo() {
     setPromoOpen(false)
@@ -439,7 +443,7 @@ export function ShareLoader({ code }: { code: string }) {
     }
   }
 
-  async function startPayment() {
+  async function startPayment(source: 'wallet' | 'phone') {
     if (paying) return
     setPayError(null)
 
@@ -454,7 +458,7 @@ export function ShareLoader({ code }: { code: string }) {
     }
 
     const cleaned = phone.trim()
-    if (cleaned.length < 7) {
+    if (source === 'phone' && cleaned.length < 7) {
       setPayError('Enter the mobile-money number you want to pay with.')
       return
     }
@@ -464,7 +468,7 @@ export function ShareLoader({ code }: { code: string }) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, phone: cleaned }),
+        body: JSON.stringify({ code, phone: source === 'wallet' ? '' : cleaned, source }),
       })
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string
@@ -477,6 +481,7 @@ export function ShareLoader({ code }: { code: string }) {
       }
       if (payload.slip) setSlip(payload.slip)
       if (payload.entry) setEntry(payload.entry)
+      if (source === 'wallet') await refreshWallet()
     } catch {
       setPayError('Network error. Please try again.')
     } finally {
@@ -630,8 +635,9 @@ export function ShareLoader({ code }: { code: string }) {
   const failed = entry?.status === 'FAILED' || entry?.status === 'CANCELLED'
   const frozen = slip.frozen || (slip.status !== 'OPEN' && !slip.inPlay)
   const canPay = !frozen && !paid && !pending
-  const isSandbox = slip.mode === 'SANDBOX'
   const signedIn = Boolean(viewer?.userId)
+  const walletBalanceMinor = wallet?.balanceMinor ?? 0
+  const hasWalletFunds = walletBalanceMinor >= slip.stakeMinor
   const displayOdds = slip.inPlay ? slip.quote.totalOdds : slip.totalOdds
   const displayGross = slip.inPlay ? slip.quote.potentialReturnMinor : slip.potentialReturnMinor
   const displayNet = slip.inPlay ? slip.quote.netPayoutMinor : slip.netPayoutMinor
@@ -664,11 +670,11 @@ export function ShareLoader({ code }: { code: string }) {
               <div className="min-w-0">
                 <BrandLogo surface="light" className="h-14 w-auto sm:h-16" />
                 <h1 className="mt-1 truncate font-display text-2xl font-bold italic text-main-text">
-                  {slip.title ?? (isSandbox ? 'Sandbox bet slip' : 'Shared bet slip')}
+                  {slip.title ?? 'Shared bet slip'}
                 </h1>
                 <p className="mt-1 font-mono text-base font-bold tracking-[0.18em] text-accent">{slip.code}</p>
                 <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-muted-text">
-                  {isSandbox ? 'Sandbox bet receipt' : 'Official shared bet receipt'}
+                  Shared bet receipt
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1075,8 +1081,24 @@ export function ShareLoader({ code }: { code: string }) {
                          <p className="mt-1 text-[10px] text-red-700">{cashoutError}</p>
                        ) : null}
                      </div>
-                   ) : null}
-                   <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                    ) : null}
+                    {ticket && (ticket.status === 'WON' || ticket.status === 'LOST' || ticket.status === 'VOID') ? (
+                      <div
+                        className={`mx-auto mt-4 max-w-sm rounded-xl border px-3 py-2.5 text-center text-xs ${
+                          ticket.status === 'WON'
+                            ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-800'
+                            : 'border-border bg-background/40 text-muted-text'
+                        }`}
+                      >
+                        {ticket.status === 'WON'
+                          ? `You won ${formatTzs(ticket.payoutMinor)}. The payout is in your wallet.`
+                          : ticket.status === 'LOST'
+                            ? 'This ticket did not win.'
+                            : 'This ticket was voided and returned to your wallet.'}
+                      </div>
+                    ) : null}
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+
                      <Link
                        href="/bet/bets"
 
@@ -1094,49 +1116,109 @@ export function ShareLoader({ code }: { code: string }) {
                 </div>
               ) : (
                 <div>
-                  <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
-                    <Smartphone className="h-4 w-4 text-accent" />
-                    {isSandbox ? 'Confirm your number' : 'Confirm and pay'}
-                  </h2>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-text">
-                    {isSandbox
-                      ? 'Enter the mobile number for this play-money slip to lock it in.'
-                      : 'Enter the mobile-money number. You will get a prompt to approve the payment, then the bet is placed automatically.'}
-                  </p>
-
-                  {!viewer.userId ? (
-                    <div className="mt-4 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-accent">
-                      No account needed to take this slip. Pay as a guest, then create a quick
-                      account only when you withdraw the Aviator trial prize.
+                  {signedIn ? (
+                    <div>
+                      <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+                        <WalletCards className="h-4 w-4 text-accent" />
+                        Pay from wallet
+                      </h2>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-text">
+                        Your bet is placed instantly and winnings return to your wallet.
+                      </p>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-text">
+                            Balance
+                          </p>
+                          <p className="mt-0.5 font-mono text-sm font-bold text-main-text">
+                            {walletLoading && !wallet ? '…' : formatTzs(walletBalanceMinor)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-text">Stake</p>
+                          <p className="mt-0.5 font-mono text-sm font-bold text-main-text">
+                            {formatTzs(slip.stakeMinor)}
+                          </p>
+                        </div>
+                      </div>
+                      {!hasWalletFunds && !walletLoading ? (
+                        <div className="mt-3 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-[11px] leading-relaxed text-amber-900">
+                          Add funds to your wallet to take this slip.{' '}
+                          <Link href="/bet/deposit" className="font-bold underline underline-offset-2">
+                            Add funds
+                          </Link>
+                        </div>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => startPayment('wallet')}
+                        disabled={!canPay || paying || frozen || !hasWalletFunds || walletLoading || !wallet}
+                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {paying ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <WalletCards className="h-4 w-4" />
+                        )}
+                        {paying
+                          ? 'Placing bet...'
+                          : `Place bet · ${formatTzs(slip.stakeMinor)}`}
+                      </button>
                     </div>
-                  ) : null}
-
-                  <label className="mt-4 block">
-                    <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
-                      Mobile number
-                    </span>
-                    <input
-                      type="tel"
-                      inputMode="tel"
-                      value={phone}
-                      onChange={event => setPhone(event.target.value)}
-                      placeholder="07XX XXX XXX"
-                      disabled={!canPay && !failed}
-                      className="w-full rounded-xl border border-border bg-white/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60 disabled:opacity-60"
-                    />
-                  </label>
-
-                  {pending ? (
-                    <div className="mt-4 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-accent">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Waiting for the mobile-money prompt on {entry?.phoneMasked ?? 'your phone'}...
+                  ) : (
+                    <div>
+                      <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+                        <Smartphone className="h-4 w-4 text-accent" />
+                        Confirm and pay
+                      </h2>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-text">
+                        Enter the mobile-money number. You will get a prompt to approve the payment,
+                        then the bet is placed automatically.
+                      </p>
+                      <div className="mt-4 rounded-xl border border-accent/20 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-accent">
+                        You can take this slip as a guest. Create an account to keep your bets and
+                        withdraw winnings.
+                      </div>
+                      <label className="mt-4 block">
+                        <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
+                          Mobile number
+                        </span>
+                        <input
+                          type="tel"
+                          inputMode="tel"
+                          value={phone}
+                          onChange={event => setPhone(event.target.value)}
+                          placeholder="07XX XXX XXX"
+                          disabled={!canPay && !failed}
+                          className="w-full rounded-xl border border-border bg-white/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60 disabled:opacity-60"
+                        />
+                      </label>
+                      {pending ? (
+                        <div className="mt-4 flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-xs text-accent">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Waiting for the mobile-money prompt on {entry?.phoneMasked ?? 'your phone'}...
+                        </div>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => startPayment('phone')}
+                        disabled={!canPay || paying || frozen}
+                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {paying ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Smartphone className="h-4 w-4" />
+                        )}
+                        {paying ? 'Starting payment...' : `Pay ${formatTzs(slip.stakeMinor)}`}
+                      </button>
                     </div>
-                  ) : null}
+                  )}
 
                   {failed ? (
                     <p className="mt-4 flex items-center gap-1.5 rounded-xl border border-red-700/25 bg-red-700/10 px-3 py-2 text-xs text-red-800">
                       <CircleAlert className="h-4 w-4" />
-                      {entry?.message ?? 'The payment did not complete. You can try again.'}
+                      {entry?.message ?? 'The bet could not be placed. You can try again.'}
                     </p>
                   ) : null}
 
@@ -1146,24 +1228,6 @@ export function ShareLoader({ code }: { code: string }) {
                       {payError}
                     </p>
                   ) : null}
-
-                  <button
-                    type="button"
-                    onClick={startPayment}
-                    disabled={!canPay || paying || frozen}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {paying ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Smartphone className="h-4 w-4" />
-                    )}
-                    {paying
-                      ? 'Starting payment...'
-                      : isSandbox
-                        ? `Confirm ${formatTzs(slip.stakeMinor)} slip`
-                        : `Pay ${formatTzs(slip.stakeMinor)}`}
-                  </button>
                 </div>
               )}
             </div>

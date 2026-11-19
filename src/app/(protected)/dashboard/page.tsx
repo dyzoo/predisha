@@ -147,12 +147,12 @@ export default async function DashboardPage() {
   const winNotifications = [
     ...wonBets.map(ticket => ({
       id: 'bet:' + ticket.id,
-      message: 'You were assigned as the winner for bet slip ' + ticket.code + '. Payout after VAT: ' + formatTzs(ticket.payoutMinor) + ' TZS.',
+      message: 'You won on ticket ' + ticket.code + '. Payout after VAT: ' + formatTzs(ticket.payoutMinor) + ' TZS.',
       payoutMinor: ticket.payoutMinor,
     })),
     ...winnerSlips.map(slip => ({
       id: 'winner:' + slip.id,
-      message: 'You were assigned as the winner for bet slip ' + slip.code + '. Payout after VAT: ' + formatTzs(slip.netPayoutMinor) + ' TZS.',
+      message: 'You won on ticket ' + slip.code + '. Payout after VAT: ' + formatTzs(slip.netPayoutMinor) + ' TZS.',
       payoutMinor: slip.netPayoutMinor,
     })),
   ].filter(notification => notification.payoutMinor > 0)
@@ -192,7 +192,7 @@ export default async function DashboardPage() {
             <div>
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-accent">
                 <Sparkles className="h-3.5 w-3.5" />
-                Winner assigned
+                Winnings received
               </p>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-main-text">
                 {winNotifications[0].message}

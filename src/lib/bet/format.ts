@@ -1,5 +1,4 @@
 import { BET_CURRENCY } from './types'
-import type { BetMode } from './mode-copy'
 
 const tzs = new Intl.NumberFormat('en-GB', {
   style: 'currency',
@@ -88,10 +87,11 @@ export function statusLabel(status: string): string {
   }
 }
 
-export function transactionLabel(type: string, mode: BetMode = 'LIVE'): string {
+export function transactionLabel(type: string): string {
   switch (type) {
     case 'DEPOSIT':
-      return mode === 'SANDBOX' ? 'Sandbox deposit' : 'Deposit'
+    case 'ADJUSTMENT':
+      return 'Wallet top-up'
     case 'WITHDRAWAL':
       return 'Mobile-money transfer'
     case 'BET_STAKE':

@@ -200,9 +200,25 @@ export const adminWinnerFromTicketSchema = z.object({
   note: z.string().trim().max(280).optional(),
 })
 
-export const slipPaySchema = z.object({
-  phone: z.string().trim().min(7).max(20),
+export const adminWalletFundSchema = z.object({
+  amountMinor: z.number().int().min(1).max(MAX_DEPOSIT_MINOR),
 })
+
+export const slipPaymentSchema = z
+  .object({
+    code: shareCodeSchema,
+    phone: z.string().trim().max(20).optional(),
+    source: z.enum(['wallet', 'phone']).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.source !== 'wallet' && (!value.phone || value.phone.length < 7)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Enter a valid mobile number.',
+        path: ['phone'],
+      })
+    }
+  })
 
 export const adminPlatformModeSchema = z.object({
   mode: z.enum(['LIVE', 'SANDBOX']),
@@ -244,6 +260,8 @@ export type PlaceBetInput = z.infer<typeof placeBetSchema>
 export type AdminSlipCreateInput = z.infer<typeof adminSlipCreateSchema>
 export type AdminWinnerCreateInput = z.infer<typeof adminWinnerCreateSchema>
 export type AdminWinnerFromTicketInput = z.infer<typeof adminWinnerFromTicketSchema>
+export type AdminWalletFundInput = z.infer<typeof adminWalletFundSchema>
+export type SlipPaymentInput = z.infer<typeof slipPaymentSchema>
 export type SelectionInput = z.infer<typeof selectionInputSchema>
 export type DepositInput = z.infer<typeof depositSchema>
 export type WithdrawInput = z.infer<typeof withdrawSchema>

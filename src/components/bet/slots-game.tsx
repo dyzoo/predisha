@@ -69,7 +69,7 @@ export function SlotsGame() {
     <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
       <div className="rounded-3xl border border-border bg-gradient-to-br from-surface via-surface to-accent/10 p-5 sm:p-6">
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-          Slots {mode === 'SANDBOX' ? 'Sandbox' : 'Live'}
+          Slots {mode === 'SANDBOX' ? 'Wallet' : 'Live'}
         </p>
         <h1 className="mt-1 font-display text-2xl font-semibold">Three-reel arcade</h1>
         <p className="mt-1 text-sm text-muted-text">
@@ -163,7 +163,7 @@ export function SlotsGame() {
           {walletBlocked ? 'Deposit to play' : `Spin for ${formatTzs(stakeMinor)}`}
         </button>
         <p className="mt-3 text-[11px] leading-relaxed text-muted-text">
-          Symbols are weighted server-side. This is a play-money arcade, not a real slot machine.
+          Symbols are weighted server-side. This is a wallet arcade, not a real slot machine.
         </p>
       </div>
     </div>

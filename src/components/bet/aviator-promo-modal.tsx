@@ -38,7 +38,7 @@ export function AviatorPromoModal({
             <div>
               <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
                 <Sparkles className="h-3.5 w-3.5" />
-                Aviator trial unlocked
+                Aviator bonus unlocked
               </p>
               <h2 id="aviator-promo-title" className="mt-1 font-display text-2xl font-semibold">
                 Your free flight is ready
@@ -47,7 +47,7 @@ export function AviatorPromoModal({
           </div>
 
           <p className="relative mt-4 text-sm leading-relaxed text-muted-text">
-            Your shared slip is paid. We loaded an Aviator-only trial wallet with{' '}
+            Your shared slip is paid. We loaded an Aviator bonus balance with{' '}
             <span className="font-semibold text-main-text">{formatTzs(trial.stakeMinor)}</span>. One
             flight, no signup needed.
           </p>
@@ -57,7 +57,7 @@ export function AviatorPromoModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-border bg-background/50 p-4 text-center">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-text">
-                Trial credit
+                Bonus credit
               </p>
               <p className="mt-1 font-display text-xl font-bold tabular-nums">
                 {formatTzs(trial.stakeMinor)}

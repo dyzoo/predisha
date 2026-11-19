@@ -18,7 +18,7 @@ export async function POST(
       ticket,
       wallet: await getWalletView(viewer.userId),
       mode: await getBetMode(),
-      note: 'Demo fixtures were resolved with the demo resolver.',
+      note: 'Result checked and updated.',
     })
   } catch (error) {
     return handleBetError(error)

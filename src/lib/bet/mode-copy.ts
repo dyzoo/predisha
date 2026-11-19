@@ -89,53 +89,43 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
   },
   SANDBOX: {
     mode: 'SANDBOX',
-    label: 'Sandbox',
-    badge: 'Sandbox mode',
+    label: 'Standard',
+    badge: 'Wallet mode',
     isLive: false,
-    walletName: 'Sandbox wallet',
-    walletHint: 'Play money only. No real deposits or withdrawals.',
-    addFunds: 'Add sandbox funds',
-    depositTitle: 'Add sandbox funds',
+    walletName: 'Betting wallet',
+    walletHint: 'Funds are available for bets and payouts.',
+    addFunds: 'Add funds',
+    depositTitle: 'Add funds',
     depositDescription:
-      'Credit play money to your sandbox wallet instantly. No phone number, PIN or payment is requested.',
+      'Credit your wallet instantly. No phone number, PIN or payment is requested.',
     withdrawTitle: 'Transfer funds',
     withdrawDescription:
       'Move funds out of your wallet to a mobile-money number.',
-    banner:
-      'Sandbox mode is active: balances, bets and payouts are play money. An administrator can switch the platform to live mode.',
-    footer:
-      'SpotibetBet sandbox is a practice sportsbook. All balances and payouts are play money.',
-    gamesTitle: 'Sandbox games',
-    gamesDescription:
-      'Fast rounds with server-side randomness and play-money stakes. No real-money wagering.',
-    promosTitle: 'Sandbox bonuses',
-    promosDescription: 'One claim per promo per account. Bonuses are play money with no cash value.',
+    banner: 'Wallet mode is active: balances, bets and payouts update instantly.',
+    footer: 'SpotibetBet keeps a ledger entry for every balance change.',
+    gamesTitle: 'Games',
+    gamesDescription: 'Fast rounds with server-side randomness and wallet stakes.',
+    promosTitle: 'Bonuses',
+    promosDescription: 'One claim per promo per account. Bonuses are credited to your wallet.',
     shareNote: 'Share codes expire after 24 hours.',
-    paymentNote: 'Sandbox mode does not collect payments.',
-    safetyNote:
-      'Sandbox balances have no cash value and cannot be withdrawn. Never share a mobile-money PIN with anyone.',
-    homeEyebrow: 'Sandbox sportsbook',
-    homeAccent: 'Play-money stakes.',
+    paymentNote: 'Wallet stakes are placed instantly.',
+    safetyNote: 'Never share a mobile-money PIN with anyone.',
+    homeEyebrow: 'Sportsbook',
+    homeAccent: 'Wallet stakes.',
     homeDescription:
-      'SpotibetBet sandbox brings fixtures, a fast bet slip and play-money settlement together in one place.',
-    walletsTitle: 'Play-money wallets',
-    walletsBody:
-      'Every balance, stake, promo and payout is play money. Deposits and withdrawals are ledger entries inside the app.',
+      'SpotibetBet brings fixtures, a fast bet slip and wallet settlement together in one place.',
+    walletsTitle: 'Wallets',
+    walletsBody: 'Every balance, stake, promo and payout is recorded in your wallet ledger.',
     oddsTitle: 'Fixed prices',
-    oddsBody:
-      'Prices include a book margin. Sandbox balances carry no cash value.',
+    oddsBody: 'Prices include a book margin.',
     frozenTitle: 'Frozen prices',
-    frozenBody:
-      'A selection is frozen at the price shown when you place the bet.',
-    serverTitle: 'Play-money ledgers',
-    serverBody:
-      'Every balance change is a stored, idempotent transaction against the play-money wallet.',
-    ticketTitle: 'Play-money settlement',
-    ticketBody:
-      'Tickets settle against the fixture result once the match is complete.',
+    frozenBody: 'A selection is frozen at the price shown when you place the bet.',
+    serverTitle: 'Wallet ledger',
+    serverBody: 'Every balance change is a stored, idempotent transaction against your wallet.',
+    ticketTitle: 'Settlement',
+    ticketBody: 'Tickets settle against the fixture result once the match is complete.',
     gameTitle: 'Game fairness',
-    gameBody:
-      'Game outcomes use server-side randomness and stored round details for review.',
+    gameBody: 'Game outcomes use server-side randomness and stored round details for review.',
   },
 }
 
