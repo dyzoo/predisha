@@ -45,6 +45,31 @@ describe('in-play odds', () => {
     expect(late.selections[0]?.odds).toBeLessThan(early.selections[0]?.odds ?? 0)
   })
 
+  it('only discounts selections whose own clock has started', () => {
+    const liveSelection: TicketSelection = {
+      ...selection(),
+      simulation: { ...clock },
+    }
+    const pendingSelection: TicketSelection = {
+      ...selection(),
+      fixtureId: 'fixture-2',
+      kickoffIso: '2026-01-01T19:00:00.000Z',
+      simulation: {
+        ...clock,
+        liveStartedAt: '2026-01-01T19:00:00.000Z',
+        kickoffIso: '2026-01-01T19:00:00.000Z',
+      },
+    }
+    const result = applyInPlayOdds(
+      [liveSelection, pendingSelection],
+      clock,
+      Date.parse('2026-01-01T12:30:00.000Z'),
+    )
+    expect(result.selections[0]?.odds).toBeLessThan(2)
+    expect(result.selections[1]?.odds).toBe(2)
+    expect(result.selections[1]?.inPlayFactor).toBe(1)
+  })
+
   it('lowers the payout for a stake placed after kickoff', () => {
     const pre = inPlayQuote(1000, [selection()], null)
     const live = inPlayQuote(

@@ -15,7 +15,8 @@ export function inPlayOddsFactor(progress: number): number {
 }
 
 export function inPlayProgress(clock: TicketSimulationMeta, now: number = Date.now()): number {
-  return matchClock(clock, now).progress
+  const state = matchClock(clock, now)
+  return state.started ? state.progress : 0
 }
 
 export function clockFromKickoff(
@@ -39,15 +40,20 @@ export function applyInPlayOdds(
   clock: TicketSimulationMeta,
   now: number = Date.now(),
 ): { selections: TicketSelection[]; factor: number; progress: number } {
-  const progress = inPlayProgress(clock, now)
-  const factor = inPlayOddsFactor(progress)
+  let factor = 1
+  let progress = 0
   const adjusted = selections.map(selection => {
+    const selectionClock = selection.simulation ?? clock
+    const selectionProgress = inPlayProgress(selectionClock, now)
+    const selectionFactor = inPlayOddsFactor(selectionProgress)
+    factor = Math.min(factor, selectionFactor)
+    progress = Math.max(progress, selectionProgress)
     const baseOdds = selection.baseOdds ?? selection.odds
     return {
       ...selection,
       baseOdds,
-      inPlayFactor: factor,
-      odds: Math.max(1.01, roundOdds(baseOdds * factor)),
+      inPlayFactor: selectionFactor,
+      odds: Math.max(1.01, roundOdds(baseOdds * selectionFactor)),
     }
   })
   return { selections: adjusted, factor, progress }

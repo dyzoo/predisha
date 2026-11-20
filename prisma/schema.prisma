@@ -686,6 +686,36 @@ enum AdminBetSlipStatus {
   CLOSED
 }
 
+// Saved bet-slip designs created in the admin slip studio. These are visual
+// receipts the admin can reopen, edit, mark as won and export as PNG images.
+model AdminSlipDesign {
+  id            String                @id @default(cuid())
+  code          String                @unique
+  title         String?
+  status        AdminSlipDesignStatus @default(DRAFT)
+  selections    Json
+  stakeMinor    Int
+  bonusMinor    Int                   @default(0)
+  taxPercent    Float                 @default(15)
+  reuseCount    Int                   @default(1)
+  totalOdds     Float
+  winningsMinor Int
+  taxMinor      Int
+  payoutMinor   Int
+  createdBy     String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([status])
+  @@index([createdBy, updatedAt])
+}
+
+enum AdminSlipDesignStatus {
+  DRAFT
+  READY
+  WON
+}
+
 // A customer's attempt to take an admin-authored slip. Payment is collected
 // with HarakaPay before the entry is marked PAID.
 model AdminBetEntry {

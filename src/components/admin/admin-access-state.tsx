@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Lock, ShieldAlert } from 'lucide-react'
+import { Lock, ShieldAlert } from 'lucide-react'
 
 export function AdminAccessState({ status }: { status: 'unconfigured' | 'forbidden' }) {
   if (status === 'unconfigured') {
@@ -28,11 +28,10 @@ export function AdminAccessState({ status }: { status: 'unconfigured' | 'forbidd
         for every request.
       </p>
       <Link
-        href="/dashboard"
+        href="/sign-in"
         className="mt-5 inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-main-text transition-colors hover:bg-elevated-surface"
       >
-        Back to dashboard
-        <ArrowRight className="h-4 w-4" />
+        Back to sign in
       </Link>
     </div>
   )

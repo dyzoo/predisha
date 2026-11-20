@@ -383,14 +383,6 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                   <Copy className="h-3.5 w-3.5" />
                   {copiedCode === slip.code ? 'Copied' : 'Copy link'}
                 </button>
-                <a
-                  href={`/bet/share/${slip.code}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] font-semibold text-accent hover:underline"
-                >
-                  Open
-                </a>
                 {slip.timeMode === 'SIMULATED' && !slip.liveStartedAt && slip.status !== 'CLOSED' ? (
                   <button
                     type="button"

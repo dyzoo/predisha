@@ -107,6 +107,7 @@ interface SharedLiveMatch {
   competition: string
   kickoffIso: string
   minute: number | null
+  label?: string
   score: { home: number; away: number } | null
   home: SharedTeam
   away: SharedTeam
@@ -222,25 +223,29 @@ export function ShareLoader({ code }: { code: string }) {
   const activeMatch = activeClock ? matchClock(activeClock, now) : null
 
   const simulatedLiveMatches = useMemo<SharedLiveMatch[]>(() => {
-    if (!slip || !activeClock || !activeMatch?.live) return []
+    if (!slip || !activeClock) return []
     return slip.selections.flatMap(selection => {
+      const clock = selection.simulation ?? activeClock
+      const state = matchClock(clock, now)
+      if (!state.live) return []
       const teams = teamsFromFixtureLabel(selection.fixtureLabel, selection.fixtureId)
-      const minute = activeMatch.minute
       return [
         {
           fixtureId: selection.fixtureId,
           competition: selection.competition,
-          kickoffIso: activeClock.kickoffIso ?? selection.kickoffIso,
-          minute,
-          score: simulatedScore(selection, activeClock, minute),
+          kickoffIso: clock.kickoffIso ?? selection.kickoffIso,
+          minute: state.minute,
+          label: state.label,
+          score: simulatedScore(selection, clock, state.minute),
           ...teams,
           simulated: true,
         },
       ]
     })
-  }, [slip, activeClock, activeMatch])
+  }, [slip, activeClock, now])
 
   const simulatedLive = simulatedLiveMatches.length > 0
+  const liveBadgeLabel = simulatedLiveMatches[0]?.label ?? activeMatch?.label ?? null
   const awaitingSimulatedStart =
     slip?.timeMode === 'SIMULATED' && !slip.liveStartedAt && slip.status !== 'CLOSED'
 
@@ -653,7 +658,7 @@ export function ShareLoader({ code }: { code: string }) {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-600 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
             </span>
-            Match has started{activeMatch ? ` · ${activeMatch.label}` : ''}. New stakes use live odds.
+            Match has started{liveBadgeLabel ? ` · ${liveBadgeLabel}` : ''}. New stakes use live odds.
           </span>
           <Link
             href={`/bet/live?slip=${encodeURIComponent(slip.code)}`}
@@ -792,13 +797,13 @@ export function ShareLoader({ code }: { code: string }) {
                 >
                   {paid ? 'PAID' : slip.inPlay ? 'LIVE' : slip.status}
                 </span>
-                {activeMatch?.live ? (
+                {simulatedLive || activeMatch?.live ? (
                   <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-red-400/30 bg-red-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-700">
                     <span className="relative flex h-2 w-2">
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-600 opacity-75" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-red-600" />
                     </span>
-                    Live {activeMatch.label}
+                    Live {liveBadgeLabel ?? ''}
                   </span>
                 ) : null}
                 <button
@@ -825,8 +830,8 @@ export function ShareLoader({ code }: { code: string }) {
               </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-accent" />
-                  {activeMatch?.live
-                    ? `Match clock ${activeMatch.label}`
+                  {simulatedLive || activeMatch?.live
+                    ? `Match clock ${liveBadgeLabel ?? activeMatch?.label ?? ''}`
                     : `Closes ${formatDateTimeLabel(slip.autoFreezeAt)}`}
                 </span>
 
@@ -913,7 +918,7 @@ export function ShareLoader({ code }: { code: string }) {
                         </div>
                       </div>
                       <p className="mt-1.5 text-center text-[10px] font-semibold text-red-700">
-                        {activeMatch?.label ?? (match.minute ? `${match.minute}'` : 'In play')}
+                        {match.label ?? activeMatch?.label ?? (match.minute ? `${match.minute}'` : 'In play')}
                       </p>
                     </li>
                   ))}
@@ -960,7 +965,7 @@ export function ShareLoader({ code }: { code: string }) {
                         </div>
                       </div>
                       <p className="mt-1.5 text-center text-[10px] font-semibold text-red-700">
-                        {activeMatch?.label ?? (match.minute ? `${match.minute}'` : 'In play')}
+                        {match.label ?? activeMatch?.label ?? (match.minute ? `${match.minute}'` : 'In play')}
                       </p>
                     </li>
                   ))}
@@ -976,6 +981,10 @@ export function ShareLoader({ code }: { code: string }) {
 
               <ul className="mt-3 space-y-2">
                 {slip.selections.map((selection, index) => {
+                  const selectionClock = selection.simulation ?? activeClock
+                  const selectionLive = selectionClock
+                    ? matchClock(selectionClock, now).live
+                    : slip.inPlay
                   return (
                     <li
                       key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
@@ -991,7 +1000,7 @@ export function ShareLoader({ code }: { code: string }) {
                         <p className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-muted-text">
                           {selection.competition}
                         </p>
-                        {slip.inPlay ? (
+                        {selectionLive ? (
                           <p className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
                             In play · {formatOdds(selection.baseOdds ?? selection.odds)} →{' '}

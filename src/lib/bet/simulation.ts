@@ -9,17 +9,46 @@ export const DEFAULT_SIMULATED_DURATION_MINUTES = 90
 
 export type SimulationClock = TicketSimulationMeta
 
+function toClockIso(value: string | null | undefined): string | null {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
+}
+
+export function simulationClockForSelection(
+  selection: TicketSelection,
+  clock: SimulationClock,
+): SimulationClock {
+  const kickoffIso =
+    toClockIso(selection.kickoffIso) ?? toClockIso(clock.kickoffIso) ?? clock.liveStartedAt
+  return {
+    ...clock,
+    liveStartedAt: kickoffIso,
+    kickoffIso,
+  }
+}
+
 export function attachSimulationClock(
   selections: TicketSelection[],
   clock: SimulationClock,
 ): TicketSelection[] {
-  return selections.map(selection => ({ ...selection, simulation: { ...clock } }))
+  return selections.map(selection => ({
+    ...selection,
+    simulation: simulationClockForSelection(selection, clock),
+  }))
 }
 
 export function simulationClockFromSelection(
   selection: TicketSelection,
 ): SimulationClock | null {
   return selection.simulation ?? null
+}
+
+export function selectionHasStarted(selection: TicketSelection, now: number = Date.now()): boolean {
+  const clock = simulationClockFromSelection(selection)
+  if (clock) return matchClock(clock, now).started
+  const kickoffIso = toClockIso(selection.kickoffIso)
+  return kickoffIso ? new Date(kickoffIso).getTime() <= now : false
 }
 
 export function simulationElapsedMs(clock: SimulationClock, now: number = Date.now()): number {
@@ -147,31 +176,48 @@ export function simulatedCashoutOffer(input: {
   stakeMinor: number
   potentialReturnMinor: number
   selections: TicketSelection[]
-  clock: SimulationClock
+  clock?: SimulationClock | null
   now?: number
 }): { offer: number; blocked: boolean } {
   const now = input.now ?? Date.now()
-  const progress = matchClock(input.clock, now).progress
+  let progress = 0
   let wins = 0
   let losses = 0
+  let started = 0
 
   for (const selection of input.selections) {
-    const outcome = projectedOutcome(selection, input.clock)
+    const clock =
+      selection.simulation ??
+      (input.clock ? simulationClockForSelection(selection, input.clock) : null)
+    if (!clock) continue
+    const state = matchClock(clock, now)
+    if (!state.started) continue
+
+    started += 1
+    progress = Math.max(progress, state.progress)
+    const outcome = projectedOutcome(selection, clock)
     if (outcome === true) wins += 1
     if (outcome === false) losses += 1
   }
 
+  if (started === 0) return { offer: 0, blocked: true }
+
   let outcome: CashoutOutcome = 'UNKNOWN'
   if (losses > 0 && wins > 0) outcome = 'MIXED'
   else if (losses > 0) outcome = 'LOSE'
-  else if (wins === input.selections.length && input.selections.length > 0) outcome = 'WIN'
+  else if (wins === started) outcome = 'WIN'
+
+  const seed =
+    input.clock?.seed ??
+    input.selections.find(selection => selection.simulation)?.simulation?.seed ??
+    ''
 
   if (outcome === 'WIN') {
     const stake = Math.max(0, Math.floor(input.stakeMinor))
     const potential = Math.max(stake, Math.floor(input.potentialReturnMinor))
     const profit = Math.max(0, potential - stake)
     const bucket = Math.floor(now / 30_000)
-    const bonus = (hashString(`${input.clock.seed}:cashout:${bucket}`) % 12) / 1000
+    const bonus = (hashString(`${seed}:cashout:${bucket}`) % 12) / 1000
     const raw = stake + profit * (0.35 + 0.45 * progress)
     const offer = Math.floor(Math.min(potential, Math.max(stake, raw * (1 + bonus))))
     return { offer, blocked: false }
@@ -182,7 +228,7 @@ export function simulatedCashoutOffer(input: {
     potentialReturnMinor: input.potentialReturnMinor,
     outcome,
     progress,
-    seed: input.clock.seed,
+    seed,
     now,
   })
 }

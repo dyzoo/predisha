@@ -26,8 +26,8 @@ import {
 import { formatMatchMinuteFromElapsed, matchClock } from '@/lib/bet/match-clock'
 import {
   simulatedScore,
+  selectionHasStarted,
   simulationClockFromSelection,
-  simulationIsLive,
   simulationMinute,
 } from '@/lib/bet/simulation'
 import type {
@@ -91,11 +91,10 @@ function statusClasses(status: BetTicketView['status']): string {
 
 function isLiveTicket(ticket: BetTicketView, events: EventMap, now: number): boolean {
   if (ticket.status !== 'OPEN') return false
-  return ticket.selections.some(selection => {
-    const clock = simulationClockFromSelection(selection)
-    if (clock && simulationIsLive(clock, now)) return true
-    return events[selection.fixtureId]?.live
-  })
+  return ticket.selections.some(
+    selection =>
+      selectionHasStarted(selection, now) || Boolean(events[selection.fixtureId]?.live),
+  )
 }
 
 function selectionScore(selection: TicketSelection, event: BetEvent | undefined, now: number) {
@@ -107,8 +106,9 @@ function selectionScore(selection: TicketSelection, event: BetEvent | undefined,
 function liveMinute(selection: TicketSelection, event: BetEvent | undefined, now: number): string | null {
   const clock = simulationClockFromSelection(selection)
   if (clock) return matchClock(clock, now).label
-  if (!event?.live) return null
-  const elapsed = Math.max(0, Math.floor((now - new Date(selection.kickoffIso).getTime()) / 60_000))
+  const kickoff = new Date(selection.kickoffIso).getTime()
+  if (Number.isNaN(kickoff) || kickoff > now) return event?.live ? 'LIVE' : null
+  const elapsed = Math.max(0, Math.floor((now - kickoff) / 60_000))
   if (elapsed >= 100) return 'FT'
   return formatMatchMinuteFromElapsed(elapsed)
 }
@@ -224,7 +224,9 @@ function LiveTicketBody({
                   </p>
                   {minute ? (
                     <p className="mt-1 text-[10px] font-semibold text-red-300">{minute}</p>
-                  ) : null}
+                  ) : (
+                    <p className="mt-1 text-[10px] font-semibold text-muted-text">Not started</p>
+                  )}
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between gap-3">
@@ -437,11 +439,13 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
 
     void loadEvents()
     const timer = setInterval(loadEvents, 30_000)
+    const refreshTimer = setInterval(() => router.refresh(), 15_000)
     return () => {
       active = false
       clearInterval(timer)
+      clearInterval(refreshTimer)
     }
-  }, [hasOpenTickets])
+  }, [hasOpenTickets, router])
 
   if (tickets.length === 0) {
     return <EmptyTickets tab="OPEN" />

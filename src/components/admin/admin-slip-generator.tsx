@@ -67,8 +67,29 @@ function toPicked(picks: AdminRecommendationPick[]): PickedSelection[] {
   return picks.map(pick => ({ ...pick, odds: pick.odds.toFixed(2) }))
 }
 
-function toRandomPicked(picks: RandomSelectionDraft[]): PickedSelection[] {
-  return picks.map(pick => ({ ...pick, odds: pick.odds.toFixed(2), riskLevel: 'random' }))
+function staggeredKickoff(baseIso: string, index: number): string {
+  const base = new Date(baseIso).getTime()
+  if (Number.isNaN(base)) return baseIso
+  return new Date(base + index * 15 * 60_000).toISOString()
+}
+
+function toRandomPicked(
+  picks: RandomSelectionDraft[],
+  staggerBase?: string,
+  offset = 0,
+): PickedSelection[] {
+  return picks.map((pick, index) => {
+    const kickoffIso = staggerBase
+      ? staggeredKickoff(staggerBase, offset + index)
+      : pick.kickoffIso
+    return {
+      ...pick,
+      kickoffIso,
+      kickoffLabel: formatKickoffLabel(kickoffIso),
+      odds: pick.odds.toFixed(2),
+      riskLevel: 'random',
+    }
+  })
 }
 
 function normalizeOddsValue(odds: string): number {
@@ -171,6 +192,7 @@ export function AdminSlipGenerator({
             leagueName: randomLeague,
             prefix: randomPrefix(),
           }),
+          iso,
         ),
       )
       setGeneratedAt(iso)
@@ -189,11 +211,14 @@ export function AdminSlipGenerator({
     if (creationMode !== 'RANDOM') return
     const iso = kickoffIsoFromInput(value)
     setPicked(current =>
-      current.map(item => ({
-        ...item,
-        kickoffIso: iso,
-        kickoffLabel: formatKickoffLabel(iso),
-      })),
+      current.map((item, index) => {
+        const kickoffIso = staggeredKickoff(iso, index)
+        return {
+          ...item,
+          kickoffIso,
+          kickoffLabel: formatKickoffLabel(kickoffIso),
+        }
+      }),
     )
   }
 
@@ -207,7 +232,7 @@ export function AdminSlipGenerator({
       leagueName: randomLeague,
       prefix: randomPrefix(),
     })
-    const next = toRandomPicked(drafts)
+    const next = toRandomPicked(drafts, iso, append ? picked.length : 0)
     setPicked(current => {
       if (!append) return next
       const existing = new Set(current.map(item => item.fixtureId))
@@ -533,7 +558,7 @@ export function AdminSlipGenerator({
             ? 'Catalog kickoffs stay unchanged. Random teams use the kickoff above.'
             : timeMode === 'MANUAL'
               ? 'Every selection uses the kickoff above. Bets freeze at that time.'
-              : 'Start the clock from the slip list when you are ready. Users then see LIVE time updates.'}
+              : 'Start the clock from the slip list when you are ready. Random matches are spaced 15 minutes apart; edit each kickoff below to set exact times. A match goes live only when its own kickoff passes.'}
         </p>
       </div>
 
@@ -852,14 +877,6 @@ export function AdminSlipGenerator({
               )}
               {copied ? 'Copied' : 'Copy link'}
             </button>
-            <a
-              href={result.shareUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[11px] font-semibold text-accent hover:underline"
-            >
-              Open share page
-            </a>
           </div>
         </div>
       ) : null}

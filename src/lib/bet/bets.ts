@@ -489,11 +489,6 @@ export async function getTicket(
   return ticketWithCashoutQuote(settled, now)
 }
 
-function selectionClockProgress(selection: TicketSelection, now: number): number {
-  const clock = matchClockFromKickoff(selection.kickoffIso, 90, now)
-  return clock.started ? clock.progress : 0
-}
-
 function cashoutOffer(
   ticket: Pick<BetTicket, 'stakeMinor' | 'potentialReturnMinor' | 'code'>,
   selections: TicketSelection[],
@@ -501,13 +496,12 @@ function cashoutOffer(
   eventById: Map<string, Awaited<ReturnType<typeof getBetCatalog>>['events'][number]>,
   now: Date = new Date(),
 ): { offer: number; blocked: boolean } {
-  const clock = selections.find(selection => selection.simulation)?.simulation
-  if (clock) {
+  if (selections.some(selection => selection.simulation)) {
     return simulatedCashoutOffer({
       stakeMinor: ticket.stakeMinor,
       potentialReturnMinor: ticket.potentialReturnMinor,
       selections,
-      clock,
+      clock: selections.find(selection => selection.simulation)?.simulation,
       now: now.getTime(),
     })
   }
@@ -515,36 +509,53 @@ function cashoutOffer(
   let wins = 0
   let losses = 0
   let progress = 0
+  let started = 0
 
   for (const selection of selections) {
     const result = results.get(selection.fixtureId)
-    if (
+    const finishedResult =
       result?.status === 'FINISHED' &&
       typeof result.homeScore === 'number' &&
       typeof result.awayScore === 'number'
+        ? result
+        : null
+    const event = eventById.get(selection.fixtureId)
+    const clock = matchClockFromKickoff(selection.kickoffIso, 90, now.getTime())
+    const selectionStarted = finishedResult !== null || Boolean(event?.live) || clock.started
+    if (!selectionStarted) continue
+
+    started += 1
+    if (
+      finishedResult &&
+      typeof finishedResult.homeScore === 'number' &&
+      typeof finishedResult.awayScore === 'number'
     ) {
-      const won = settleMarket(selection.selectionId, result.homeScore, result.awayScore)
+      const won = settleMarket(
+        selection.selectionId,
+        finishedResult.homeScore,
+        finishedResult.awayScore,
+      )
       if (won === true) wins += 1
       if (won === false) losses += 1
+      progress = Math.max(progress, clock.started ? clock.progress : 1)
       continue
     }
 
-    const event = eventById.get(selection.fixtureId)
     if (event?.live && event.score) {
       const won = settleMarket(selection.selectionId, event.score.home, event.score.away)
       if (won === true) wins += 1
       if (won === false) losses += 1
-      progress = Math.max(progress, selectionClockProgress(selection, now.getTime()))
-      continue
     }
 
-    progress = Math.max(progress, selectionClockProgress(selection, now.getTime()))
+    if (clock.started) progress = Math.max(progress, clock.progress)
   }
+
+  if (started === 0) return { offer: 0, blocked: true }
 
   let outcome: CashoutOutcome = 'UNKNOWN'
   if (losses > 0 && wins > 0) outcome = 'MIXED'
   else if (losses > 0) outcome = 'LOSE'
-  else if (wins === selections.length) outcome = 'WIN'
+  else if (wins === started) outcome = 'WIN'
 
   return buildCashoutQuote({
     stakeMinor: ticket.stakeMinor,
@@ -575,7 +586,7 @@ export async function cashoutTicket(
   const { offer, blocked } = cashoutOffer(openTicket, selections, results, eventById, now)
 
   if (blocked) {
-    throw new BetError('Cash out is unavailable while a selection is losing.', 409, 'CASHOUT_UNAVAILABLE')
+    throw new BetError('Cash out is not available for this ticket yet.', 409, 'CASHOUT_UNAVAILABLE')
   }
 
   const updated = await prisma.$transaction(async tx => {

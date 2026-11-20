@@ -50,11 +50,29 @@ describe('simulation clock', () => {
     expect(simulationRemainingSeconds(clock, Date.parse('2026-01-01T12:00:00.000Z'))).toBe(5400)
   })
 
-  it('attaches the same clock to every selection', () => {
+  it('attaches the same clock to selections with the same kickoff', () => {
     const attached = attachSimulationClock([selection(), selection()], clock)
     expect(attached).toHaveLength(2)
     expect(attached[0]?.simulation).toEqual(clock)
     expect(attached[1]?.simulation).toEqual(clock)
+  })
+
+  it('starts each selection at its own kickoff', () => {
+    const early = {
+      ...selection(),
+      fixtureId: 'random-early',
+      kickoffIso: '2026-01-01T12:00:00.000Z',
+    }
+    const late = {
+      ...selection(),
+      fixtureId: 'random-late',
+      kickoffIso: '2026-01-01T15:00:00.000Z',
+    }
+    const [earlyAttached, lateAttached] = attachSimulationClock([early, late], clock)
+    const now = Date.parse('2026-01-01T12:30:00.000Z')
+
+    expect(simulationIsLive(earlyAttached!.simulation!, now)).toBe(true)
+    expect(simulationIsLive(lateAttached!.simulation!, now)).toBe(false)
   })
 })
 
@@ -136,6 +154,22 @@ describe('simulated cashout', () => {
     expect(quote.offer).toBeLessThanOrEqual(2200)
     const expectedMinimum = outcome === false ? Math.floor(1000 * 0.4) : 1000
     expect(quote.offer).toBeGreaterThanOrEqual(expectedMinimum)
+  })
+
+  it('blocks the offer until the selection kickoff has passed', () => {
+    const item = {
+      ...selection(),
+      kickoffIso: '2026-01-01T15:00:00.000Z',
+    }
+    const quote = simulatedCashoutOffer({
+      stakeMinor: 1000,
+      potentialReturnMinor: 2200,
+      selections: [item],
+      clock,
+      now: Date.parse('2026-01-01T14:00:00.000Z'),
+    })
+    expect(quote.blocked).toBe(true)
+    expect(quote.offer).toBe(0)
   })
 
   it('is deterministic for the same clock and selection', () => {

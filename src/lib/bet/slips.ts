@@ -15,7 +15,11 @@ import { randomCode } from './random'
 import { getBetMode, type BetMode } from './mode'
 import { clockFromKickoff, inPlayQuote } from './in-play'
 import { matchClock, type MatchClockState } from './match-clock'
-import { attachSimulationClock, DEFAULT_SIMULATED_DURATION_MINUTES } from './simulation'
+import {
+  attachSimulationClock,
+  DEFAULT_SIMULATED_DURATION_MINUTES,
+  simulationClockForSelection,
+} from './simulation'
 import {
   MAX_SELECTIONS,
   MAX_STAKE_MINOR,
@@ -183,7 +187,17 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
   const clock = resolveMatchClock(slip, now)
   const match = clock ? matchClock(clock, now.getTime()) : null
   const frozen = isSlipFrozen(slip, now)
-  const inPlay = Boolean(clock && match?.live)
+  const clockSources: TicketSimulationMeta[] =
+    slip.timeMode === 'SIMULATED'
+      ? clock
+        ? selections.map(selection =>
+            selection.simulation ?? simulationClockForSelection(selection, clock),
+          )
+        : []
+      : clock
+        ? [clock]
+        : []
+  const inPlay = clockSources.some(candidate => matchClock(candidate, now.getTime()).live)
   const quote = inPlayQuote(slip.stakeMinor, selections, clock, now.getTime())
   return {
     id: slip.id,
@@ -362,7 +376,10 @@ export async function createAdminBetSlip(input: {
       if (!selection.fixtureLabel || !selection.marketName || !selection.selectionLabel || !selection.kickoffIso) {
         throw new BetError('A random match is missing its teams, market or kickoff time.', 422, 'BAD_CUSTOM_SELECTION')
       }
-      const customKickoff = manualKickoffAt?.toISOString() ?? selection.kickoffIso
+      const customKickoff =
+        timeMode === 'SIMULATED' && selection.kickoffIso
+          ? selection.kickoffIso
+          : manualKickoffAt?.toISOString() ?? selection.kickoffIso
       if (Number.isNaN(new Date(customKickoff).getTime())) {
         throw new BetError('This match has an invalid kickoff time.', 422, 'BAD_KICKOFF')
       }
@@ -405,7 +422,10 @@ export async function createAdminBetSlip(input: {
       throw new BetError('That market selection is not available.', 422, 'UNKNOWN_SELECTION')
     }
 
-    const effectiveKickoff = manualKickoffAt?.toISOString() ?? event.kickoffIso
+    const effectiveKickoff =
+      timeMode === 'SIMULATED' && selection.kickoffIso
+        ? selection.kickoffIso
+        : manualKickoffAt?.toISOString() ?? event.kickoffIso
     return {
       fixtureId: event.id,
       fixtureLabel: `${event.home.name} vs ${event.away.name}`,

@@ -1,10 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  ArrowUpRight,
   CircleAlert,
   CircleCheck,
   Loader2,
@@ -175,14 +173,6 @@ export function AdminAviatorSettings({
                 starts a new cycle and may settle bets that belong to the old cycle.
               </p>
             </div>
-            <Link
-              href="/bet/games/aviator"
-              target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-main-text transition-colors hover:border-accent/40"
-            >
-              Open game
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
           </div>
 
           <label className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-3 py-3">

@@ -1,5 +1,4 @@
-import Link from 'next/link'
-import { ExternalLink, Receipt, Trophy } from 'lucide-react'
+import { Receipt, Trophy } from 'lucide-react'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
 import { VAT_PERCENT } from '@/lib/bet/vat'
 
@@ -76,15 +75,9 @@ export function AdminWinnerList({ winners }: { winners: AdminWinnerListItemView[
                 Credited {winner.creditedAt ? formatDateTimeLabel(winner.creditedAt) : formatDateTimeLabel(winner.createdAt)}
               </p>
             </div>
-            <Link
-              href={`/bet/winner/${winner.code}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200 transition-colors hover:border-amber-300/50"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Winner slip
-            </Link>
+            <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1.5 font-mono text-[11px] font-semibold tracking-[0.12em] text-amber-200">
+              {winner.code}
+            </span>
           </div>
 
           <dl className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-5">

@@ -1,17 +1,8 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
-import {
-  Activity,
-  ArrowRight,
-  CircleAlert,
-  Database,
-  Lock,
-  Radio,
-  ShieldAlert,
-  ShieldCheck,
-} from 'lucide-react'
+import { Activity, CircleAlert, Database, Radio, ShieldCheck } from 'lucide-react'
+import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminNav } from '@/components/admin/admin-nav'
 import { canViewAdmin } from '@/lib/auth/entitlements'
@@ -30,16 +21,7 @@ export default async function AdminPage() {
   if (!isAuthConfigured()) {
     return (
       <AdminShell eyebrow="Admin" title="Admin console">
-        <div className="rounded-2xl border border-dashed border-border bg-surface/50 p-8 text-center">
-          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-accent/15 text-accent">
-            <Lock className="h-5 w-5" />
-          </span>
-          <p className="mt-4 text-base font-semibold text-main-text">Admin is not configured yet</p>
-          <p className="mx-auto mt-2 max-w-md text-sm">
-            The admin console needs a database and configured authentication. No admin data is
-            exposed without a verified server-side session.
-          </p>
-        </div>
+        <AdminAccessState status="unconfigured" />
       </AdminShell>
     )
   }
@@ -50,23 +32,7 @@ export default async function AdminPage() {
   if (!canViewAdmin(viewer)) {
     return (
       <AdminShell eyebrow="Admin" title="Access denied">
-        <div className="rounded-2xl border border-red-400/25 bg-red-400/10 p-8 text-center">
-          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-red-400/15 text-red-300">
-            <ShieldAlert className="h-5 w-5" />
-          </span>
-          <p className="mt-4 text-base font-semibold text-main-text">Administrator access required</p>
-          <p className="mx-auto mt-2 max-w-md text-sm">
-            Your account is signed in but does not have admin access. Roles are checked on the
-            server for every request.
-          </p>
-          <Link
-            href="/dashboard"
-            className="mt-5 inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-main-text transition-colors hover:bg-elevated-surface"
-          >
-            Back to dashboard
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
+        <AdminAccessState status="forbidden" />
       </AdminShell>
     )
   }

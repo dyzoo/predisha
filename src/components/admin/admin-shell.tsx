@@ -25,7 +25,7 @@ export function AdminShell({ eyebrow, title, intro, children }: AdminShellProps)
               Admin only
             </span>
           </div>
-          <SignOutButton redirectTo="/" />
+          <SignOutButton redirectTo="/sign-in" />
         </div>
       </header>
 

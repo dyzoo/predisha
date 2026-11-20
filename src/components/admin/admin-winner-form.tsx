@@ -1014,14 +1014,6 @@ export function AdminWinnerForm({
             ) : null}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <a
-              href={result.shareUrl ?? `/bet/winner/${result.winner.code}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[11px] font-semibold text-amber-200 hover:underline"
-            >
-              Open winner slip
-            </a>
             <span className="text-[10px] text-muted-text">
               The user can now see the payout in their wallet and withdraw it.
             </span>
