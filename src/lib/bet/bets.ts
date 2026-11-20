@@ -6,7 +6,7 @@ import { buildCashoutQuote, type CashoutOutcome } from './cashout'
 import { matchClockFromKickoff } from './match-clock'
 import { combineOdds, findSelection, settleMarket } from './odds'
 import { hashString, mulberry32, randomCode } from './random'
-import { simulatedCashoutOffer } from './simulation'
+import { simulatedCashoutOffer, simulatedResultsForTicket } from './simulation'
 import { applyVat, VAT_PERCENT } from './vat'
 import { creditWallet, debitWallet } from './wallet'
 import { sendBetTransactionSms } from '@/lib/billing/nextsms'
@@ -409,7 +409,9 @@ export async function settleTicketsForUser(
 
   let settled = 0
   for (const ticket of tickets) {
-    const evaluation = evaluateTicket(parseSelections(ticket.selections), ticket.stakeMinor, results)
+    const selections = parseSelections(ticket.selections)
+    const ticketResults = simulatedResultsForTicket(selections, results, now.getTime())
+    const evaluation = evaluateTicket(selections, ticket.stakeMinor, ticketResults)
     if (evaluation.status === 'OPEN' && !evaluation.changed) continue
     const updated = await persistSettlement(ticket, evaluation, now)
     if (updated && evaluation.status !== 'OPEN') settled += 1
@@ -420,7 +422,9 @@ export async function settleTicketsForUser(
 async function settleTicketRecord(ticket: BetTicket, now: Date): Promise<BetTicket> {
   if (ticket.status !== 'OPEN') return ticket
   const results = await getFixtureResults(now)
-  const evaluation = evaluateTicket(parseSelections(ticket.selections), ticket.stakeMinor, results)
+  const selections = parseSelections(ticket.selections)
+  const ticketResults = simulatedResultsForTicket(selections, results, now.getTime())
+  const evaluation = evaluateTicket(selections, ticket.stakeMinor, ticketResults)
   if (evaluation.status === 'OPEN' && !evaluation.changed) return ticket
   return (await persistSettlement(ticket, evaluation, now)) ?? ticket
 }
@@ -438,7 +442,9 @@ export async function settleAllOpenTickets(
 
   let settled = 0
   for (const ticket of tickets) {
-    const evaluation = evaluateTicket(parseSelections(ticket.selections), ticket.stakeMinor, results)
+    const selections = parseSelections(ticket.selections)
+    const ticketResults = simulatedResultsForTicket(selections, results, now.getTime())
+    const evaluation = evaluateTicket(selections, ticket.stakeMinor, ticketResults)
     if (evaluation.status === 'OPEN' && !evaluation.changed) continue
     const updated = await persistSettlement(ticket, evaluation, now)
     if (updated && evaluation.status !== 'OPEN') settled += 1
@@ -557,15 +563,16 @@ export async function cashoutTicket(
 ): Promise<BetTicketView> {
   const ticket = await prisma.betTicket.findFirst({ where: { id: ticketId, userId } })
   if (!ticket) throw new BetError('Ticket not found.', 404, 'TICKET_NOT_FOUND')
-  if (ticket.status !== 'OPEN') {
+  const openTicket = await settleTicketRecord(ticket, now)
+  if (openTicket.status !== 'OPEN') {
     throw new BetError('This ticket is no longer open.', 409, 'TICKET_CLOSED')
   }
 
-  const selections = parseSelections(ticket.selections)
+  const selections = parseSelections(openTicket.selections)
   const catalog = await getBetCatalog(now)
   const results = await getFixtureResults(now)
   const eventById = new Map(catalog.events.map(event => [event.id, event]))
-  const { offer, blocked } = cashoutOffer(ticket, selections, results, eventById, now)
+  const { offer, blocked } = cashoutOffer(openTicket, selections, results, eventById, now)
 
   if (blocked) {
     throw new BetError('Cash out is unavailable while a selection is losing.', 409, 'CASHOUT_UNAVAILABLE')

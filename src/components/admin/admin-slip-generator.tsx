@@ -20,6 +20,10 @@ import type {
   AdminRecommendationPick,
   AdminSlipRecommendation,
 } from '@/lib/bet/recommendation'
+import {
+  ADMIN_MARKET_OPTIONS,
+  editableFixtureId,
+} from '@/lib/bet/admin-selection-options'
 import { formatKickoffLabel, formatOdds, formatTzs } from '@/lib/bet/format'
 import {
   buildRandomSelections,
@@ -28,6 +32,10 @@ import {
 } from '@/lib/bet/random-teams'
 import type { AdminSlipTimeMode } from '@/lib/bet/types'
 import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
+import {
+  AdminEditableSelectionFields,
+  type AdminEditableSelectionValue,
+} from './admin-editable-selection-fields'
 import { AdminSelectionPicker } from './admin-selection-picker'
 
 type PickedSelection = Omit<AdminRecommendationPick, 'odds' | 'riskLevel'> & {
@@ -214,6 +222,48 @@ export function AdminSlipGenerator({
     setPicked(current =>
       current.map((item, position) => (position === index ? { ...item, odds } : item)),
     )
+  }
+
+  function updatePicked(index: number, patch: Partial<AdminEditableSelectionValue>) {
+    clearFeedback()
+    setPicked(current =>
+      current.map((item, position) =>
+        position === index
+          ? {
+              ...item,
+              ...patch,
+              kickoffLabel: patch.kickoffLabel ?? item.kickoffLabel,
+              custom: true,
+            }
+          : item,
+      ),
+    )
+  }
+
+  function addBlankRandomPick() {
+    clearFeedback()
+    if (picked.length >= 20) return
+    const kickoffIso = kickoffIsoFromInput(manualKickoff)
+    const market = ADMIN_MARKET_OPTIONS[0]
+    const option = market.options[0]
+    setPicked(current => [
+      ...current,
+      {
+        fixtureId: editableFixtureId('random-custom', 'Home team', 'Away team', current.length),
+        fixtureLabel: 'Home team vs Away team',
+        competition: 'Custom fixture',
+        kickoffIso,
+        kickoffLabel: formatKickoffLabel(kickoffIso),
+        marketId: market.id,
+        marketName: market.name,
+        selectionId: option.id,
+        selectionLabel: option.label,
+        odds: option.odds,
+        probability: option.probability,
+        riskLevel: 'random',
+        custom: true,
+      },
+    ])
   }
 
   function removePick(fixtureId: string) {
@@ -536,10 +586,18 @@ export function AdminSlipGenerator({
               <Plus className="h-3.5 w-3.5" />
               Add more
             </button>
+            <button
+              type="button"
+              onClick={addBlankRandomPick}
+              disabled={pending || picked.length >= 20}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-[11px] font-semibold text-accent hover:bg-accent/15 disabled:opacity-60"
+            >
+              Add blank
+            </button>
           </div>
           <p className="mt-1.5 text-[10px] text-muted-text">
-            Picks are generated from the pasted second-division team list. Remove any match below or
-            generate more until the slip is ready.
+            Generate matches, add a blank row, or edit teams, kickoff and markets directly below.
+            Every random fixture can use any market offered on a shared slip.
           </p>
         </div>
       ) : null}
@@ -607,50 +665,59 @@ export function AdminSlipGenerator({
           <ul className="mt-3 space-y-2">
             {picked.map((item, index) => (
               <li
-                key={item.fixtureId}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface/60 px-3 py-2.5"
+                key={`slip-selection-${index}`}
+                className="rounded-lg border border-border bg-surface/60 px-3 py-2.5"
               >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-main-text">
-                    {index + 1}. {item.fixtureLabel}
-                  </p>
-                  <p className="mt-0.5 truncate text-[10px] text-muted-text">
-                    {item.competition} | {item.kickoffLabel}
-                  </p>
-                  <p className="mt-0.5 truncate text-[10px] text-accent">
-                    {item.marketName}: {item.selectionLabel} | {Math.round(item.probability * 100)}%
-                    model probability
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-main-text">
+                      {index + 1}. {item.fixtureLabel}
+                    </p>
+                    <p className="mt-0.5 truncate text-[10px] text-muted-text">
+                      {item.competition} | {item.kickoffLabel}
+                    </p>
+                    <p className="mt-0.5 truncate text-[10px] text-accent">
+                      {item.marketName}: {item.selectionLabel} |{' '}
+                      {Math.round(item.probability * 100)}% model probability
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <label className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-text">Odds</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={MIN_ODDS}
+                        max={MAX_ODDS}
+                        step={0.01}
+                        value={item.odds}
+                        onChange={event => updateOdds(index, event.target.value)}
+                        onBlur={() => {
+                          if (validOdds(item.odds)) {
+                            updateOdds(index, normalizeOddsValue(item.odds).toFixed(2))
+                          }
+                        }}
+                        aria-label={`Odds for ${item.selectionLabel} in ${item.fixtureLabel}`}
+                        className="w-20 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-right text-sm font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removePick(item.fixtureId)}
+                      aria-label={`Remove ${item.fixtureLabel}`}
+                      className="rounded-lg border border-border bg-surface p-1.5 text-muted-text transition-colors hover:border-red-400/40 hover:text-red-300"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <label className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-text">Odds</span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min={MIN_ODDS}
-                      max={MAX_ODDS}
-                      step={0.01}
-                      value={item.odds}
-                      onChange={event => updateOdds(index, event.target.value)}
-                      onBlur={() => {
-                        if (validOdds(item.odds)) {
-                          updateOdds(index, normalizeOddsValue(item.odds).toFixed(2))
-                        }
-                      }}
-                      aria-label={`Odds for ${item.selectionLabel} in ${item.fixtureLabel}`}
-                      className="w-20 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-right text-sm font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => removePick(item.fixtureId)}
-                    aria-label={`Remove ${item.fixtureLabel}`}
-                    className="rounded-lg border border-border bg-surface p-1.5 text-muted-text transition-colors hover:border-red-400/40 hover:text-red-300"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                {item.custom ? (
+                  <AdminEditableSelectionFields
+                    value={item}
+                    index={index}
+                    onChange={patch => updatePicked(index, patch)}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

@@ -17,12 +17,19 @@ import {
   Trophy,
   UserRound,
 } from 'lucide-react'
+import {
+  ADMIN_MARKET_OPTIONS,
+  editableFixtureId,
+  findAdminMarketOption,
+  fromDateTimeInputValue,
+} from '@/lib/bet/admin-selection-options'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
 import { buildRandomSelections, RANDOM_TEAM_GROUPS } from '@/lib/bet/random-teams'
 import type { AdminRecommendationPick } from '@/lib/bet/recommendation'
 import { MAX_SELECTIONS, type TicketSelection } from '@/lib/bet/types'
 import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
 import type { ActiveWinnerSources } from '@/lib/bet/winners'
+import { AdminEditableSelectionFields } from './admin-editable-selection-fields'
 import { AdminSelectionPicker } from './admin-selection-picker'
 
 export interface WinnerUserOption {
@@ -43,6 +50,7 @@ interface SelectionDraft {
   selectionId: string
   selectionLabel: string
   odds: string
+  probability: number
   homeScore: string
   awayScore: string
 }
@@ -63,25 +71,6 @@ interface WinnerResponse {
 const MIN_ODDS = 1.01
 const MAX_ODDS = 1000
 const WINNER_STATUSES = ['SCHEDULED', 'LIVE', 'FINISHED'] as const
-const MANUAL_MARKETS = [
-  {
-    id: '1x2',
-    name: 'Match result',
-    options: [
-      { id: 'HOME', label: 'Home win' },
-      { id: 'DRAW', label: 'Draw' },
-      { id: 'AWAY', label: 'Away win' },
-    ],
-  },
-  {
-    id: 'total-goals',
-    name: 'Total goals',
-    options: [
-      { id: 'OVER_2_5', label: 'Over 2.5 goals' },
-      { id: 'UNDER_3_5', label: 'Under 3.5 goals' },
-    ],
-  },
-] as const
 
 function todayDateValue(): string {
   const now = new Date()
@@ -102,6 +91,7 @@ function selectionToDraft(selection: TicketSelection, index: number): SelectionD
     selectionId: selection.selectionId || `WINNER_${index + 1}`,
     selectionLabel: selection.selectionLabel || 'Winning selection',
     odds: String(selection.odds),
+    probability: selection.probability || 0.5,
     homeScore: selection.finalScore ? String(selection.finalScore.home) : '',
     awayScore: selection.finalScore ? String(selection.finalScore.away) : '',
   }
@@ -178,6 +168,9 @@ export function AdminWinnerForm({
   const sources = initialSources
   const selectedSlip = sources.slips.find(source => `SLIP:${source.id}` === sourceKey) ?? null
   const selectedTicket = sources.tickets.find(source => `TICKET:${source.id}` === sourceKey) ?? null
+  const manualMarket = findAdminMarketOption(manualMarketId) ?? ADMIN_MARKET_OPTIONS[0]
+  const manualSelection =
+    manualMarket.options.find(option => option.id === manualSelectionId) ?? manualMarket.options[0]
 
   function loadSelectedSource() {
     setError(null)
@@ -248,31 +241,62 @@ export function AdminWinnerForm({
       setError(`A winner slip can hold at most ${MAX_SELECTIONS} selections.`)
       return
     }
-    const market = MANUAL_MARKETS.find(option => option.id === manualMarketId) ?? MANUAL_MARKETS[0]
-    const selection =
-      market.options.find(option => option.id === manualSelectionId) ?? market.options[0]
     const kickoffIso = manualKickoff
       ? new Date(`${manualKickoff}T12:00:00.000Z`).toISOString()
       : new Date().toISOString()
+    const enteredOdds = Number(manualOdds)
+    const odds =
+      Number.isFinite(enteredOdds) && enteredOdds >= MIN_ODDS && enteredOdds <= MAX_ODDS
+        ? manualOdds
+        : manualSelection.odds
     setRows(current => [
       ...current,
       {
-        fixtureId: `manual-${Date.now()}-${current.length + 1}`,
+        fixtureId: editableFixtureId('winner-manual', home, away, current.length),
         fixtureLabel: `${home} vs ${away}`,
         competition: 'Manually added teams',
         kickoffIso,
         kickoffLabel: formatDateTimeLabel(kickoffIso),
-        marketId: market.id,
-        marketName: market.name,
-        selectionId: selection.id,
-        selectionLabel: selection.label,
-        odds: manualOdds,
+        marketId: manualMarket.id,
+        marketName: manualMarket.name,
+        selectionId: manualSelection.id,
+        selectionLabel: manualSelection.label,
+        odds,
+        probability: manualSelection.probability,
         homeScore: '',
         awayScore: '',
       },
     ])
     setHomeTeam('')
     setAwayTeam('')
+  }
+
+  function addBlankSelection() {
+    setError(null)
+    setResult(null)
+    if (rows.length >= MAX_SELECTIONS) {
+      setError(`A winner slip can hold at most ${MAX_SELECTIONS} selections.`)
+      return
+    }
+    const kickoffIso = fromDateTimeInputValue('', 30)
+    setRows(current => [
+      ...current,
+      {
+        fixtureId: editableFixtureId('winner-custom', 'Home team', 'Away team', current.length),
+        fixtureLabel: 'Home team vs Away team',
+        competition: 'Custom fixture',
+        kickoffIso,
+        kickoffLabel: formatDateTimeLabel(kickoffIso),
+        marketId: ADMIN_MARKET_OPTIONS[0].id,
+        marketName: ADMIN_MARKET_OPTIONS[0].name,
+        selectionId: ADMIN_MARKET_OPTIONS[0].options[0].id,
+        selectionLabel: ADMIN_MARKET_OPTIONS[0].options[0].label,
+        odds: ADMIN_MARKET_OPTIONS[0].options[0].odds,
+        probability: ADMIN_MARKET_OPTIONS[0].options[0].probability,
+        homeScore: '',
+        awayScore: '',
+      },
+    ])
   }
 
   function generateRandomTeams() {
@@ -325,6 +349,7 @@ export function AdminWinnerForm({
           selectionId: pick.selectionId,
           selectionLabel: pick.selectionLabel,
           odds: pick.odds.toFixed(2),
+          probability: pick.probability ?? 0.5,
           homeScore: '',
           awayScore: '',
         },
@@ -717,15 +742,14 @@ export function AdminWinnerForm({
               <select
                 value={manualMarketId}
                 onChange={event => {
-                  const market =
-                    MANUAL_MARKETS.find(option => option.id === event.target.value) ??
-                    MANUAL_MARKETS[0]
+                  const market = findAdminMarketOption(event.target.value) ?? ADMIN_MARKET_OPTIONS[0]
                   setManualMarketId(market.id)
                   setManualSelectionId(market.options[0].id)
+                  setManualOdds(market.options[0].odds)
                 }}
                 className="rounded-lg border border-border bg-background/60 px-2 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
               >
-                {MANUAL_MARKETS.map(market => (
+                {ADMIN_MARKET_OPTIONS.map(market => (
                   <option key={market.id} value={market.id}>
                     {market.name}
                   </option>
@@ -733,15 +757,18 @@ export function AdminWinnerForm({
               </select>
               <select
                 value={manualSelectionId}
-                onChange={event => setManualSelectionId(event.target.value)}
+                onChange={event => {
+                  setManualSelectionId(event.target.value)
+                  const option = manualMarket.options.find(item => item.id === event.target.value)
+                  if (option) setManualOdds(option.odds)
+                }}
                 className="rounded-lg border border-border bg-background/60 px-2 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
               >
-                {(MANUAL_MARKETS.find(option => option.id === manualMarketId) ?? MANUAL_MARKETS[0])
-                  .options.map(option => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
+                {manualMarket.options.map(option => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
               <input
                 type="number"
@@ -759,7 +786,7 @@ export function AdminWinnerForm({
                 onClick={addManualTeam}
                 className="rounded-lg border border-accent/40 bg-accent/10 px-2 py-2 text-[11px] font-bold text-accent hover:bg-accent/15"
               >
-                Add team
+                Add selection
               </button>
             </div>
             <input
@@ -817,18 +844,28 @@ export function AdminWinnerForm({
               aria-label="Random kickoff date"
               className="mt-2 w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none focus:border-emerald-400/60"
             />
-            <button
-              type="button"
-              onClick={() => {
-                setRows([])
-                setResult(null)
-                setError(null)
-              }}
-              disabled={rows.length === 0}
-              className="mt-2 text-[10px] font-semibold text-muted-text underline underline-offset-2 hover:text-main-text disabled:opacity-50"
-            >
-              Clear all selections
-            </button>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={addBlankSelection}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-2.5 py-1.5 text-[10px] font-bold text-accent hover:bg-accent/15"
+              >
+                <Plus className="h-3 w-3" />
+                Add selection
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRows([])
+                  setResult(null)
+                  setError(null)
+                }}
+                disabled={rows.length === 0}
+                className="text-[10px] font-semibold text-muted-text underline underline-offset-2 hover:text-main-text disabled:opacity-50"
+              >
+                Clear all selections
+              </button>
+            </div>
           </div>
         </div>
 
@@ -842,7 +879,7 @@ export function AdminWinnerForm({
 
           {rows.map((row, index) => (
             <div
-              key={`${row.fixtureId}:${index}`}
+              key={`winner-selection-${index}`}
               className="rounded-xl border border-border bg-surface/60 p-3"
             >
               <div className="flex items-start justify-between gap-2">
@@ -867,19 +904,13 @@ export function AdminWinnerForm({
                 </button>
               </div>
 
+              <AdminEditableSelectionFields
+                value={row}
+                index={index}
+                onChange={patch => updateRow(index, patch)}
+              />
+
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <div className="rounded-lg border border-border bg-background/60 px-2.5 py-2">
-                  <span className="block text-[10px] text-muted-text">Market</span>
-                  <p className="mt-0.5 truncate text-xs font-semibold text-main-text">
-                    {row.marketName}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background/60 px-2.5 py-2">
-                  <span className="block text-[10px] text-muted-text">Winning selection</span>
-                  <p className="mt-0.5 truncate text-xs font-semibold text-main-text">
-                    {row.selectionLabel}
-                  </p>
-                </div>
                 <label className="block">
                   <span className="mb-1 block text-[10px] text-muted-text">Odds</span>
                   <input

@@ -3,6 +3,8 @@ import { settleMarket } from './odds'
 import {
   attachSimulationClock,
   simulatedCashoutOffer,
+  simulatedFinalScore,
+  simulatedResultsForTicket,
   simulatedScore,
   simulationIsLive,
   simulationMinute,
@@ -56,7 +58,65 @@ describe('simulation clock', () => {
   })
 })
 
+describe('simulated results', () => {
+  it('ends an over 2.5 selection with a score that satisfies the market', () => {
+    const item = {
+      ...selection(),
+      marketId: 'total-goals',
+      marketName: 'Total goals',
+      selectionId: 'OVER_2_5',
+      selectionLabel: 'Over 2.5 goals',
+    }
+    const final = simulatedFinalScore(item, clock)
+    expect(settleMarket(item.selectionId, final.home, final.away)).toBe(true)
+    expect(simulatedScore(item, clock, clock.durationMinutes)).toEqual(final)
+  })
+
+  it('feeds simulated final scores into settlement results', () => {
+    const item = {
+      ...selection(),
+      marketId: 'total-goals',
+      marketName: 'Total goals',
+      selectionId: 'OVER_2_5',
+      selectionLabel: 'Over 2.5 goals',
+    }
+    const final = simulatedFinalScore(item, clock)
+    const liveItem = attachSimulationClock([item], clock)[0]
+    const results = simulatedResultsForTicket(
+      liveItem ? [liveItem] : [],
+      new Map(),
+      Date.parse('2026-01-01T14:00:00.000Z'),
+    )
+    expect(results.get(item.fixtureId)).toEqual({
+      status: 'FINISHED',
+      homeScore: final.home,
+      awayScore: final.away,
+    })
+  })
+})
+
 describe('simulated cashout', () => {
+  it('favors a projected winner with a stake floor and growing profit share', () => {
+    const item = selection()
+    const input = {
+      stakeMinor: 1000,
+      potentialReturnMinor: 2200,
+      selections: [item],
+      clock,
+    }
+    const early = simulatedCashoutOffer({
+      ...input,
+      now: Date.parse('2026-01-01T12:05:00.000Z'),
+    })
+    const late = simulatedCashoutOffer({
+      ...input,
+      now: Date.parse('2026-01-01T12:50:00.000Z'),
+    })
+    expect(early.offer).toBeGreaterThanOrEqual(1000)
+    expect(late.offer).toBeGreaterThan(early.offer)
+    expect(late.offer).toBeLessThanOrEqual(2200)
+  })
+
   it('prices a simulated live ticket from its stake, odds and clock', () => {
     const item = selection()
     const now = Date.parse('2026-01-01T12:30:00.000Z')
