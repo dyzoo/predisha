@@ -11,6 +11,10 @@ import {
   splitFixtureLabel,
   toDateTimeInputValue,
 } from '@/lib/bet/admin-selection-options'
+import { oddsForProbability } from '@/lib/bet/odds'
+
+const CUSTOM_MARKET_VALUE = '__custom_market__'
+const CUSTOM_SELECTION_VALUE = '__custom_selection__'
 
 export interface AdminEditableSelectionValue {
   fixtureId: string
@@ -24,6 +28,8 @@ export interface AdminEditableSelectionValue {
   selectionLabel: string
   odds: string
   probability: number
+  customMarket?: boolean
+  customSelection?: boolean
 }
 
 function fallbackOption(id: string, label: string, odds: string, probability: number) {
@@ -107,11 +113,17 @@ export function AdminEditableSelectionFields<T extends AdminEditableSelectionVal
       <label className="block">
         <span className="mb-1 block text-[10px] text-muted-text">Market</span>
         <select
-          value={value.marketId}
+          value={value.customMarket ? CUSTOM_MARKET_VALUE : value.marketId}
           onChange={event => {
+            if (event.target.value === CUSTOM_MARKET_VALUE) {
+              onChange({ customMarket: true })
+              return
+            }
             const nextMarket = findAdminMarketOption(event.target.value)
             const option = nextMarket?.options[0]
             onChange({
+              customMarket: false,
+              customSelection: false,
               marketId: nextMarket?.id ?? event.target.value,
               marketName: nextMarket?.name ?? value.marketName,
               selectionId: option?.id ?? value.selectionId,
@@ -129,15 +141,21 @@ export function AdminEditableSelectionFields<T extends AdminEditableSelectionVal
               {option.name}
             </option>
           ))}
+          <option value={CUSTOM_MARKET_VALUE}>Custom market...</option>
         </select>
       </label>
       <label className="block">
         <span className="mb-1 block text-[10px] text-muted-text">Selection</span>
         <select
-          value={value.selectionId}
+          value={value.customSelection ? CUSTOM_SELECTION_VALUE : value.selectionId}
           onChange={event => {
+            if (event.target.value === CUSTOM_SELECTION_VALUE) {
+              onChange({ customSelection: true })
+              return
+            }
             const option = findAdminSelectionOption(value.marketId, event.target.value)
             onChange({
+              customSelection: false,
               selectionId: option?.id ?? event.target.value,
               selectionLabel: option?.label ?? value.selectionLabel,
               odds: option?.odds ?? value.odds,
@@ -155,8 +173,78 @@ export function AdminEditableSelectionFields<T extends AdminEditableSelectionVal
               {option.label}
             </option>
           ))}
+          <option value={CUSTOM_SELECTION_VALUE}>Custom selection...</option>
         </select>
       </label>
+      {value.customMarket ? (
+        <>
+          <label className="block">
+            <span className="mb-1 block text-[10px] text-muted-text">Market ID</span>
+            <input
+              type="text"
+              value={value.marketId}
+              onChange={event => onChange({ marketId: event.target.value })}
+              aria-label={`Market ID for selection ${index + 1}`}
+              className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[10px] text-muted-text">Market name</span>
+            <input
+              type="text"
+              value={value.marketName}
+              onChange={event => onChange({ marketName: event.target.value })}
+              aria-label={`Market name for selection ${index + 1}`}
+              className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
+            />
+          </label>
+        </>
+      ) : null}
+      {value.customSelection ? (
+        <>
+          <label className="block">
+            <span className="mb-1 block text-[10px] text-muted-text">Selection ID</span>
+            <input
+              type="text"
+              value={value.selectionId}
+              onChange={event => onChange({ selectionId: event.target.value })}
+              aria-label={`Selection ID for selection ${index + 1}`}
+              className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[10px] text-muted-text">Selection label</span>
+            <input
+              type="text"
+              value={value.selectionLabel}
+              onChange={event => onChange({ selectionLabel: event.target.value })}
+              aria-label={`Selection label for selection ${index + 1}`}
+              className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[10px] text-muted-text">Probability %</span>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              step={1}
+              value={Math.round(value.probability * 100)}
+              onChange={event => {
+                const percent = Number(event.target.value)
+                if (!Number.isFinite(percent)) return
+                const probability = Math.min(0.99, Math.max(0.01, percent / 100))
+                onChange({
+                  probability,
+                  odds: oddsForProbability(probability).toFixed(2),
+                })
+              }}
+              aria-label={`Probability for selection ${index + 1}`}
+              className="w-full rounded-lg border border-border bg-background/60 px-2.5 py-2 text-[11px] text-main-text outline-none focus:border-accent/60"
+            />
+          </label>
+        </>
+      ) : null}
     </div>
   )
 }

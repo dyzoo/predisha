@@ -85,8 +85,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       return json({ slip: updated })
     }
 
-    const updated = await unfreezeAdminBetSlip({ id: slip.id, actorId, now: new Date() })
-    return json({ slip: updated })
+    if (input.action === 'unfreeze') {
+      const updated = await unfreezeAdminBetSlip({ id: slip.id, actorId, now: new Date() })
+      return json({ slip: updated })
+    }
+
+    return json({ error: 'Unsupported slip action.' }, { status: 400 })
   } catch (error) {
     return handleBetError(error)
   }

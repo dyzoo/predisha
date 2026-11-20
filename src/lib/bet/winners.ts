@@ -187,6 +187,8 @@ export async function createWinnerSlip(input: {
   note?: string | null
   createdBy: string
   now?: Date
+  sourceSlipId?: string | null
+  sourceEntryId?: string | null
 }): Promise<WinnerSlipView> {
   const now = input.now ?? new Date()
 
@@ -236,6 +238,28 @@ export async function createWinnerSlip(input: {
     throw new BetError('Choose a registered user for this winner slip.', 404, 'USER_NOT_FOUND')
   }
 
+  const sourceSlip = input.sourceSlipId
+    ? await prisma.adminBetSlip.findUnique({ where: { id: input.sourceSlipId } })
+    : null
+  if (input.sourceSlipId && !sourceSlip) {
+    throw new BetError('That shared slip does not exist.', 404, 'SLIP_NOT_FOUND')
+  }
+  const sourceEntry = input.sourceEntryId
+    ? await prisma.adminBetEntry.findUnique({ where: { id: input.sourceEntryId } })
+    : null
+  if (input.sourceEntryId && !sourceEntry) {
+    throw new BetError('That shared-bet entry does not exist.', 404, 'ENTRY_NOT_FOUND')
+  }
+  if (sourceEntry && sourceEntry.status !== 'PAID') {
+    throw new BetError('Only paid entries can be assigned as winners.', 409, 'ENTRY_NOT_PAID')
+  }
+  if (sourceEntry && sourceEntry.userId !== user.id) {
+    throw new BetError('That entry belongs to a different user.', 409, 'ENTRY_USER_MISMATCH')
+  }
+  if (sourceEntry && sourceEntry.ticketId) {
+    throw new BetError('That entry already has a ticket.', 409, 'ENTRY_HAS_TICKET')
+  }
+
   const code = await generateWinnerCode()
   const ticketCode = await generateTicketCode()
 
@@ -273,6 +297,13 @@ export async function createWinnerSlip(input: {
         },
       })
 
+      if (sourceEntry) {
+        await tx.adminBetEntry.update({
+          where: { id: sourceEntry.id },
+          data: { ticketId: ticket.id, status: 'PAID' },
+        })
+      }
+
       await creditWallet(tx, {
         userId: user.id,
         amountMinor: vat.netPayoutMinor,
@@ -288,6 +319,9 @@ export async function createWinnerSlip(input: {
           grossPayoutMinor: vat.grossMinor,
           vatMinor: vat.vatMinor,
           vatPercent: VAT_PERCENT,
+          sourceSlipId: sourceSlip?.id ?? null,
+          sourceSlipCode: sourceSlip?.code ?? null,
+          sourceEntryId: sourceEntry?.id ?? null,
         },
       })
 
@@ -314,6 +348,10 @@ export async function createWinnerSlip(input: {
             netPayoutMinor: vat.netPayoutMinor,
             creditedAt: now.toISOString(),
             note: input.note?.trim() || null,
+            sourceSlipId: sourceSlip?.id ?? null,
+            sourceSlipCode: sourceSlip?.code ?? null,
+            sourceSlipStatus: sourceSlip?.status ?? null,
+            sourceEntryId: sourceEntry?.id ?? null,
           },
         },
       })
@@ -331,6 +369,68 @@ export async function createWinnerSlip(input: {
     }
     throw error
   }
+}
+
+export async function assignAdminSlipEntryWin(input: {
+  entryId: string
+  createdBy: string
+  now?: Date
+}): Promise<WinnerSlipView> {
+  const now = input.now ?? new Date()
+  const entry = await prisma.adminBetEntry.findUnique({
+    where: { id: input.entryId.trim() },
+    include: {
+      slip: true,
+      user: { select: { id: true, name: true, email: true } },
+    },
+  })
+  if (!entry) {
+    throw new BetError('That shared-bet entry does not exist.', 404, 'ENTRY_NOT_FOUND')
+  }
+  if (entry.status !== 'PAID') {
+    throw new BetError('Only paid entries can be assigned as winners.', 409, 'ENTRY_NOT_PAID')
+  }
+  if (!entry.userId || !entry.user) {
+    throw new BetError('This entry has no registered user to credit.', 422, 'ENTRY_NO_USER')
+  }
+  const ticket = entry.ticketId
+    ? await prisma.betTicket.findUnique({
+        where: { id: entry.ticketId },
+        select: { id: true, code: true, status: true },
+      })
+    : null
+
+  if (entry.ticketId) {
+    const existing = await prisma.betWinnerSlip.findUnique({
+      where: { ticketId: entry.ticketId },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    })
+    if (existing) {
+      return toWinnerView(existing, ticket?.code ?? null)
+    }
+    if (ticket?.status !== 'OPEN') {
+      throw new BetError('This ticket is already settled.', 409, 'TICKET_CLOSED')
+    }
+    return createWinnerFromTicket({
+      ticketId: entry.ticketId,
+      title: entry.slip.title ?? `Winner · ${entry.slip.code}`,
+      note: `Assigned from shared slip ${entry.slip.code}`,
+      createdBy: input.createdBy,
+      now,
+    })
+  }
+
+  return createWinnerSlip({
+    userId: entry.userId,
+    title: entry.slip.title ?? `Winner · ${entry.slip.code}`,
+    stakeMinor: entry.stakeMinor,
+    selections: parseSelections(entry.slip.selections),
+    note: `Assigned from shared slip ${entry.slip.code}`,
+    createdBy: input.createdBy,
+    now,
+    sourceSlipId: entry.slip.id,
+    sourceEntryId: entry.id,
+  })
 }
 
 export async function listWinnerSlips(limit = 20): Promise<WinnerSlipView[]> {

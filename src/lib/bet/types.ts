@@ -15,6 +15,7 @@ export type BetMarketId =
   | '1x2'
   | 'double-chance'
   | 'total-goals'
+  | 'goals'
   | 'btts'
   | 'total-corners'
   | 'shots-on-target'
@@ -28,6 +29,7 @@ export type BetMarketId =
 export const EXTRA_MARKET_IDS: BetMarketId[] = [
   'double-chance',
   'total-goals',
+  'goals',
   'btts',
   'total-corners',
   'shots-on-target',

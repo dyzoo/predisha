@@ -30,6 +30,8 @@ export interface AdminSlipSelectionView {
 export interface AdminSlipEntryView {
   id: string
   phoneMasked: string
+  userId: string | null
+  userName: string | null
   stakeMinor: number
   status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
   ticketId: string | null
@@ -183,7 +185,10 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
     }
   }
 
-  async function simulateWin(entryId: string) {
+  async function settleWin(
+    entryId: string,
+    action: 'simulate-win' | 'assign-win' = 'simulate-win',
+  ) {
     if (pendingEntry) return
     setPendingEntry(entryId)
     setError(null)
@@ -195,19 +200,28 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'simulate-win' }),
+          body: JSON.stringify({ action }),
         },
       )
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string
         payoutMinor?: number
+        winner?: { netPayoutMinor: number }
       }
       if (!response.ok) {
-        setError(payload.error ?? 'Could not settle this ticket as a winner.')
+        setError(
+          payload.error ??
+            (action === 'assign-win'
+              ? 'Could not assign this shared bet as a winner.'
+              : 'Could not settle this ticket as a winner.'),
+        )
         return
       }
+      const payoutMinor = payload.payoutMinor ?? payload.winner?.netPayoutMinor ?? 0
       setSuccess(
-        `Ticket settled as won. ${formatTzs(payload.payoutMinor ?? 0)} credited to the wallet.`,
+        action === 'assign-win'
+          ? `Shared bet assigned as won. ${formatTzs(payoutMinor)} credited to the wallet.`
+          : `Ticket settled as won. ${formatTzs(payoutMinor)} credited to the wallet.`,
       )
       router.refresh()
     } catch {
@@ -549,6 +563,8 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                       entry.status === 'PAID' &&
                       Boolean(entry.ticketId) &&
                       entry.ticketStatus === 'OPEN'
+                    const canAssignWin =
+                      entry.status === 'PAID' && !entry.ticketId && Boolean(entry.userId)
                     const retrying = pendingEntry === entry.id
                     return (
                       <li
@@ -568,6 +584,9 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                             {entry.status}
                           </span>
                           <span className="text-muted-text">{entry.phoneMasked}</span>
+                          {entry.userName ? (
+                            <span className="text-accent">{entry.userName}</span>
+                          ) : null}
                           {entry.ticketCode ? (
                             <span className="font-mono text-accent">{entry.ticketCode}</span>
                           ) : null}
@@ -595,7 +614,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                           {canSettle ? (
                             <button
                               type="button"
-                              onClick={() => simulateWin(entry.id)}
+                              onClick={() => settleWin(entry.id, 'simulate-win')}
                               disabled={Boolean(pendingEntry)}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/40 bg-amber-300/10 px-2 py-1 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-300/60 disabled:opacity-60"
                             >
@@ -605,6 +624,21 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                                 <Trophy className="h-3 w-3" />
                               )}
                               Settle as won
+                            </button>
+                          ) : null}
+                          {canAssignWin ? (
+                            <button
+                              type="button"
+                              onClick={() => settleWin(entry.id, 'assign-win')}
+                              disabled={Boolean(pendingEntry)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300/40 bg-emerald-300/10 px-2 py-1 text-[10px] font-semibold text-emerald-200 transition-colors hover:border-emerald-300/60 disabled:opacity-60"
+                            >
+                              {retrying ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Trophy className="h-3 w-3" />
+                              )}
+                              Assign win
                             </button>
                           ) : null}
                           {canRetry ? (

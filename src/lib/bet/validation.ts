@@ -162,7 +162,7 @@ export const adminSlipActionSchema = z.object({
 })
 
 export const adminEntryActionSchema = z.object({
-  action: z.enum(['retry', 'simulate-win']).default('retry'),
+  action: z.enum(['retry', 'simulate-win', 'assign-win']).default('retry'),
 })
 
 export const adminWinnerSelectionSchema = z.object({
@@ -191,6 +191,8 @@ export const adminWinnerCreateSchema = z.object({
   stakeMinor: z.number().int().min(MIN_STAKE_MINOR).max(MAX_STAKE_MINOR),
   selections: z.array(adminWinnerSelectionSchema).min(1).max(MAX_SELECTIONS),
   note: z.string().trim().max(280).optional(),
+  sourceSlipId: z.string().trim().max(80).optional(),
+  sourceEntryId: z.string().trim().max(80).optional(),
 })
 
 export const adminWinnerFromTicketSchema = z.object({

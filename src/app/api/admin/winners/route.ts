@@ -51,6 +51,8 @@ export async function POST(request: Request) {
       note: input.note,
       createdBy: access.viewer.userId,
       now: input.date ? new Date(input.date) : new Date(),
+      sourceSlipId: input.sourceSlipId,
+      sourceEntryId: input.sourceEntryId,
     })
 
     return json(

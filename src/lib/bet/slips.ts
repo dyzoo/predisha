@@ -94,6 +94,8 @@ export interface AdminBetSlipView {
 export interface AdminBetEntryView {
   id: string
   phoneMasked: string
+  userId: string | null
+  userName: string | null
   stakeMinor: number
   status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
   providerOrderId: string | null
@@ -256,6 +258,8 @@ function toEntryView(
   entry: {
     id: string
     phone: string
+    userId: string | null
+    user: { name: string | null; email: string } | null
     stakeMinor: number
     status: string
     providerOrderId: string | null
@@ -271,6 +275,8 @@ function toEntryView(
   return {
     id: entry.id,
     phoneMasked: maskPhone(entry.phone),
+    userId: entry.userId,
+    userName: entry.user?.name ?? entry.user?.email ?? null,
     stakeMinor: entry.stakeMinor,
     status: entry.status as AdminBetEntryView['status'],
     providerOrderId: entry.providerOrderId,
@@ -513,6 +519,9 @@ export async function listAdminBetSlips(now = new Date()): Promise<AdminBetSlipL
       entries: {
         orderBy: { createdAt: 'desc' },
         take: 12,
+        include: {
+          user: { select: { name: true, email: true } },
+        },
       },
     },
   })
@@ -563,15 +572,11 @@ export async function unfreezeAdminBetSlip(input: {
   if (!existing) {
     throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
   }
+  if (existing.status !== 'FROZEN') {
+    throw new BetError('Only a frozen slip can be reopened.', 409, 'SLIP_NOT_FROZEN')
+  }
   if (existing.liveStartedAt) {
     throw new BetError('A simulated live slip cannot be reopened.', 409, 'SLIP_LIVE')
-  }
-  if (existing.autoFreezeAt.getTime() <= now.getTime()) {
-    throw new BetError(
-      'This slip cannot be reopened because the first match has already started.',
-      409,
-      'SLIP_EXPIRED',
-    )
   }
 
   const slip = await prisma.adminBetSlip.update({
@@ -765,6 +770,7 @@ export async function listAdminBetEntries(slipId: string): Promise<AdminBetEntry
     where: { slipId },
     orderBy: { createdAt: 'desc' },
     take: 100,
+    include: { user: { select: { name: true, email: true } } },
   })
   const metaByTicket = await ticketMetaById(entries.map(entry => entry.ticketId))
   return entries.map(entry => {
@@ -856,7 +862,10 @@ export async function simulateAdminSlipEntryWin(input: {
   now?: Date
 }): Promise<{ entry: AdminBetEntryView; payoutMinor: number }> {
   const now = input.now ?? new Date()
-  const entry = await prisma.adminBetEntry.findUnique({ where: { id: input.entryId } })
+  const entry = await prisma.adminBetEntry.findUnique({
+    where: { id: input.entryId },
+    include: { user: { select: { name: true, email: true } } },
+  })
   if (!entry) {
     throw new BetError('That payment could not be found.', 404, 'ENTRY_NOT_FOUND')
   }

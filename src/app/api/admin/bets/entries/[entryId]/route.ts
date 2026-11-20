@@ -2,6 +2,7 @@ import { json } from '@/lib/api'
 import { handleBetError } from '@/lib/bet/errors'
 import { simulateAdminSlipEntryWin } from '@/lib/bet/slips'
 import { retrySlipEntry } from '@/lib/bet/slip-payments'
+import { assignAdminSlipEntryWin } from '@/lib/bet/winners'
 import { getAdminAccess } from '@/lib/auth/admin'
 import { isSameOrigin } from '@/lib/auth/origin'
 import { readJson } from '@/lib/bet/security'
@@ -31,6 +32,14 @@ export async function POST(
         now: new Date(),
       })
       return json(result)
+    }
+    if (input.action === 'assign-win') {
+      const winner = await assignAdminSlipEntryWin({
+        entryId,
+        createdBy: access.viewer.userId,
+        now: new Date(),
+      })
+      return json({ winner })
     }
     const entry = await retrySlipEntry(entryId)
     return json({ entry })

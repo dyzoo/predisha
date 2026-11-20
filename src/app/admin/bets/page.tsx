@@ -74,6 +74,8 @@ export default async function AdminBetsPage() {
     entries: slip.entries.map(entry => ({
       id: entry.id,
       phoneMasked: entry.phoneMasked,
+      userId: entry.userId,
+      userName: entry.userName,
       stakeMinor: entry.stakeMinor,
       status: entry.status,
       ticketId: entry.ticketId,

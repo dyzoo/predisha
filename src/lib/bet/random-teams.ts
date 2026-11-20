@@ -162,6 +162,8 @@ export const RANDOM_MARKET_SPECS: RandomMarketSpec[] = [
   { marketId: 'total-goals', selectionId: 'OVER_1_5', selectionLabel: 'Over 1.5 goals', probability: 0.76 },
   { marketId: 'total-goals', selectionId: 'OVER_2_5', selectionLabel: 'Over 2.5 goals', probability: 0.52 },
   { marketId: 'total-goals', selectionId: 'UNDER_3_5', selectionLabel: 'Under 3.5 goals', probability: 0.58 },
+  { marketId: 'goals', selectionId: 'GOALS_OVER_0_5', selectionLabel: 'Over 0.5 goals', probability: 0.88 },
+  { marketId: 'goals', selectionId: 'GOALS_UNDER_3_5', selectionLabel: 'Under 3.5 goals', probability: 0.58 },
   { marketId: 'btts', selectionId: 'BTTS_YES', selectionLabel: 'Both teams to score: Yes', probability: 0.54 },
   { marketId: 'btts', selectionId: 'BTTS_NO', selectionLabel: 'Both teams to score: No', probability: 0.46 },
   { marketId: 'total-corners', selectionId: 'CORNERS_OVER_3_5', selectionLabel: 'Over 3.5 corners', probability: 0.55 },

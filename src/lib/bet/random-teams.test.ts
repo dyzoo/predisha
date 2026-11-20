@@ -43,6 +43,15 @@ describe('buildRandomSelections', () => {
     ).toBe(true)
   })
 
+  it('settles goals over 0.5 and under 3.5 from the final score', () => {
+    expect(settleMarket('GOALS_OVER_0_5', 0, 0)).toBe(false)
+    expect(settleMarket('GOALS_OVER_0_5', 1, 0)).toBe(true)
+    expect(settleMarket('GOALS_UNDER_3_5', 1, 1)).toBe(true)
+    expect(settleMarket('GOALS_UNDER_3_5', 2, 2)).toBe(false)
+    expect(settleMarket('custom-over-0.5', 0, 0)).toBe(false)
+    expect(settleMarket('custom-under-3.5', 1, 1)).toBe(true)
+  })
+
   it('reuses the same fixtures for the same seed', () => {
     const input = {
       count: 4,

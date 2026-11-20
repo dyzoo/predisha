@@ -622,7 +622,8 @@ export function AdminSlipGenerator({
           </div>
           <p className="mt-1.5 text-[10px] text-muted-text">
             Generate matches, add a blank row, or edit teams, kickoff and markets directly below.
-            Every random fixture can use any market offered on a shared slip.
+            Choose “Custom market...” or “Custom selection...” to enter any market ID, label,
+            selection and probability. Over/Under goal IDs settle from the final score.
           </p>
         </div>
       ) : null}

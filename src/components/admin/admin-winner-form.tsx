@@ -139,6 +139,7 @@ export function AdminWinnerForm({
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<WinnerResponse | null>(null)
   const [sourceKey, setSourceKey] = useState('MANUAL')
+  const [sourceSlipId, setSourceSlipId] = useState<string | null>(null)
   const [homeTeam, setHomeTeam] = useState('')
   const [awayTeam, setAwayTeam] = useState('')
   const [manualMarketId, setManualMarketId] = useState<string>('1x2')
@@ -179,12 +180,14 @@ export function AdminWinnerForm({
       setRows(selectedSlip.selections.map(selectionToDraft))
       setStake(String(selectedSlip.stakeMinor))
       setTitle(selectedSlip.title ?? '')
+      setSourceSlipId(selectedSlip.id)
       return
     }
     if (selectedTicket) {
       setRows(selectedTicket.selections.map(selectionToDraft))
       setStake(String(selectedTicket.stakeMinor))
       setTitle(selectedTicket.slipCode ? `Winner · ${selectedTicket.slipCode}` : '')
+      setSourceSlipId(null)
       if (selectedTicket.userId && users.some(user => user.id === selectedTicket.userId)) {
         setUserId(selectedTicket.userId)
         setQuery('')
@@ -426,6 +429,7 @@ export function AdminWinnerForm({
           date: payoutDate.toISOString(),
           stakeMinor,
           note: note.trim() || undefined,
+          sourceSlipId: sourceSlipId ?? undefined,
           selections: rows.map(row => ({
             fixtureId: row.fixtureId,
             fixtureLabel: row.fixtureLabel.trim(),
@@ -487,6 +491,7 @@ export function AdminWinnerForm({
             value={sourceKey}
             onChange={event => {
               setSourceKey(event.target.value)
+              setSourceSlipId(null)
               setResult(null)
               setError(null)
             }}
@@ -521,6 +526,17 @@ export function AdminWinnerForm({
             <Database className="h-3.5 w-3.5" />
             Load selections
           </button>
+          {selectedSlip && sourceSlipId === selectedSlip.id ? (
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={pending}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
+              Assign shared slip as winner
+            </button>
+          ) : null}
           {selectedTicket ? (
             <button
               type="button"

@@ -25,6 +25,7 @@ const MARKET_NAMES: Record<BetMarketId, string> = {
   '1x2': 'Match result',
   'double-chance': 'Double chance',
   'total-goals': 'Total goals',
+  goals: 'Goals',
   btts: 'Both teams to score',
   'total-corners': 'Total corners',
   'shots-on-target': 'Shots on target',
@@ -49,6 +50,13 @@ interface StaticMarketSpec {
 }
 
 const STATIC_MARKETS: StaticMarketSpec[] = [
+  {
+    id: 'goals',
+    selections: [
+      { selectionId: 'GOALS_OVER_0_5', label: 'Over 0.5 goals', shortLabel: 'O0.5', probability: 0.88 },
+      { selectionId: 'GOALS_UNDER_3_5', label: 'Under 3.5 goals', shortLabel: 'U3.5', probability: 0.58 },
+    ],
+  },
   {
     id: 'total-corners',
     selections: [
@@ -113,6 +121,23 @@ export function oddsForProbability(probability: number, margin = BOOK_MARGIN): n
   const safeProbability = Math.min(0.999, Math.max(0.001, probability))
   const raw = 1 / (safeProbability * (1 + margin))
   return Math.max(1.01, Math.round(raw * 100) / 100)
+}
+
+const NON_GOAL_THRESHOLD_PREFIXES = ['CORNERS_', 'SOT_', 'SUBS_2H_', 'YC1H_']
+
+function goalsThresholdFor(selectionId: string): { over: boolean; line: number } | null {
+  if (NON_GOAL_THRESHOLD_PREFIXES.some(prefix => selectionId.toUpperCase().startsWith(prefix))) {
+    return null
+  }
+  const normalized = selectionId.toUpperCase().replace(/[^A-Z0-9]/g, '_')
+  const match =
+    normalized.match(/(?:^|_)GOALS_(OVER|UNDER)_(\d+)_(\d+)$/) ??
+    normalized.match(/(?:^|_)(OVER|UNDER)_(\d+)_(\d+)$/)
+  if (!match) return null
+  return {
+    over: match[1] === 'OVER',
+    line: Number(`${match[2]}.${match[3]}`),
+  }
 }
 
 function marketIdFor(option: MarketOption): BetMarketId | null {
@@ -261,6 +286,13 @@ export function settleMarket(
     if (selectionId === 'GOALS05_DRAW') return outcome === 'DRAW'
     if (selectionId === 'GOALS05_AWAY') return outcome === 'AWAY'
     return null
+  }
+
+  const goalsThreshold = goalsThresholdFor(selectionId)
+  if (goalsThreshold) {
+    return goalsThreshold.over
+      ? totalGoals > goalsThreshold.line
+      : totalGoals < goalsThreshold.line
   }
 
   return null
