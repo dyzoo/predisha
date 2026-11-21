@@ -30,6 +30,15 @@ export function formatTzs(minor: number): string {
   return tzs.format(Math.round(minor)).replace(/\u00a0/g, ' ')
 }
 
+const tsh = new Intl.NumberFormat('en-GB', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+export function formatTsh(minor: number): string {
+  return `TSh ${tsh.format(Math.round(minor))}`
+}
+
 export function formatOdds(odds: number): string {
   if (!Number.isFinite(odds)) return '-'
   return odds.toFixed(2)
