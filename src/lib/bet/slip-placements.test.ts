@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
   entry: null as Record<string, unknown> | null,
@@ -60,7 +60,7 @@ function baseEntry(overrides: Record<string, unknown> = {}) {
     phone: '255712345678',
     stakeMinor: 1000,
     status: 'PAID',
-    provider: 'harakapay',
+    provider: 'noripesa',
     providerOrderId: 'HP1',
     ticketId: null,
     placementStartedAt: null,

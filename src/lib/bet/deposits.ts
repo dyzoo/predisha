@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/prisma'
 import {
-  HARAKAPAY_PROVIDER_NAME,
-  createHarakaPayOrder,
-  getHarakaPayOrderStatus,
-  harakapayApiKeyConfigured,
-  type HarakaPayWebhookEvent,
-} from '@/lib/billing/harakapay'
+  NORIPESA_PROVIDER_NAME,
+  createNoripesaOrder,
+  getNoripesaOrderStatus,
+  noripesaApiKeyConfigured,
+  type NoripesaWebhookEvent,
+} from '@/lib/billing/noripesa'
 import { getDepositMinMinor } from './deposit-settings'
 import { BetError } from './errors'
 import { normalizeTzPhone } from './phone'
@@ -69,7 +69,7 @@ export async function startWalletDeposit(input: {
       'BAD_AMOUNT',
     )
   }
-  if (!harakapayApiKeyConfigured()) {
+  if (!noripesaApiKeyConfigured()) {
     throw new BetError(
       'Mobile-money payments are not configured on this server yet. Add funds from the wallet page or try again later.',
       503,
@@ -82,12 +82,12 @@ export async function startWalletDeposit(input: {
     throw new BetError(normalized.error ?? 'Enter a valid mobile number.', 422, 'BAD_PHONE')
   }
 
-  const order = await createHarakaPayOrder({
+  const order = await createNoripesaOrder({
     phone: normalized.phone,
     amountMinor: input.amountMinor,
     currency: 'TZS',
     description: 'SpotibetBet wallet deposit',
-    webhookUrl: `${appUrl()}/api/webhooks/${HARAKAPAY_PROVIDER_NAME}`,
+    webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
   })
 
   if (!order.success || !order.orderId) {
@@ -100,7 +100,7 @@ export async function startWalletDeposit(input: {
       kind: 'DEPOSIT',
       amountMinor: input.amountMinor,
       currency: 'TZS',
-      provider: HARAKAPAY_PROVIDER_NAME,
+      provider: NORIPESA_PROVIDER_NAME,
       orderId: order.orderId,
       status: 'PENDING',
     },
@@ -119,8 +119,8 @@ async function completeDeposit(orderId: string): Promise<void> {
       amountMinor: order.amountMinor,
       type: 'DEPOSIT',
       reference: `hpay:${order.orderId}`,
-      note: 'HarakaPay deposit',
-      metadata: { provider: HARAKAPAY_PROVIDER_NAME, orderId: order.orderId },
+      note: 'NORIPESA deposit',
+      metadata: { provider: NORIPESA_PROVIDER_NAME, orderId: order.orderId },
     })
 
     await tx.betPaymentOrder.update({
@@ -148,7 +148,7 @@ export async function refreshWalletDeposit(
   if (!order) throw new BetError('That deposit could not be found.', 404, 'ORDER_NOT_FOUND')
 
   if (order.status === 'PENDING') {
-    const result = await getHarakaPayOrderStatus(orderId)
+    const result = await getNoripesaOrderStatus(orderId)
     const status = (result.status ?? '').toLowerCase()
     if (SUCCESS_STATUSES.has(status)) {
       await completeDeposit(orderId)
@@ -165,7 +165,7 @@ export async function refreshWalletDeposit(
 }
 
 export async function applyDepositPaymentEvent(
-  event: HarakaPayWebhookEvent,
+  event: NoripesaWebhookEvent,
 ): Promise<{ handled: boolean }> {
   if (!event.orderId) return { handled: false }
   const order = await prisma.betPaymentOrder.findUnique({ where: { orderId: event.orderId } })

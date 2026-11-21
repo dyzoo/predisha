@@ -858,6 +858,9 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
               <button type="button" disabled={busy} onClick={() => markAllWon(false)} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background/40 px-4 py-2.5 text-xs font-semibold text-main-text disabled:opacity-60">
                 <RotateCcw className="h-3.5 w-3.5" /> Clear ticks
               </button>
+              <button type="button" disabled={busy} onClick={() => { setStatus('READY'); setNotice({ tone: 'ok', text: 'Slip marked ready. Save to keep status.' }) }} className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/10 px-4 py-2.5 text-xs font-semibold text-accent disabled:opacity-60">
+                <ListChecks className="h-3.5 w-3.5" /> Mark ready
+              </button>
               <button type="button" disabled={busy || downloading} onClick={saveSlip} className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-60">
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 {designId ? 'Save changes' : 'Save slip'}

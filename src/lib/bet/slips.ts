@@ -5,6 +5,7 @@ import {
   forceWinTicket,
   generateTicketCode,
   insertTicket,
+  settleAllOpenTickets,
   toTicketView,
   type TicketDraft,
 } from './bets'
@@ -131,7 +132,13 @@ type SlipClockSource = Pick<AdminBetSlip, 'status' | 'autoFreezeAt'> &
   Partial<
     Pick<
       AdminBetSlip,
-      'code' | 'timeMode' | 'manualKickoffAt' | 'liveStartedAt' | 'simulatedDurationMinutes' | 'selections'
+      | 'code'
+      | 'timeMode'
+      | 'manualKickoffAt'
+      | 'liveStartedAt'
+      | 'simulatedDurationMinutes'
+      | 'selections'
+      | 'freezeReason'
     >
   >
 
@@ -177,11 +184,44 @@ export function resolveMatchClock(
   return clockFromKickoff(kickoffIso, durationMinutes, seed, now.getTime())
 }
 
+function isInPlayFreezeMarker(reason: string | null | undefined): boolean {
+  const value = reason?.trim().toLowerCase() ?? ''
+  return value.includes('in-play') || value.includes('simulated matches are live')
+}
+
 export function isSlipFrozen(slip: SlipClockSource, now = new Date()): boolean {
   if (slip.status === 'CLOSED') return true
   const clock = resolveMatchClock(slip, now)
-  if (clock) return matchClock(clock, now.getTime()).finished
-  return slip.status !== 'OPEN' || slip.autoFreezeAt.getTime() <= now.getTime()
+  if (clock) {
+    const state = matchClock(clock, now.getTime())
+    if (state.finished) return true
+    if (state.started) {
+      if (slip.status === 'FROZEN') return !isInPlayFreezeMarker(slip.freezeReason)
+      return false
+    }
+  }
+  if (slip.status === 'FROZEN') return true
+  return slip.autoFreezeAt.getTime() <= now.getTime()
+}
+
+export function slipFreezeReason(slip: SlipClockSource, now = new Date()): string | null {
+  if (slip.status === 'CLOSED') return slip.freezeReason?.trim() || 'Betting is closed for this slip.'
+  const clock = resolveMatchClock(slip, now)
+  if (clock) {
+    const state = matchClock(clock, now.getTime())
+    if (state.finished) return slip.freezeReason?.trim() || 'Full time. Betting is closed for this slip.'
+    if (state.started) {
+      if (slip.status === 'FROZEN' && !isInPlayFreezeMarker(slip.freezeReason)) {
+        return slip.freezeReason?.trim() || 'Betting was paused by an administrator.'
+      }
+      return null
+    }
+  }
+  if (slip.status === 'FROZEN') return slip.freezeReason?.trim() || 'Betting was paused by an administrator.'
+  if (slip.autoFreezeAt.getTime() <= now.getTime()) {
+    return slip.freezeReason?.trim() || 'Betting closed because the first match has started.'
+  }
+  return null
 }
 
 export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetSlipView {
@@ -189,18 +229,23 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
   const clock = resolveMatchClock(slip, now)
   const match = clock ? matchClock(clock, now.getTime()) : null
   const frozen = isSlipFrozen(slip, now)
+  const frozenReason = slipFreezeReason(slip, now)
+  const displaySelections =
+    clock && (slip.timeMode === 'SIMULATED' || slip.timeMode === 'ORIGINAL')
+      ? attachSimulationClock(selections, clock)
+      : selections
   const clockSources: TicketSimulationMeta[] =
     slip.timeMode === 'SIMULATED'
       ? clock
-        ? selections.map(selection =>
+        ? displaySelections.map(selection =>
             selection.simulation ?? simulationClockForSelection(selection, clock),
           )
         : []
       : clock
-        ? [clock]
+        ? displaySelections.map(selection => selection.simulation ?? clock)
         : []
   const inPlay = clockSources.some(candidate => matchClock(candidate, now.getTime()).live)
-  const quote = inPlayQuote(slip.stakeMinor, selections, clock, now.getTime())
+  const quote = inPlayQuote(slip.stakeMinor, displaySelections, clock, now.getTime())
   return {
     id: slip.id,
     code: slip.code,
@@ -216,14 +261,7 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
     simulatedDurationMinutes: slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES,
     liveStartedAt: slip.liveStartedAt?.toISOString() ?? null,
     frozen,
-    frozenReason: clock
-      ? match?.finished
-        ? 'Full time. Betting is closed for this slip.'
-        : null
-      : slip.freezeReason ??
-        (slip.autoFreezeAt.getTime() <= now.getTime()
-          ? 'Betting closed because the first match has started.'
-          : null),
+    frozenReason,
     inPlay,
     clock,
     matchClock: match
@@ -452,10 +490,13 @@ export async function createAdminBetSlip(input: {
 
   selections.sort((left, right) => new Date(left.kickoffIso).getTime() - new Date(right.kickoffIso).getTime())
   const { totalOdds, potentialReturnMinor } = computeTicketTotals(input.stakeMinor, selections)
+  const lastKickoffMs = Math.max(
+    ...selections.map(selection => new Date(selection.kickoffIso).getTime()),
+  )
   const autoFreezeAt =
     timeMode === 'SIMULATED'
       ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000)
-      : manualKickoffAt ?? new Date(selections[0].kickoffIso)
+      : manualKickoffAt ?? new Date(Number.isFinite(lastKickoffMs) ? lastKickoffMs : now.getTime())
   const mode = await getBetMode()
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -575,10 +616,15 @@ export async function unfreezeAdminBetSlip(input: {
   if (existing.status !== 'FROZEN') {
     throw new BetError('Only a frozen slip can be reopened.', 409, 'SLIP_NOT_FROZEN')
   }
-  if (existing.liveStartedAt) {
-    throw new BetError('A simulated live slip cannot be reopened.', 409, 'SLIP_LIVE')
+  const clock = resolveMatchClock(existing, now)
+  if (clock && matchClock(clock, now.getTime()).finished) {
+    throw new BetError('A finished slip cannot be reopened.', 409, 'SLIP_FINISHED')
   }
 
+  const nextAutoFreezeAt =
+    existing.autoFreezeAt.getTime() <= now.getTime()
+      ? new Date(now.getTime() + 15 * 60_000)
+      : existing.autoFreezeAt
   const slip = await prisma.adminBetSlip.update({
     where: { id: input.id },
     data: {
@@ -586,6 +632,7 @@ export async function unfreezeAdminBetSlip(input: {
       freezeReason: null,
       frozenAt: null,
       frozenBy: input.actorId,
+      autoFreezeAt: nextAutoFreezeAt,
     },
   })
   return toAdminSlipView(slip, now)
@@ -635,6 +682,14 @@ export async function startAdminSlipSimulation(input: {
   actorId: string
   now?: Date
 }): Promise<AdminBetSlipView> {
+  return startAdminBetSlip(input)
+}
+
+export async function startAdminBetSlip(input: {
+  id: string
+  actorId: string
+  now?: Date
+}): Promise<AdminBetSlipView> {
   const now = input.now ?? new Date()
   const slip = await prisma.adminBetSlip.findUnique({
     where: { id: input.id },
@@ -648,41 +703,44 @@ export async function startAdminSlipSimulation(input: {
   if (!slip) {
     throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
   }
-  if (slip.timeMode !== 'SIMULATED') {
-    throw new BetError('Only simulated slips can be started manually.', 409, 'SLIP_NOT_SIMULATED')
-  }
   if (slip.status === 'CLOSED') {
     throw new BetError('A closed slip cannot go live.', 409, 'SLIP_CLOSED')
   }
-  if (slip.liveStartedAt) {
+  const existingClock = resolveMatchClock(slip, now)
+  if (existingClock && matchClock(existingClock, now.getTime()).started) {
     return toAdminSlipView(slip, now)
   }
 
+  const durationMinutes = slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES
   const clock = {
     liveStartedAt: now.toISOString(),
-    durationMinutes: slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES,
+    durationMinutes,
     seed: slip.code,
-    kickoffIso: slip.manualKickoffAt?.toISOString() ?? slip.autoFreezeAt.toISOString(),
+    kickoffIso:
+      slip.manualKickoffAt?.toISOString() ??
+      parseSelections(slip.selections)
+        .map(s => s.kickoffIso)
+        .filter(Boolean)
+        .sort()[0] ??
+      now.toISOString(),
   }
   const slipSelections = attachSimulationClock(parseSelections(slip.selections), clock)
   const ticketIds = [...new Set(slip.entries.map(entry => entry.ticketId).filter(Boolean))] as string[]
 
   const updated = await prisma.$transaction(async tx => {
     const claimed = await tx.adminBetSlip.updateMany({
-      where: { id: slip.id, status: { in: ['OPEN', 'FROZEN'] }, liveStartedAt: null },
+      where: { id: slip.id, status: { in: ['OPEN', 'FROZEN'] } },
       data: {
-        status: 'FROZEN',
+        status: 'OPEN',
         freezeReason: 'Match has started. In-play stakes are available at reduced prices.',
         liveStartedAt: now,
-        frozenAt: now,
+        frozenAt: null,
         frozenBy: input.actorId,
         selections: slipSelections as unknown as Prisma.InputJsonValue,
       },
     })
     if (claimed.count === 0) {
-      return (
-        (await tx.adminBetSlip.findUnique({ where: { id: slip.id } })) ?? slip
-      )
+      return (await tx.adminBetSlip.findUnique({ where: { id: slip.id } })) ?? slip
     }
 
     for (const ticketId of ticketIds) {
@@ -698,7 +756,7 @@ export async function startAdminSlipSimulation(input: {
     await tx.adminAuditLog.create({
       data: {
         actorId: input.actorId,
-        action: 'admin.slip.start-live',
+        action: 'admin.slip.start-match',
         target: slip.code,
         metadata: { liveStartedAt: clock.liveStartedAt, durationMinutes: clock.durationMinutes },
       },
@@ -706,6 +764,90 @@ export async function startAdminSlipSimulation(input: {
     return tx.adminBetSlip.findUniqueOrThrow({ where: { id: slip.id } })
   })
 
+  return toAdminSlipView(updated, now)
+}
+
+export async function finishAdminBetSlip(input: {
+  id: string
+  actorId: string
+  now?: Date
+}): Promise<AdminBetSlipView> {
+  const now = input.now ?? new Date()
+  const slip = await prisma.adminBetSlip.findUnique({
+    where: { id: input.id },
+    include: { entries: { where: { ticketId: { not: null } }, select: { ticketId: true } } },
+  })
+  if (!slip) {
+    throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
+  }
+  if (slip.status === 'CLOSED') return toAdminSlipView(slip, now)
+
+  const durationMinutes = slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES
+  const finishedStartedAt = new Date(now.getTime() - (durationMinutes + 20) * 60_000)
+  const selections = parseSelections(slip.selections)
+  const baseClock = resolveMatchClock(slip, now) ?? {
+    liveStartedAt: finishedStartedAt.toISOString(),
+    durationMinutes,
+    seed: slip.code,
+    kickoffIso: slip.manualKickoffAt?.toISOString() ?? now.toISOString(),
+  }
+  const finishedSelections = selections.map(selection => {
+    const sourceClock = selection.simulation ?? simulationClockForSelection(selection, baseClock)
+    return {
+      ...selection,
+      simulation: {
+        ...sourceClock,
+        liveStartedAt: new Date(
+          now.getTime() - ((sourceClock.durationMinutes || durationMinutes) + 20) * 60_000,
+        ).toISOString(),
+      },
+    }
+  })
+  const ticketIds = [...new Set(slip.entries.map(entry => entry.ticketId).filter(Boolean))] as string[]
+
+  const updated = await prisma.$transaction(async tx => {
+    const next = await tx.adminBetSlip.update({
+      where: { id: slip.id },
+      data: {
+        status: 'FROZEN',
+        freezeReason: 'Full time. Betting is closed for this slip.',
+        frozenAt: now,
+        frozenBy: input.actorId,
+        liveStartedAt: slip.liveStartedAt ?? finishedStartedAt,
+        selections: finishedSelections as unknown as Prisma.InputJsonValue,
+      },
+    })
+    for (const ticketId of ticketIds) {
+      const ticket = await tx.betTicket.findUnique({ where: { id: ticketId } })
+      if (!ticket || ticket.status !== 'OPEN') continue
+      const ticketSelections = attachSimulationClock(parseSelections(ticket.selections), baseClock).map(selection => {
+        const sourceClock = selection.simulation ?? simulationClockForSelection(selection, baseClock)
+        return {
+          ...selection,
+          simulation: {
+            ...sourceClock,
+            liveStartedAt: new Date(
+              now.getTime() - ((sourceClock.durationMinutes || durationMinutes) + 20) * 60_000,
+            ).toISOString(),
+          },
+        }
+      })
+      await tx.betTicket.update({
+        where: { id: ticket.id },
+        data: { selections: ticketSelections as unknown as Prisma.InputJsonValue },
+      })
+    }
+    await tx.adminAuditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: 'admin.slip.finish-match',
+        target: slip.code,
+        metadata: { finishedAt: now.toISOString() },
+      },
+    })
+    return next
+  })
+    await settleAllOpenTickets(now).catch(() => undefined)
   return toAdminSlipView(updated, now)
 }
 
@@ -907,3 +1049,9 @@ async function resolvePlacedTicket(ticketId: string | null | undefined): Promise
   const ticket = await prisma.betTicket.findUnique({ where: { id: ticketId } })
   return ticket ? toTicketView(ticket) : null
 }
+
+
+
+
+
+

@@ -59,9 +59,9 @@ describe('isSlipFrozen', () => {
     )
   })
 
-  it('allows in-play stakes after kickoff and freezes again at full time', () => {
+  it('allows in-play betting while started and freezes at full time', () => {
     const liveSlip = {
-      status: 'FROZEN' as const,
+      status: 'OPEN' as const,
       autoFreezeAt: new Date('2026-01-01T11:59:59.000Z'),
       code: 'ABC123',
       timeMode: 'MANUAL' as const,
@@ -215,8 +215,8 @@ describe('toAdminSlipView', () => {
       selectionSource: 'RANDOM',
       simulatedDurationMinutes: 45,
       liveStartedAt: '2026-01-01T12:00:00.000Z',
-      frozen: false,
       inPlay: true,
+      frozen: false,
     })
     expect(view.matchClock?.label).toBe("1'")
     expect(view.quote.factor).toBeLessThan(1)

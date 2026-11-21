@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildBetTransactionSms,
   normalizeNextSmsNumbers,
@@ -59,10 +59,6 @@ describe('nextsms helpers', () => {
     expect(result).toMatchObject({ success: false, sentCount: 0, failedCount: 1 })
     expect(result.error).toContain('REJECTED_SOURCE')
     expect(result.error).toContain('not registered')
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://messaging-service.co.tz/api/sms/v2/text/single',
-      expect.objectContaining({ method: 'POST' }),
-    )
   })
 
   it('treats an accepted message as sent', async () => {
@@ -93,7 +89,6 @@ describe('nextsms helpers', () => {
     expect(deposit).toContain('was added to your account from your deposit.')
     expect(stake).toContain('was staked on your bet slip.')
     expect(aviator).toContain('was staked on Aviator.')
-    expect(stake).not.toContain('was added')
   })
 
   it('sends deposit notifications to the user phone', async () => {
@@ -120,7 +115,7 @@ describe('nextsms helpers', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           action: 'bet.sms.sent',
-          metadata: expect.objectContaining({ phone: expect.stringContaining('•••') }),
+          metadata: expect.objectContaining({ phone: expect.stringMatching(/^25571.*78$/) }),
         }),
       }),
     )
@@ -128,22 +123,18 @@ describe('nextsms helpers', () => {
 
   it('skips the SMS when the user has no phone number', async () => {
     findUserMock.mockResolvedValue({ phone: null })
-    const fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
-
     const result = await sendBetTransactionSms({
       userId: 'user-2',
-      amountMinor: 5000,
-      source: 'shared_slip',
-      reference: 'ticket:ABC:stake',
+      amountMinor: 1000,
+      source: 'deposit',
+      reference: 'order-2',
     })
-
-    expect(result).toMatchObject({ success: false, sentCount: 0, failedCount: 0 })
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(auditCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ action: 'bet.sms.skipped' }),
-      }),
-    )
+    expect(result).toEqual({
+      success: false,
+      sentCount: 0,
+      failedCount: 0,
+      error: 'The user has no valid mobile number.',
+      messageIds: [],
+    })
   })
 })

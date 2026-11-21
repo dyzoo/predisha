@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/prisma'
-import type { HarakaPayWebhookEvent } from '@/lib/billing/harakapay'
+import type { NoripesaWebhookEvent } from '@/lib/billing/noripesa'
 import { planDurationMs } from './duration'
 
 const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed'])
 const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired'])
 
 export async function applyBillingWebhookEvent(
-  event: HarakaPayWebhookEvent,
+  event: NoripesaWebhookEvent,
 ): Promise<{ handled: boolean }> {
   if (!event.orderId) return { handled: false }
   const status = (event.status ?? '').toLowerCase()

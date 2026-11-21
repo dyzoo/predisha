@@ -27,7 +27,8 @@ export function buildCashoutQuote(input: CashoutQuoteInput): CashoutQuote {
 
   let raw: number
   if (input.outcome === 'WIN') {
-    raw = potential * (0.78 + 0.17 * progress)
+    const profit = Math.max(0, potential - stake)
+    raw = stake + profit * (0.35 + 0.45 * progress)
   } else if (input.outcome === 'LOSE') {
     raw = stake * (0.55 - 0.12 * progress)
   } else if (input.outcome === 'MIXED') {
@@ -37,7 +38,7 @@ export function buildCashoutQuote(input: CashoutQuoteInput): CashoutQuote {
   }
 
   const bucket = Math.floor((input.now ?? Date.now()) / 30_000)
-  const bonus = input.seed ? ((hashString(`${input.seed}:cashout:${bucket}`) % 16) / 1000) : 0
+  const bonus = input.seed ? ((hashString(`${input.seed}:cashout:${bucket}`) % 12) / 1000) : 0
   const offer = Math.floor(raw * (1 + bonus))
   return {
     offer: Math.floor(clamp(offer, stake * 0.4, potential)),

@@ -1,4 +1,4 @@
-import { z } from 'zod'
+﻿import { z } from 'zod'
 import { apiError, json } from '@/lib/api'
 import { isSameOrigin } from '@/lib/auth/origin'
 import { clientKey, rateLimit } from '@/lib/auth/rate-limit'
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError('Enter a valid order id.', 422)
 
   const provider = getBillingProvider()
-  if (provider.name !== 'harakapay') {
+  if (provider.name !== 'noripesa') {
     return apiError('Payment confirmation is not available for this provider.', 400)
   }
 

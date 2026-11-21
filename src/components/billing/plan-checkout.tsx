@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
@@ -32,7 +32,7 @@ const FAILURE_STATUSES = ['failed', 'failure', 'cancelled', 'canceled', 'rejecte
 
 export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
   const router = useRouter()
-  const isHarakaPay = provider === 'harakapay'
+  const isNoripesa = provider === 'Noripesa'
   const [planId, setPlanId] = useState(plans[0]?.id ?? '')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -106,7 +106,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
     setPending(true)
     setConfirmation('idle')
     try {
-      const body = isHarakaPay ? { planId: plan.id, phone } : { planId: plan.id }
+      const body = isNoripesa ? { planId: plan.id, phone } : { planId: plan.id }
       const response = await fetch('/api/billing/checkout', {
         method: 'POST',
         credentials: 'include',
@@ -125,7 +125,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
       const data = payload.data ?? null
       setResult(data)
 
-      if (isHarakaPay && data?.orderId) {
+      if (isNoripesa && data?.orderId) {
         const orderId = data.orderId
         setConfirmation('waiting')
         attemptsRef.current = 0
@@ -185,7 +185,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
           </p>
           <p className="mt-2 text-xs leading-relaxed text-muted-text">
             {result?.message} to the number ending in {phone.slice(-4)}. Approve the USSD prompt on your
-            handset. This page updates automatically once HarakaPay confirms the payment.
+            handset. This page updates automatically once Noripesa confirms the payment.
           </p>
           {result?.orderId ? (
             <p className="mt-2 text-[11px] leading-relaxed text-muted-text">
@@ -195,7 +195,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
         </div>
       ) : null}
 
-      {isHarakaPay && confirmation === 'idle' && result?.orderId ? (
+      {isNoripesa && confirmation === 'idle' && result?.orderId ? (
         <div className="rounded-xl border border-border bg-surface/40 p-4">
           <p className="flex items-center gap-2 text-xs font-semibold text-main-text">
             <Smartphone className="h-4 w-4" />
@@ -222,17 +222,17 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
         </div>
       ) : null}
 
-      {!isHarakaPay ? (
+      {!isNoripesa ? (
         <div className="mb-3 flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3.5 text-xs leading-relaxed text-amber-200">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             Test billing is enabled. This activates premium immediately without taking a real payment.
-            Switch <code>BILLING_PROVIDER</code> to <code>harakapay</code> to charge for real.
+            Switch <code>BILLING_PROVIDER</code> to <code>Noripesa</code> to charge for real.
           </p>
         </div>
       ) : null}
 
-      <div className={`grid gap-3 ${isHarakaPay ? 'sm:grid-cols-2' : ''}`}>
+      <div className={`grid gap-3 ${isNoripesa ? 'sm:grid-cols-2' : ''}`}>
         <div>
           <label
             htmlFor="billing-plan"
@@ -258,7 +258,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
             ))}
           </select>
         </div>
-        {isHarakaPay ? (
+        {isNoripesa ? (
           <div>
             <label
               htmlFor="billing-phone"
@@ -299,14 +299,14 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {pending
           ? 'Starting checkout...'
-          : isHarakaPay
-            ? 'Start HarakaPay payment'
+          : isNoripesa
+            ? 'Start Noripesa payment'
             : 'Activate test subscription'}
       </button>
       {plan ? (
         <p className="mt-2 text-center text-[11px] leading-relaxed text-muted-text">
           {formatPlanAmount(plan.amountMinor, plan.currency)} per {intervalLabel(plan)}.
-          {isHarakaPay ? ' The provider fee is applied by HarakaPay.' : ''}
+          {isNoripesa ? ' The provider fee is applied by Noripesa.' : ''}
         </p>
       ) : null}
     </form>

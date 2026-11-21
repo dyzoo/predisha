@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -452,13 +452,8 @@ export function ShareLoader({ code }: { code: string }) {
     if (paying) return
     setPayError(null)
 
-    if (
-      slip &&
-      (slip.frozen ||
-        (slip.status !== 'OPEN' && !slip.inPlay) ||
-        (!slip.inPlay && new Date(slip.autoFreezeAt).getTime() <= Date.now()))
-    ) {
-      setPayError('Betting is closed for this slip.')
+    if (slip && !slip.inPlay && (slip.frozen || slip.status === 'CLOSED' || new Date(slip.autoFreezeAt).getTime() <= Date.now())) {
+      setPayError((slip as any).frozenReason || 'Betting is closed for this slip.')
       return
     }
 
@@ -608,7 +603,7 @@ export function ShareLoader({ code }: { code: string }) {
                     {selection.fixtureLabel}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-text">
-                    <span className="font-semibold text-accent">{selection.marketName}</span> ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·{' '}
+                    <span className="font-semibold text-accent">{selection.marketName}</span> ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·{' '}
                     {selection.selectionLabel}
                   </p>
                 </li>
@@ -638,7 +633,7 @@ export function ShareLoader({ code }: { code: string }) {
   const paid = entry?.status === 'PAID'
   const pending = entry?.status === 'PENDING'
   const failed = entry?.status === 'FAILED' || entry?.status === 'CANCELLED'
-  const frozen = slip.frozen || (slip.status !== 'OPEN' && !slip.inPlay)
+  const frozen = !slip.inPlay && (slip.frozen || slip.status === 'CLOSED')
   const canPay = !frozen && !paid && !pending
   const signedIn = Boolean(viewer?.userId)
   const walletBalanceMinor = wallet?.balanceMinor ?? 0
@@ -647,6 +642,12 @@ export function ShareLoader({ code }: { code: string }) {
   const displayGross = slip.inPlay ? slip.quote.potentialReturnMinor : slip.potentialReturnMinor
   const displayNet = slip.inPlay ? slip.quote.netPayoutMinor : slip.netPayoutMinor
   const displayVat = slip.inPlay ? slip.quote.vatMinor : slip.vatMinor
+  const nextKickoffIso = slip.selections
+    .map(selection => selection.kickoffIso)
+    .filter((value): value is string => Boolean(value))
+    .filter(value => !Number.isNaN(new Date(value).getTime()))
+    .filter(value => new Date(value).getTime() > Date.now())
+    .sort()[0] ?? null
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -658,13 +659,13 @@ export function ShareLoader({ code }: { code: string }) {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-600 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
             </span>
-            Match has started{liveBadgeLabel ? ` · ${liveBadgeLabel}` : ''}. New stakes use live odds.
+            Match has started{liveBadgeLabel ? ` Â· ${liveBadgeLabel}` : ''}. New stakes use live odds.
           </span>
           <Link
             href={`/bet/live?slip=${encodeURIComponent(slip.code)}`}
             className="font-bold underline underline-offset-4 hover:no-underline"
           >
-            See live updates →
+            See live updates â†’
           </Link>
         </div>
       ) : null}
@@ -832,7 +833,9 @@ export function ShareLoader({ code }: { code: string }) {
                   <Clock className="h-3.5 w-3.5 text-accent" />
                   {simulatedLive || activeMatch?.live
                     ? `Match clock ${liveBadgeLabel ?? activeMatch?.label ?? ''}`
-                    : `Closes ${formatDateTimeLabel(slip.autoFreezeAt)}`}
+                    : nextKickoffIso
+                      ? `Starts ${formatDateTimeLabel(nextKickoffIso)}`
+                      : `Closes ${formatDateTimeLabel(slip.autoFreezeAt)}`}
                 </span>
 
               <span className="inline-flex items-center gap-1.5">
@@ -1003,7 +1006,7 @@ export function ShareLoader({ code }: { code: string }) {
                         {selectionLive ? (
                           <p className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                            In play · {formatOdds(selection.baseOdds ?? selection.odds)} →{' '}
+                            In play Â· {formatOdds(selection.baseOdds ?? selection.odds)} â†’{' '}
                             {formatOdds(selection.odds)}
                           </p>
                         ) : null}
@@ -1140,7 +1143,7 @@ export function ShareLoader({ code }: { code: string }) {
                             Balance
                           </p>
                           <p className="mt-0.5 font-mono text-sm font-bold text-main-text">
-                            {walletLoading && !wallet ? '…' : formatTzs(walletBalanceMinor)}
+                            {walletLoading && !wallet ? 'â€¦' : formatTzs(walletBalanceMinor)}
                           </p>
                         </div>
                         <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
@@ -1171,7 +1174,7 @@ export function ShareLoader({ code }: { code: string }) {
                         )}
                         {paying
                           ? 'Placing bet...'
-                          : `Place bet · ${formatTzs(slip.stakeMinor)}`}
+                          : `Place bet Â· ${formatTzs(slip.stakeMinor)}`}
                       </button>
                     </div>
                   ) : (
@@ -1256,7 +1259,7 @@ export function ShareLoader({ code }: { code: string }) {
                         : 'Ready to play'}
               </p>
               <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-text">
-                SpotibetBet ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· EAT ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {slip.code}
+                SpotibetBet ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· EAT ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {slip.code}
               </p>
             </div>
           </div>
@@ -1281,3 +1284,7 @@ export function ShareLoader({ code }: { code: string }) {
     </div>
   )
 }
+
+
+
+

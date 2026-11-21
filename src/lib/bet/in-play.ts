@@ -87,12 +87,17 @@ export function inPlayQuote(
   }
 
   const adjusted = applyInPlayOdds(selections, clock, now)
+  const preDiscountTotalOdds = combineOdds(
+    adjusted.selections.map(selection => selection.baseOdds ?? selection.odds),
+  )
   const totalOdds = combineOdds(adjusted.selections.map(selection => selection.odds))
+  const factor =
+    preDiscountTotalOdds > 0 ? Math.round((totalOdds / preDiscountTotalOdds) * 1000) / 1000 : 1
   const potentialReturnMinor = Math.floor(stakeMinor * totalOdds)
   const vat = applyVat(potentialReturnMinor)
   return {
     selections: adjusted.selections,
-    factor: adjusted.factor,
+    factor,
     totalOdds,
     potentialReturnMinor,
     vatMinor: vat.vatMinor,

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -389,6 +389,7 @@ export function AdminSlipGenerator({
                   marketId: item.marketId,
                   selectionId: item.selectionId,
                   odds: normalizeOddsValue(item.odds),
+                  ...(timeMode === 'SIMULATED' && item.kickoffIso ? { kickoffIso: item.kickoffIso } : {}),
                 },
           ),
         }),
@@ -622,7 +623,7 @@ export function AdminSlipGenerator({
           </div>
           <p className="mt-1.5 text-[10px] text-muted-text">
             Generate matches, add a blank row, or edit teams, kickoff and markets directly below.
-            Choose “Custom market...” or “Custom selection...” to enter any market ID, label,
+            Choose â€œCustom market...â€ or â€œCustom selection...â€ to enter any market ID, label,
             selection and probability. Over/Under goal IDs settle from the final score.
           </p>
         </div>
@@ -884,3 +885,4 @@ export function AdminSlipGenerator({
     </section>
   )
 }
+

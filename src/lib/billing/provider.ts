@@ -2,13 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { planDurationMs } from './duration'
 import {
-  HARAKAPAY_PROVIDER_NAME,
-  confirmHarakaPayOrder,
-  createHarakaPayOrder,
-  harakapayApiKeyConfigured,
-  verifyHarakaPayWebhook,
-  type HarakaPayWebhookEvent,
-} from '@/lib/billing/harakapay'
+  NORIPESA_PROVIDER_NAME,
+  confirmNoripesaOrder,
+  createNoripesaOrder,
+  noripesaApiKeyConfigured,
+  verifyNoripesaWebhook,
+  type NoripesaWebhookEvent,
+} from '@/lib/billing/noripesa'
 
 const MANUAL_PROVIDER_NAME = 'manual'
 
@@ -35,11 +35,11 @@ export interface BillingProvider {
   createCheckoutSession(
     userId: string,
     planId: string,
-    options?: { phone?: string | null },
+    options?: { phone?: string | null; customerName?: string | null; customerEmail?: string | null },
   ): Promise<BillingCheckout | null>
   createPortalSession(userId: string): Promise<{ url: string } | null>
-  verifyWebhook(rawBody: string, signature: string | null): Promise<HarakaPayWebhookEvent | null>
-  confirmCheckout(orderId: string): Promise<HarakaPayWebhookEvent | null>
+  verifyWebhook(rawBody: string, signature: string | null): Promise<NoripesaWebhookEvent | null>
+  confirmCheckout(orderId: string): Promise<NoripesaWebhookEvent | null>
 }
 
 export class DisabledBillingProvider implements BillingProvider {
@@ -53,36 +53,42 @@ export class DisabledBillingProvider implements BillingProvider {
     return null
   }
 
-  async verifyWebhook(): Promise<HarakaPayWebhookEvent | null> {
+  async verifyWebhook(): Promise<NoripesaWebhookEvent | null> {
     return null
   }
 
-  async confirmCheckout(): Promise<HarakaPayWebhookEvent | null> {
+  async confirmCheckout(): Promise<NoripesaWebhookEvent | null> {
     return null
   }
 }
 
-export class HarakaPayBillingProvider implements BillingProvider {
-  name = HARAKAPAY_PROVIDER_NAME
+export class NoripesaBillingProvider implements BillingProvider {
+  name = NORIPESA_PROVIDER_NAME
 
   async createCheckoutSession(
     userId: string,
     planId: string,
-    options?: { phone?: string | null },
+    options?: { phone?: string | null; customerName?: string | null; customerEmail?: string | null },
   ): Promise<BillingCheckout | null> {
-    if (!harakapayApiKeyConfigured()) return null
+    if (!noripesaApiKeyConfigured()) return null
 
     const phone = options?.phone?.trim() ?? ''
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } })
     if (!plan || !plan.active || plan.amountMinor === null) return null
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    })
     const appUrl = (process.env.APP_URL ?? process.env.AUTH_URL ?? 'http://localhost:3000').trim().replace(/\/+$/, '')
-    const order = await createHarakaPayOrder({
+    const order = await createNoripesaOrder({
       phone,
       amountMinor: plan.amountMinor,
       currency: plan.currency,
       description: `Spotibet ${plan.interval.toLowerCase()} premium subscription`,
-      webhookUrl: `${appUrl}/api/webhooks/${HARAKAPAY_PROVIDER_NAME}`,
+      webhookUrl: `${appUrl}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
+      customerName: options?.customerName ?? user?.name ?? null,
+      customerEmail: options?.customerEmail ?? user?.email ?? null,
     })
     if (!order.success || !order.orderId) return null
 
@@ -105,7 +111,7 @@ export class HarakaPayBillingProvider implements BillingProvider {
       .catch(() => undefined)
 
     return {
-      provider: HARAKAPAY_PROVIDER_NAME,
+      provider: NORIPESA_PROVIDER_NAME,
       orderId: order.orderId,
       status: order.status,
       amountMinor: plan.amountMinor,
@@ -119,21 +125,26 @@ export class HarakaPayBillingProvider implements BillingProvider {
     return null
   }
 
-  async verifyWebhook(rawBody: string, signature: string | null): Promise<HarakaPayWebhookEvent | null> {
-    return verifyHarakaPayWebhook(rawBody, signature)
+  async verifyWebhook(rawBody: string, signature: string | null): Promise<NoripesaWebhookEvent | null> {
+    return verifyNoripesaWebhook(rawBody, signature)
   }
 
-  async confirmCheckout(orderId: string): Promise<HarakaPayWebhookEvent | null> {
-    return confirmHarakaPayOrder(orderId)
+  async confirmCheckout(orderId: string): Promise<NoripesaWebhookEvent | null> {
+    const result = await confirmNoripesaOrder(orderId)
+    if (!result) return null
+    return {
+      provider: NORIPESA_PROVIDER_NAME,
+      providerEventId: result.orderId ?? orderId,
+      orderId: result.orderId ?? orderId,
+      type: 'order.status',
+      status: result.status,
+      amountMinor: result.amount,
+      currency: 'TZS',
+      verified: true,
+    }
   }
 }
 
-/**
- * Test-only provider. It activates a subscription immediately so the whole
- * subscribe -> entitlement flow can be exercised without a live payment
- * provider. It never runs unless explicitly selected and enabled outside
- * production (or with BILLING_TEST_MODE=true).
- */
 export class ManualBillingProvider implements BillingProvider {
   name = MANUAL_PROVIDER_NAME
 
@@ -191,11 +202,11 @@ export class ManualBillingProvider implements BillingProvider {
     return null
   }
 
-  async verifyWebhook(): Promise<HarakaPayWebhookEvent | null> {
+  async verifyWebhook(): Promise<NoripesaWebhookEvent | null> {
     return null
   }
 
-  async confirmCheckout(): Promise<HarakaPayWebhookEvent | null> {
+  async confirmCheckout(): Promise<NoripesaWebhookEvent | null> {
     return null
   }
 }
@@ -213,8 +224,8 @@ export function getBillingProvider(): BillingProvider {
   if (!isBillingEnabled()) {
     return new DisabledBillingProvider()
   }
-  if (process.env.BILLING_PROVIDER === HARAKAPAY_PROVIDER_NAME) {
-    return new HarakaPayBillingProvider()
+  if (process.env.BILLING_PROVIDER === NORIPESA_PROVIDER_NAME) {
+    return new NoripesaBillingProvider()
   }
   if (process.env.BILLING_PROVIDER === MANUAL_PROVIDER_NAME && isManualBillingAllowed()) {
     return new ManualBillingProvider()

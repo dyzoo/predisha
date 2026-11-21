@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -25,6 +25,8 @@ export interface AdminSlipSelectionView {
   marketName: string
   selectionLabel: string
   odds: number
+  kickoffIso?: string | null
+  kickoffLabel?: string | null
 }
 
 export interface AdminSlipEntryView {
@@ -81,15 +83,29 @@ function freezeLabel(iso: string): string {
   return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`
 }
 
+function nextKickoffIso(slip: AdminSlipListItemView): string | null {
+  const now = Date.now()
+  const upcoming = slip.selections
+    .map(selection => selection.kickoffIso)
+    .filter((value): value is string => Boolean(value))
+    .filter(value => !Number.isNaN(new Date(value).getTime()))
+    .filter(value => new Date(value).getTime() > now)
+    .sort()
+  return upcoming[0] ?? null
+}
+
 function timeLabel(slip: AdminSlipListItemView): string {
-  const iso = slip.manualKickoffAt ?? slip.autoFreezeAt
   const prefix =
     slip.timeMode === 'SIMULATED'
       ? `Simulated ${slip.simulatedDurationMinutes}min`
       : slip.timeMode === 'MANUAL'
         ? 'Manual time'
         : 'Original time'
-  return `${prefix} · ${freezeLabel(iso)}`
+  if (slip.liveStartedAt) return `${prefix} â€¢ started ${freezeLabel(slip.liveStartedAt)}`
+  const next = nextKickoffIso(slip)
+  if (next) return `${prefix} â€¢ starts ${freezeLabel(next)}`
+  const iso = slip.manualKickoffAt ?? slip.autoFreezeAt
+  return `${prefix} â€¢ ${freezeLabel(iso)}`
 }
 
 export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
@@ -125,7 +141,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
     })
   }, [slips, query, statusFilter, modeFilter])
 
-  async function act(code: string, action: 'freeze' | 'unfreeze' | 'close' | 'start-live') {
+  async function act(code: string, action: 'freeze' | 'unfreeze' | 'close' | 'start-live' | 'start-match' | 'finish-match') {
     if (pendingCode) return
     setPendingCode(code)
     setError(null)
@@ -148,9 +164,11 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
           ? `Slip ${code} is frozen.`
           : action === 'unfreeze'
             ? `Slip ${code} is open again.`
-            : action === 'start-live'
-              ? `Slip ${code} is live. Betting is closed.`
-              : `Slip ${code} is closed permanently.`,
+            : action === 'start-live' || action === 'start-match'
+              ? `Slip ${code} is live.`
+              : action === 'finish-match'
+                ? `Slip ${code} is marked as full time.`
+                : `Slip ${code} is closed permanently.`,
       )
       router.refresh()
     } catch {
@@ -385,7 +403,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                   ) : null}
                 </p>
                 <p className="mt-1 truncate text-xs text-muted-text">
-                  {slip.title ?? 'Untitled slip'} · {timeLabel(slip)}
+                  {slip.title ?? 'Untitled slip'} Â· {timeLabel(slip)}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -397,18 +415,29 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                   <Copy className="h-3.5 w-3.5" />
                   {copiedCode === slip.code ? 'Copied' : 'Copy link'}
                 </button>
-                {slip.timeMode === 'SIMULATED' && !slip.liveStartedAt && slip.status !== 'CLOSED' ? (
+                {slip.status !== 'CLOSED' && !slip.liveStartedAt ? (
                   <button
                     type="button"
-                    onClick={() => act(slip.code, 'start-live')}
+                    onClick={() => act(slip.code, 'start-match')}
                     disabled={busy}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/30 bg-red-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-red-200 transition-colors hover:border-red-400/50 disabled:opacity-60"
                   >
                     {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                    Start live
+                    Start match
                   </button>
                 ) : null}
-                {slip.status === 'FROZEN' && !slip.liveStartedAt ? (
+                {slip.status !== 'CLOSED' ? (
+                  <button
+                    type="button"
+                    onClick={() => act(slip.code, 'finish-match')}
+                    disabled={busy}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-main-text transition-colors hover:border-accent/40 disabled:opacity-60"
+                  >
+                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
+                    Finish match
+                  </button>
+                ) : null}
+                {slip.status === 'FROZEN' ? (
                   <button
                     type="button"
                     onClick={() => act(slip.code, 'unfreeze')}
@@ -516,8 +545,15 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                   key={`${slip.id}:${index}`}
                   className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-2.5 py-1.5"
                 >
-                  <span className="min-w-0 truncate text-[11px] text-main-text">
-                    {selection.fixtureLabel} · {selection.marketName} · {selection.selectionLabel}
+                  <span className="min-w-0 text-[11px] text-main-text">
+                    <span className="block truncate">
+                      {selection.fixtureLabel} Â· {selection.marketName} Â· {selection.selectionLabel}
+                    </span>
+                    {selection.kickoffLabel || selection.kickoffIso ? (
+                      <span className="block truncate text-[10px] text-muted-text">
+                        Starts: {selection.kickoffLabel ?? freezeLabel(selection.kickoffIso as string)}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="shrink-0 text-[11px] font-semibold tabular-nums text-muted-text">
                     {formatOdds(selection.odds)}

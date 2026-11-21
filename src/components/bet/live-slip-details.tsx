@@ -39,7 +39,6 @@ export function LiveSlipDetails({ slip: view }: { slip: AdminBetSlipView }) {
   }, [view.clock])
 
   const match = view.clock ? matchClock(view.clock, now) : (view.matchClock ?? null)
-  const minute = match?.minute ?? 1
   const live = Boolean(match?.live)
   const quote = view.quote
 
@@ -118,7 +117,12 @@ export function LiveSlipDetails({ slip: view }: { slip: AdminBetSlipView }) {
         <ul className="mt-4 space-y-2">
           {view.selections.map((selection, index) => {
             const teams = teamsFromFixtureLabel(selection.fixtureLabel)
-            const score = view.clock ? simulatedScore(selection, view.clock, minute) : null
+            const selectionClock = selection.simulation ?? view.clock
+            const selectionMatch = selectionClock ? matchClock(selectionClock, now) : null
+            const score =
+              selectionClock && selectionMatch
+                ? simulatedScore(selection, selectionClock, selectionMatch.minute)
+                : null
             return (
               <li
                 key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
@@ -131,6 +135,9 @@ export function LiveSlipDetails({ slip: view }: { slip: AdminBetSlipView }) {
                   <p className="mt-0.5 truncate text-[10px] text-emerald-700">
                     {selection.marketName} · {selection.selectionLabel}
                   </p>
+                  <p className="mt-0.5 truncate text-[10px] text-emerald-700/80">
+                    {selection.kickoffLabel ?? selection.kickoffIso ?? 'Kickoff time unavailable'}
+                  </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   {score ? (
@@ -139,7 +146,7 @@ export function LiveSlipDetails({ slip: view }: { slip: AdminBetSlipView }) {
                     </span>
                   ) : null}
                   <span className="text-[10px] font-bold text-red-700">
-                    {match?.label ?? ''}
+                    {selectionMatch?.label ?? (selectionClock ? 'Not started' : '')}
                   </span>
                   <span className="rounded-md border border-emerald-600/30 bg-emerald-100 px-2 py-1 font-mono text-xs font-black tabular-nums text-emerald-700">
                     {formatOdds(selection.odds)}

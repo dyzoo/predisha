@@ -1,4 +1,4 @@
-export interface NormalizedPhone {
+﻿export interface NormalizedPhone {
   ok: boolean
   phone: string
   error?: string
@@ -6,7 +6,7 @@ export interface NormalizedPhone {
 
 /**
  * Normalize Tanzanian mobile numbers to the 255XXXXXXXXX form expected by
- * HarakaPay. Accepts +255..., 255..., 0... and 9-digit local numbers.
+ * Noripesa. Accepts +255..., 255..., 0... and 9-digit local numbers.
  */
 export function normalizeTzPhone(input: string): NormalizedPhone {
   const raw = input.trim().replace(/[\s()-]/g, '')
@@ -31,5 +31,5 @@ export function normalizeTzPhone(input: string): NormalizedPhone {
 export function maskTzPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '')
   if (digits.length < 6) return phone
-  return `${digits.slice(0, 5)}•••${digits.slice(-2)}`
+  return `${digits.slice(0, 5)}â€¢â€¢â€¢${digits.slice(-2)}`
 }

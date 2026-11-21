@@ -157,7 +157,7 @@ export const adminSlipCreateSchema = z.object({
 })
 
 export const adminSlipActionSchema = z.object({
-  action: z.enum(['freeze', 'unfreeze', 'close', 'start-live']),
+  action: z.enum(['freeze', 'unfreeze', 'close', 'start-live', 'start-match', 'finish-match']),
   reason: z.string().trim().max(200).optional(),
 })
 

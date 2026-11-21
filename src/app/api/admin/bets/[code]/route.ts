@@ -3,8 +3,10 @@ import { handleBetError } from '@/lib/bet/errors'
 import {
   closeAdminBetSlip,
   deleteAdminBetSlip,
+  finishAdminBetSlip,
   freezeAdminBetSlip,
   getAdminBetSlipByCode,
+  startAdminBetSlip,
   startAdminSlipSimulation,
   unfreezeAdminBetSlip,
 } from '@/lib/bet/slips'
@@ -66,12 +68,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       return json({ slip: updated })
     }
 
-    if (input.action === 'start-live') {
-      const updated = await startAdminSlipSimulation({
-        id: slip.id,
-        actorId,
-        now: new Date(),
-      })
+    if (input.action === 'start-live' || input.action === 'start-match') {
+      const updated =
+        input.action === 'start-live'
+          ? await startAdminSlipSimulation({ id: slip.id, actorId, now: new Date() })
+          : await startAdminBetSlip({ id: slip.id, actorId, now: new Date() })
+      return json({ slip: updated })
+    }
+
+    if (input.action === 'finish-match') {
+      const updated = await finishAdminBetSlip({ id: slip.id, actorId, now: new Date() })
       return json({ slip: updated })
     }
 

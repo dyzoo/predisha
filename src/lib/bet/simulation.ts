@@ -34,7 +34,7 @@ export function attachSimulationClock(
 ): TicketSelection[] {
   return selections.map(selection => ({
     ...selection,
-    simulation: simulationClockForSelection(selection, clock),
+    simulation: selection.simulation ?? simulationClockForSelection(selection, clock),
   }))
 }
 
@@ -211,17 +211,6 @@ export function simulatedCashoutOffer(input: {
     input.clock?.seed ??
     input.selections.find(selection => selection.simulation)?.simulation?.seed ??
     ''
-
-  if (outcome === 'WIN') {
-    const stake = Math.max(0, Math.floor(input.stakeMinor))
-    const potential = Math.max(stake, Math.floor(input.potentialReturnMinor))
-    const profit = Math.max(0, potential - stake)
-    const bucket = Math.floor(now / 30_000)
-    const bonus = (hashString(`${seed}:cashout:${bucket}`) % 12) / 1000
-    const raw = stake + profit * (0.35 + 0.45 * progress)
-    const offer = Math.floor(Math.min(potential, Math.max(stake, raw * (1 + bonus))))
-    return { offer, blocked: false }
-  }
 
   return buildCashoutQuote({
     stakeMinor: input.stakeMinor,

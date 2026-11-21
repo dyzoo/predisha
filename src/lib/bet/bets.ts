@@ -520,11 +520,14 @@ function cashoutOffer(
         ? result
         : null
     const event = eventById.get(selection.fixtureId)
-    const clock = matchClockFromKickoff(selection.kickoffIso, 90, now.getTime())
+    const durationMinutes = selection.simulation?.durationMinutes ?? 90
+    const clock = matchClockFromKickoff(selection.kickoffIso, durationMinutes, now.getTime())
     const selectionStarted = finishedResult !== null || Boolean(event?.live) || clock.started
-    if (!selectionStarted) continue
+    if (selectionStarted) {
+      started += 1
+      if (clock.started) progress = Math.max(progress, clock.progress)
+    }
 
-    started += 1
     if (
       finishedResult &&
       typeof finishedResult.homeScore === 'number' &&
@@ -536,18 +539,16 @@ function cashoutOffer(
         finishedResult.awayScore,
       )
       if (won === true) wins += 1
-      if (won === false) losses += 1
-      progress = Math.max(progress, clock.started ? clock.progress : 1)
+      else if (won === false) losses += 1
+      progress = Math.max(progress, 1)
       continue
     }
 
     if (event?.live && event.score) {
       const won = settleMarket(selection.selectionId, event.score.home, event.score.away)
       if (won === true) wins += 1
-      if (won === false) losses += 1
+      else if (won === false) losses += 1
     }
-
-    if (clock.started) progress = Math.max(progress, clock.progress)
   }
 
   if (started === 0) return { offer: 0, blocked: true }
@@ -555,7 +556,7 @@ function cashoutOffer(
   let outcome: CashoutOutcome = 'UNKNOWN'
   if (losses > 0 && wins > 0) outcome = 'MIXED'
   else if (losses > 0) outcome = 'LOSE'
-  else if (wins === started) outcome = 'WIN'
+  else if (wins === selections.length) outcome = 'WIN'
 
   return buildCashoutQuote({
     stakeMinor: ticket.stakeMinor,

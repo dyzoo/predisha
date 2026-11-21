@@ -8,7 +8,7 @@ import {
   type MatchFeatures,
   type PredictionResult,
 } from '@/lib/predictions/engine'
-import { getSportsProvider } from './demo'
+import { DemoSportsProvider, getSportsProvider } from './demo'
 import { prisma } from '@/lib/prisma'
 import type {
   Competition,
@@ -171,19 +171,20 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
   }))
 
   let usedDemoData = false
-  if (fixtures.length === 0 && health.mode === 'demo') {
+  if (fixtures.length === 0) {
     try {
       const from = new Date(at.getTime() - 120 * DAY_MS)
       const to = new Date(at.getTime() + 30 * DAY_MS)
-      const [demoSports, demoCompetitions, demoTeams, demoFixtures] = await Promise.all([
-        provider.getSports(),
-        provider.getCompetitions(),
-        provider.getTeams(),
-        provider.getFixtures(from, to),
-      ])
-      if (demoFixtures.length > 0) {
-        sports = demoSports.map(item => ({ id: item.id, name: item.name, slug: item.slug }))
-        competitions = demoCompetitions.map(item => ({
+      const [providerSports, providerCompetitions, providerTeams, providerFixtures] =
+        await Promise.all([
+          provider.getSports(),
+          provider.getCompetitions(),
+          provider.getTeams(),
+          provider.getFixtures(from, to),
+        ])
+      if (providerFixtures.length > 0) {
+        sports = providerSports.map(item => ({ id: item.id, name: item.name, slug: item.slug }))
+        competitions = providerCompetitions.map(item => ({
           id: item.id,
           name: item.name,
           country: item.country ?? null,
@@ -191,7 +192,7 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
           sportId: item.sportId,
           providerId: item.providerId ?? null,
         }))
-        teams = demoTeams.map(item => ({
+        teams = providerTeams.map(item => ({
           id: item.id,
           name: item.name,
           shortName: item.shortName,
@@ -199,8 +200,49 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
           logoUrl: item.logoUrl ?? null,
           providerId: item.providerId ?? null,
         }))
-        fixtures = demoFixtures
-        usedDemoData = true
+        fixtures = providerFixtures
+        usedDemoData = health.mode === 'demo'
+      }
+    } catch {
+      // Fall through to demo/local fallback below.
+    }
+  }
+
+  if (fixtures.length === 0 && health.mode !== 'demo' && process.env.NODE_ENV !== 'production') {
+    try {
+      const demoProvider = new DemoSportsProvider()
+      const demoHealth = await demoProvider.getHealth()
+      if (demoHealth.mode === 'demo') {
+        const from = new Date(at.getTime() - 120 * DAY_MS)
+        const to = new Date(at.getTime() + 30 * DAY_MS)
+        const [demoSports, demoCompetitions, demoTeams, demoFixtures] = await Promise.all([
+          demoProvider.getSports(),
+          demoProvider.getCompetitions(),
+          demoProvider.getTeams(),
+          demoProvider.getFixtures(from, to),
+        ])
+        if (demoFixtures.length > 0) {
+          sports = demoSports.map(item => ({ id: item.id, name: item.name, slug: item.slug }))
+          competitions = demoCompetitions.map(item => ({
+            id: item.id,
+            name: item.name,
+            country: item.country ?? null,
+            season: item.season ?? null,
+            sportId: item.sportId,
+            providerId: item.providerId ?? null,
+          }))
+          teams = demoTeams.map(item => ({
+            id: item.id,
+            name: item.name,
+            shortName: item.shortName,
+            color: item.color,
+            logoUrl: item.logoUrl ?? null,
+            providerId: item.providerId ?? null,
+          }))
+          fixtures = demoFixtures
+          usedDemoData = true
+          health = demoHealth
+        }
       }
     } catch {
       // Fall through to the honest empty state.

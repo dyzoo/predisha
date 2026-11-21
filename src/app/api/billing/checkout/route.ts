@@ -1,4 +1,4 @@
-import { z } from 'zod'
+﻿import { z } from 'zod'
 import { apiError, json } from '@/lib/api'
 import { isSameOrigin } from '@/lib/auth/origin'
 import { clientKey, rateLimit } from '@/lib/auth/rate-limit'
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     )
   }
 
-  if (provider.name === 'harakapay' && !parsed.data.phone) {
+  if (provider.name === 'noripesa' && !parsed.data.phone) {
     return apiError('Enter a valid phone number to receive the USSD push.', 422, {
       fields: { phone: 'Enter a valid phone number.' },
     })

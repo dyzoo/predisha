@@ -1,11 +1,11 @@
-import { prisma } from '@/lib/prisma'
+﻿import { prisma } from '@/lib/prisma'
 import {
-  HARAKAPAY_PROVIDER_NAME,
-  createHarakaPayOrder,
-  getHarakaPayOrderStatus,
-  harakapayApiKeyConfigured,
-  type HarakaPayWebhookEvent,
-} from '@/lib/billing/harakapay'
+  NORIPESA_PROVIDER_NAME,
+  createNoripesaOrder,
+  getNoripesaOrderStatus,
+  noripesaApiKeyConfigured,
+  type NoripesaWebhookEvent,
+} from '@/lib/billing/noripesa'
 import { BetError } from './errors'
 import { normalizeTzPhone } from './phone'
 import { creditWallet } from './wallet'
@@ -223,7 +223,7 @@ export async function startSlipPayment(input: {
     return { entry: await loadEntryView(entry.id), slip, mode: slip.mode }
   }
 
-  if (!harakapayApiKeyConfigured()) {
+  if (!noripesaApiKeyConfigured()) {
     throw new BetError(
       'Mobile-money payments are not configured on this server yet. Add funds to your wallet or try again later.',
       503,
@@ -231,12 +231,12 @@ export async function startSlipPayment(input: {
     )
   }
 
-  const order = await createHarakaPayOrder({
+  const order = await createNoripesaOrder({
     phone: normalized.phone,
     amountMinor: record.stakeMinor,
     currency: 'TZS',
     description: `SpotibetBet slip ${record.code}`,
-    webhookUrl: `${appUrl()}/api/webhooks/${HARAKAPAY_PROVIDER_NAME}`,
+    webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
   })
 
   if (!order.success || !order.orderId) {
@@ -251,7 +251,7 @@ export async function startSlipPayment(input: {
       phone: normalized.phone,
       stakeMinor: record.stakeMinor,
       status: 'PENDING',
-      provider: HARAKAPAY_PROVIDER_NAME,
+      provider: NORIPESA_PROVIDER_NAME,
       providerOrderId: order.orderId,
     },
   })
@@ -265,8 +265,8 @@ export async function refreshSlipPaymentEntry(entryId: string): Promise<SlipPaym
     throw new BetError('That payment could not be found.', 404, 'ENTRY_NOT_FOUND')
   }
 
-  if (entry.status === 'PENDING' && entry.providerOrderId && entry.provider === HARAKAPAY_PROVIDER_NAME) {
-    const result = await getHarakaPayOrderStatus(entry.providerOrderId)
+  if (entry.status === 'PENDING' && entry.providerOrderId && entry.provider === NORIPESA_PROVIDER_NAME) {
+    const result = await getNoripesaOrderStatus(entry.providerOrderId)
     const status = (result.status ?? '').toLowerCase()
     if (SUCCESS_STATUSES.has(status)) {
       const updated = await markEntryPaid(entry.id)
@@ -291,7 +291,7 @@ export async function refreshSlipPaymentEntry(entryId: string): Promise<SlipPaym
 }
 
 export async function applySlipPaymentEvent(
-  event: HarakaPayWebhookEvent,
+  event: NoripesaWebhookEvent,
 ): Promise<{ handled: boolean }> {
   if (!event.orderId) return { handled: false }
 
@@ -336,10 +336,10 @@ export async function retrySlipEntry(entryId: string): Promise<SlipPaymentEntryV
     await placeEntryBet(entry.id)
   } else if (entry.status === 'FAILED') {
     if (entry.provider !== 'sandbox' && entry.provider !== 'wallet') {
-      if (entry.provider !== HARAKAPAY_PROVIDER_NAME || !entry.providerOrderId) {
+      if (entry.provider !== NORIPESA_PROVIDER_NAME || !entry.providerOrderId) {
         throw new BetError('This payment cannot be retried.', 409, 'NOT_RETRYABLE')
       }
-      const result = await getHarakaPayOrderStatus(entry.providerOrderId)
+      const result = await getNoripesaOrderStatus(entry.providerOrderId)
       const status = (result.status ?? '').toLowerCase()
       if (!SUCCESS_STATUSES.has(status)) {
         throw new BetError(

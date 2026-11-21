@@ -1,4 +1,4 @@
-import { connection } from 'next/server'
+﻿import { connection } from 'next/server'
 import { apiError, json } from '@/lib/api'
 import { applyDepositPaymentEvent } from '@/lib/bet/deposits'
 import { applySlipPaymentEvent } from '@/lib/bet/slip-payments'
@@ -6,7 +6,7 @@ import { getBillingProvider } from '@/lib/billing/provider'
 import { applyBillingWebhookEvent } from '@/lib/billing/webhook'
 
 const SIGNATURE_HEADERS = [
-  'x-harakapay-signature',
+  'x-Noripesa-signature',
   'x-hpk-signature',
   'x-haraka-signature',
   'x-signature',

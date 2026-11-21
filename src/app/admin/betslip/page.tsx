@@ -66,25 +66,23 @@ export default async function AdminBetSlipPage() {
     })),
   }))
 
-  const sharedSlips: SharedSlipOption[] = slips
-    .filter(slip => slip.status === 'OPEN' || slip.status === 'FROZEN')
-    .map(slip => ({
-      id: slip.id,
-      code: slip.code,
-      title: slip.title,
-      status: slip.status,
-      totalOdds: slip.totalOdds,
-      stakeMinor: slip.stakeMinor,
-      selectionCount: slip.selections.length,
-      selections: slip.selections.map(selection => ({
-        fixtureLabel: selection.fixtureLabel,
-        marketName: selection.marketName,
-        selectionLabel: selection.selectionLabel,
-        odds: selection.odds,
-        kickoffLabel: selection.kickoffIso ? formatKickoffLabel(selection.kickoffIso) : null,
-        competition: selection.competition ?? null,
-      })),
-    }))
+  const sharedSlips: SharedSlipOption[] = slips.map(slip => ({
+    id: slip.id,
+    code: slip.code,
+    title: slip.title,
+    status: slip.status,
+    totalOdds: slip.totalOdds,
+    stakeMinor: slip.stakeMinor,
+    selectionCount: slip.selections.length,
+    selections: slip.selections.map(selection => ({
+      fixtureLabel: selection.fixtureLabel,
+      marketName: selection.marketName,
+      selectionLabel: selection.selectionLabel,
+      odds: selection.odds,
+      kickoffLabel: selection.kickoffIso ? formatKickoffLabel(selection.kickoffIso) : selection.kickoffLabel ?? null,
+      competition: selection.competition ?? null,
+    })),
+  }))
 
   return (
     <AdminShell

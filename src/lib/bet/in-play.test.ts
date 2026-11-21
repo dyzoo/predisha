@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import { applyInPlayOdds, inPlayOddsFactor, inPlayQuote } from './in-play'
 import type { TicketSelection, TicketSimulationMeta } from './types'
 
@@ -81,5 +81,8 @@ describe('in-play odds', () => {
     expect(live.totalOdds).toBeLessThan(pre.totalOdds)
     expect(live.potentialReturnMinor).toBeLessThan(pre.potentialReturnMinor)
     expect(live.netPayoutMinor).toBeLessThan(pre.netPayoutMinor)
+    const baseTotal = live.selections.reduce((acc, item) => acc * (item.baseOdds ?? item.odds), 1)
+    expect(live.factor).toBeCloseTo(live.totalOdds / baseTotal, 3)
   })
 })
+
