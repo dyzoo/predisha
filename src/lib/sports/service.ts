@@ -3,6 +3,7 @@ import {
   buildMatchFeatures,
   evaluatePrediction,
   predictMatch,
+  MODEL_CONFIG,
   type EvaluationResult,
   type FormResult,
   type MatchFeatures,
@@ -44,7 +45,9 @@ export interface SportsDataset {
 }
 
 function fixtureAsOf(fixture: Fixture, now: Date): Date {
-  if (fixture.status === 'SCHEDULED') return now
+  if (fixture.status === 'SCHEDULED') {
+    return now.getTime() < fixture.kickoffUtc.getTime() ? now : fixture.kickoffUtc
+  }
   return new Date(fixture.kickoffUtc.getTime() - 1)
 }
 
@@ -170,8 +173,18 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
     message: 'Sports data provider unavailable.',
   }))
 
+  const latestFinishedKickoff = fixtures
+    .filter(fixture => fixture.status === 'FINISHED')
+    .reduce<number | null>((latest, fixture) => {
+      const value = fixture.kickoffUtc.getTime()
+      return latest === null || value > latest ? value : latest
+    }, null)
+  const storedDataStale =
+    fixtures.length > 0 &&
+    (latestFinishedKickoff === null || at.getTime() - latestFinishedKickoff >= 21 * DAY_MS)
+
   let usedDemoData = false
-  if (fixtures.length === 0) {
+  if (fixtures.length === 0 || storedDataStale) {
     try {
       const from = new Date(at.getTime() - 120 * DAY_MS)
       const to = new Date(at.getTime() + 30 * DAY_MS)
@@ -314,13 +327,28 @@ export function buildMatchAnalyses(dataset: SportsDataset, now: Date = new Date(
     .filter((analysis): analysis is MatchAnalysis => analysis !== null)
 }
 
+function effectiveAnalysisAsOf(dataset: SportsDataset, now: Date): Date {
+  const latestFinishedKickoff = dataset.fixtures
+    .filter(fixture => fixture.status === 'FINISHED')
+    .reduce<number | null>((latest, fixture) => {
+      const value = fixture.kickoffUtc.getTime()
+      return latest === null || value > latest ? value : latest
+    }, null)
+
+  if (latestFinishedKickoff === null) return now
+  const maxStaleMs = MODEL_CONFIG.maxInputAgeHours * 60 * 60 * 1000
+  if (now.getTime() - latestFinishedKickoff <= maxStaleMs) return now
+  return new Date(latestFinishedKickoff + 1)
+}
+
 export async function getMatchAnalyses(now?: Date): Promise<{
   analyses: MatchAnalysis[]
   dataset: SportsDataset
 }> {
   const at = await resolveNow(now)
   const dataset = await getSportsDataset(at)
-  return { analyses: buildMatchAnalyses(dataset, at), dataset }
+  const analysisAsOf = effectiveAnalysisAsOf(dataset, at)
+  return { analyses: buildMatchAnalyses(dataset, analysisAsOf), dataset }
 }
 
 export async function getMatchAnalysis(
