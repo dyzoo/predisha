@@ -61,6 +61,31 @@ describe('noripesa helpers', () => {
         headers: expect.objectContaining({ Authorization: 'Bearer nori_test' }),
       }),
     )
+    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string)
+    expect(body).not.toHaveProperty('webhook_url')
+    expect(body).toMatchObject({ amount: 1000, phone: '255712345678', merchant_reference: expect.any(String) })
+  })
+
+  it('returns a useful message when the provider rejects the request', async () => {
+    vi.stubEnv('NORIPESA_API_KEY', 'nori_test')
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ status: 'error', code: 'INVALID_PHONE', message: 'Invalid phone number' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await createNoripesaOrder({
+      phone: '255712345678',
+      amountMinor: 5000,
+      currency: 'TZS',
+      description: 'test',
+      webhookUrl: null,
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('That mobile number was not accepted. Check the number and try again.')
+    expect(result.error).not.toMatch(/status 400/)
   })
 
   it('gets order status through the status endpoint', async () => {

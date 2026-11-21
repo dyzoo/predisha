@@ -7,6 +7,7 @@ import { calculateSlipTotals, type SlipTotals } from './slip-design-math'
 import { MAX_SELECTIONS, MAX_STAKE_MINOR } from './types'
 
 export type SlipDesignStatus = 'DRAFT' | 'READY' | 'WON'
+export type SlipMarker = 'green' | 'gray' | 'red'
 
 export interface SlipDesignSelection {
   id: string
@@ -17,6 +18,7 @@ export interface SlipDesignSelection {
   league: string
   selection: string
   won: boolean
+  marker?: SlipMarker
   fixtureId: string | null
   finalScore: string
 }
@@ -54,6 +56,7 @@ export const slipDesignSelectionSchema = z.object({
   league: z.string().trim().max(120),
   selection: z.string().trim().max(160),
   won: z.boolean(),
+  marker: z.enum(['green', 'gray', 'red']).optional(),
   fixtureId: z.string().trim().max(160).nullable(),
   finalScore: z.string().trim().max(40),
 })
@@ -240,9 +243,11 @@ export async function setSlipDesignStatus({
   ipAddress?: string | null
 }): Promise<SlipDesignView> {
   const existing = await getSlipDesign(id)
+  const marker: SlipMarker = status === 'WON' ? 'green' : 'gray'
   const selections = existing.selections.map(selection => ({
     ...selection,
     won: status === 'WON',
+    marker,
   }))
   const input: SlipDesignInput = { ...existing, status, selections }
   const totals = calculateSlipDesign(input)
@@ -287,7 +292,7 @@ export async function duplicateSlipDesign({
       ...existing,
       title: `${existing.title ?? 'Bet slip'} (copy)`.slice(0, 120),
       status: 'DRAFT',
-      selections: existing.selections.map(selection => ({ ...selection, won: false })),
+      selections: existing.selections.map(selection => ({ ...selection, won: false, marker: 'gray' as const })),
     },
     actorId,
     ipAddress,

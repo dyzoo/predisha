@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter, Sora, Chivo } from 'next/font/google'
+import { Inter, Sora, Chivo, Roboto_Condensed } from 'next/font/google'
 import './globals.css'
 import { LanguageProvider } from '@/components/ui/language-provider'
 import { ViewerProvider } from '@/components/ui/viewer-provider'
@@ -23,6 +23,13 @@ const chivo = Chivo({
   display: 'swap',
 })
 
+const slipFont = Roboto_Condensed({
+  subsets: ['latin'],
+  weight: ['400', '500', '700', '900'],
+  variable: '--font-slip',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: {
     default: 'Spotibet: AI-assisted football analysis',
@@ -38,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${sora.variable} ${chivo.variable}`}>
+    <html lang="en" className={`${inter.variable} ${sora.variable} ${chivo.variable} ${slipFont.variable}`}>
       <body className="min-h-screen bg-background font-sans text-main-text antialiased">
         <ViewerProvider>
           <LanguageProvider>{children}</LanguageProvider>

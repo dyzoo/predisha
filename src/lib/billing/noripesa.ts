@@ -3,6 +3,7 @@ import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 export const NORIPESA_PROVIDER_NAME = 'noripesa'
 const DEFAULT_BASE_URL = 'https://noripesa.com/api/v1'
 const MIN_TZS_AMOUNT = 100
+const MAX_TZS_AMOUNT = 50_000_000
 
 export interface NoripesaOrderInput {
   phone: string
@@ -56,17 +57,74 @@ export function noripesaWebhookSecretConfigured(): boolean {
   return webhookSecret().length > 0
 }
 
-function sanitizeProviderError(context: string, status: number, raw: string | null): string | null {
-  if (status === 401 || status === 403 || (raw !== null && /api key|unauthorized|invalid api/i.test(raw))) {
-    console.error('[noripesa] provider rejected the API key', { context, status, error: raw })
-    return 'Mobile-money payments are temporarily unavailable. Please contact support.'
+function providerError(context: string, status: number, payload: Record<string, unknown> | null): string {
+  const code = typeof payload?.code === 'string' ? payload.code.trim().toUpperCase() : ''
+  const raw =
+    typeof payload?.message === 'string' && payload.message.trim()
+      ? payload.message.trim()
+      : typeof payload?.error === 'string' && payload.error.trim()
+        ? payload.error.trim()
+        : null
+
+  console.error('[noripesa] request failed', { context, status, code, message: raw })
+
+  if (status >= 200 && status < 300 && payload?.status === 'success') {
+    return 'The payment provider did not return a payment reference. Please try again.'
   }
-  return raw
+
+  const supportMessage = 'Mobile-money payments are temporarily unavailable. Please contact support.'
+  if (
+    status === 401 ||
+    status === 403 ||
+    code === 'INVALID_API_KEY' ||
+    code === 'UNAUTHORIZED' ||
+    code === 'MERCHANT_NOT_APPROVED' ||
+    code === 'ACCOUNT_SUSPENDED' ||
+    (raw !== null && /api key|unauthorized|invalid api/i.test(raw))
+  ) {
+    return supportMessage
+  }
+
+  if (code === 'INVALID_PHONE') {
+    return 'That mobile number was not accepted. Check the number and try again.'
+  }
+  if (code === 'AMOUNT_TOO_LARGE') {
+    return 'That amount is above the allowed limit. Try a smaller deposit.'
+  }
+  if (code === 'TOO_MANY_UNPAID_REQUESTS') {
+    return 'This number has too many pending payment requests. Wait a few minutes, then try again.'
+  }
+  if (code === 'RATE_LIMITED') {
+    return 'Too many payment requests right now. Please wait a minute and try again.'
+  }
+  if (code === 'PAYMENTS_PAUSED' || code === 'PROVIDER_UNAVAILABLE') {
+    return 'Mobile-money payments are unavailable right now. Please try again shortly.'
+  }
+  if (code === 'PROVIDER_OUTCOME_UNKNOWN') {
+    return 'We could not confirm the payment yet. Check your payment status before trying again.'
+  }
+  if (code === 'INVALID_REQUEST' || code === 'IDEMPOTENCY_KEY_REQUIRED') {
+    return 'The payment request could not be started. Check your details and try again.'
+  }
+  if (raw !== null && !/checkout failed|status \d+/i.test(raw)) {
+    return raw
+  }
+  if (status === 400) {
+    return 'The payment request was rejected. Check your mobile number and amount, then try again.'
+  }
+  if (status === 429) {
+    return 'Too many payment requests. Please wait a minute and try again.'
+  }
+  if (status >= 500) {
+    return 'Mobile-money payments are unavailable right now. Please try again shortly.'
+  }
+  return 'The payment could not be started. Please try again.'
 }
 
 export function amountTzsFor(input: { amountMinor: number; currency: string }): number {
-  const amount = Math.max(Math.round(input.amountMinor), MIN_TZS_AMOUNT)
-  return amount
+  const amount = Math.round(input.amountMinor)
+  if (!Number.isFinite(amount)) return MIN_TZS_AMOUNT
+  return Math.min(Math.max(amount, MIN_TZS_AMOUNT), MAX_TZS_AMOUNT)
 }
 
 export async function createNoripesaOrder(input: NoripesaOrderInput): Promise<NoripesaOrderResult> {
@@ -99,7 +157,6 @@ export async function createNoripesaOrder(input: NoripesaOrderInput): Promise<No
         ...(input.customerEmail ? { customer_email: input.customerEmail } : {}),
         merchant_reference: merchantReference,
         description: input.description,
-        ...(input.webhookUrl ? { webhook_url: input.webhookUrl } : {}),
       }),
       cache: 'no-store',
     })
@@ -108,10 +165,8 @@ export async function createNoripesaOrder(input: NoripesaOrderInput): Promise<No
       ? (payload as { data: Record<string, unknown> }).data
       : null
     const status = data && typeof data.status === 'string' ? data.status : null
-    const error =
-      sanitizeProviderError('collect', response.status, typeof payload?.error === 'string' ? payload.error : null) ??
-      (response.ok && payload?.status === 'success' ? null : `NORIPESA checkout failed with status ${response.status}.`)
-    if (!response.ok || payload?.status !== 'success') {
+    const orderId = data && typeof data.reference === 'string' && data.reference.trim() ? data.reference : null
+    if (!response.ok || payload?.status !== 'success' || !orderId) {
       return {
         success: false,
         orderId: null,
@@ -119,13 +174,13 @@ export async function createNoripesaOrder(input: NoripesaOrderInput): Promise<No
         amount: null,
         netAmount: null,
         fee: null,
-        error,
+        error: providerError('collect', response.status, payload),
       }
     }
 
     return {
       success: true,
-      orderId: data && typeof data.reference === 'string' ? data.reference : null,
+      orderId,
       status,
       amount: data && typeof data.amount === 'number' ? data.amount : null,
       netAmount: data && typeof data.net_amount === 'number' ? data.net_amount : null,
@@ -175,17 +230,25 @@ export async function getNoripesaOrderStatus(orderId: string): Promise<NoripesaO
       : null
     const payment = data ?? payload
     const status = payment && typeof payment.status === 'string' ? payment.status : null
-    const error =
-      sanitizeProviderError('status', response.status, typeof payload?.error === 'string' ? payload.error : null) ??
-      (response.ok && status ? null : 'Unable to load the NORIPESA payment status.')
+    if (!response.ok || !status) {
+      return {
+        success: false,
+        orderId,
+        status: null,
+        amount: null,
+        netAmount: null,
+        fee: null,
+        error: providerError('status', response.status, payload),
+      }
+    }
     return {
-      success: response.ok && status !== null,
+      success: true,
       orderId,
       status,
       amount: payment && typeof payment.amount === 'number' ? payment.amount : null,
       netAmount: payment && typeof payment.net_amount === 'number' ? payment.net_amount : null,
       fee: payment && typeof payment.fee === 'number' ? payment.fee : null,
-      error,
+      error: null,
     }
   } catch {
     return {

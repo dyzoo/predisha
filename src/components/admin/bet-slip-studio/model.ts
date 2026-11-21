@@ -1,5 +1,5 @@
 import { calculateSlipTotals, type SlipTotals } from '@/lib/bet/slip-design-math'
-import type { SlipDesignInput, SlipDesignSelection, SlipDesignStatus } from '@/lib/bet/slip-designs'
+import type { SlipDesignInput, SlipDesignSelection, SlipDesignStatus, SlipMarker } from '@/lib/bet/slip-designs'
 
 export interface FixturePickOption {
   id: string
@@ -56,6 +56,7 @@ export interface EditorSelection {
   league: string
   selection: string
   won: boolean
+  marker: SlipMarker
   fixtureId: string | null
   finalScore: string
 }
@@ -70,19 +71,26 @@ export function blankSelection(): EditorSelection {
     league: '',
     selection: '',
     won: false,
+    marker: 'gray',
     fixtureId: null,
     finalScore: '',
   }
 }
 
 export function toEditorSelection(selection: SlipDesignSelection): EditorSelection {
-  return { ...selection, odds: selection.odds.toFixed(2) }
+  return {
+    ...selection,
+    odds: selection.odds.toFixed(2),
+    marker: selection.marker ?? (selection.won ? 'green' : 'gray'),
+  }
 }
 
 export function fromEditorSelection(selection: EditorSelection): SlipDesignSelection {
   return {
     ...selection,
     odds: Number.isFinite(Number(selection.odds)) ? Number(selection.odds) : 1,
+    marker: selection.marker,
+    won: selection.marker === 'green',
   }
 }
 

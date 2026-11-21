@@ -23,7 +23,7 @@ import {
   X,
 } from 'lucide-react'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
-import type { SlipDesignStatus, SlipDesignView } from '@/lib/bet/slip-designs'
+import type { SlipDesignStatus, SlipDesignView, SlipMarker } from '@/lib/bet/slip-designs'
 import {
   blankSelection,
   calculateTotals,
@@ -50,10 +50,16 @@ interface Notice {
 }
 
 function statusTone(status: SlipDesignStatus) {
-  if (status === 'WON') return 'border-amber-300/40 bg-amber-300/10 text-amber-200'
-  if (status === 'READY') return 'border-accent/40 bg-accent/10 text-accent'
+  if (status === 'WON') return 'border-emerald-300/40 bg-emerald-300/10 text-emerald-200'
+  if (status === 'READY') return 'border-sky-300/40 bg-sky-300/10 text-sky-200'
   return 'border-border bg-background/40 text-muted-text'
 }
+
+const MARKER_OPTIONS: Array<{ value: SlipMarker; label: string; dot: string; active: string }> = [
+  { value: 'green', label: 'Won', dot: 'bg-emerald-400', active: 'border-emerald-400/60 bg-emerald-400/10 text-emerald-200' },
+  { value: 'gray', label: 'Pending', dot: 'bg-slate-300', active: 'border-slate-300/60 bg-slate-300/10 text-slate-100' },
+  { value: 'red', label: 'Lost', dot: 'bg-red-400', active: 'border-red-400/60 bg-red-400/10 text-red-200' },
+]
 
 export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStudioProps) {
   const router = useRouter()
@@ -116,7 +122,17 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
   }, [saved, savedQuery])
 
   function updateSelection(id: string, patch: Partial<EditorSelection>) {
-    setSelections(current => current.map(selection => (selection.id === id ? { ...selection, ...patch } : selection)))
+    setSelections(current =>
+      current.map(selection => {
+        if (selection.id !== id) return selection
+        if (patch.marker) return { ...selection, ...patch, won: patch.marker === 'green' }
+        return { ...selection, ...patch }
+      }),
+    )
+  }
+
+  function setMarker(id: string, marker: SlipMarker) {
+    updateSelection(id, { marker })
   }
 
   function moveSelection(index: number, delta: number) {
@@ -146,6 +162,7 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
         league: fixture.competition,
         selection: `${market.name} - ${pick.label}`,
         won: false,
+        marker: 'gray',
         fixtureId: fixture.id,
         finalScore: '',
       },
@@ -154,7 +171,7 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
   }
 
   function loadSharedSlip(slip: SharedSlipOption) {
-    const loaded = slip.selections.map((selection, index) => {
+    const loaded: EditorSelection[] = slip.selections.map((selection, index) => {
       const teams = splitFixtureLabel(selection.fixtureLabel)
       return {
         id: `shared-${slip.code}-${index}`,
@@ -165,6 +182,7 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
         league: selection.competition ?? '',
         selection: `${selection.marketName} - ${selection.selectionLabel}`,
         won: false,
+        marker: 'gray',
         fixtureId: null,
         finalScore: '',
       }
@@ -194,7 +212,7 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
   }
 
   function loadSharedSlipAsWinner(slip: SharedSlipOption) {
-    const loaded = slip.selections.map((selection, index) => {
+    const loaded: EditorSelection[] = slip.selections.map((selection, index) => {
       const teams = splitFixtureLabel(selection.fixtureLabel)
       return {
         id: `shared-winner-${slip.code}-${index}`,
@@ -205,6 +223,7 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
         league: selection.competition ?? '',
         selection: `${selection.marketName} - ${selection.selectionLabel}`,
         won: true,
+        marker: 'green',
         fixtureId: null,
         finalScore: '',
       }
@@ -319,9 +338,9 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
       if (designId === id || action === 'duplicate') applyDesign(payload.slip)
       const message =
         action === 'mark-won'
-          ? `Marked ${payload.slip.code} as won - ticks added to every selection.`
+          ? `Marked ${payload.slip.code} as won - green markers added to every selection.`
           : action === 'mark-ready'
-            ? `Cleared winning ticks on ${payload.slip.code}.`
+            ? `Cleared winning markers on ${payload.slip.code}.`
             : `Duplicated slip as ${payload.slip.code}.`
       setNotice({ tone: 'ok', text: message })
       router.refresh()
@@ -352,7 +371,8 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
   }
 
   function markAllWon(won: boolean) {
-    setSelections(current => current.map(selection => ({ ...selection, won })))
+    const marker: SlipMarker = won ? 'green' : 'gray'
+    setSelections(current => current.map(selection => ({ ...selection, won, marker })))
     setStatus(won ? 'WON' : 'READY')
     setNotice({
       tone: 'ok',
@@ -367,7 +387,7 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
       const { toPng } = await import('html-to-image')
       const dataUrl = await toPng(previewRef.current, {
         pixelRatio: 2,
-        backgroundColor: slipTheme === 'black' ? '#101318' : '#FFFFFF',
+        backgroundColor: slipTheme === 'black' ? '#24282D' : '#FFFFFF',
         cacheBust: true,
       })
       const link = document.createElement('a')
@@ -386,9 +406,10 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
   }
 
   async function shareSlip() {
-    const text = `Odds ${formatOdds(totals.totalOdds)}x | Stake ${formatTzs(stakeMinor)} | ${
-      status === 'WON' ? 'Paid' : 'Potential payout'
-    } ${formatTzs(totals.payoutMinor)}`
+    const text =
+      status === 'WON'
+        ? `Winning slip ${betId || designCode || ''} | Won ${formatTzs(totals.payoutMinor)} | Odds ${formatOdds(totals.totalOdds)} | Stake ${formatTzs(stakeMinor)}`.replace(/\s+/g, ' ').trim()
+        : `Bet slip ${betId || designCode || ''} | Odds ${formatOdds(totals.totalOdds)} | Stake ${formatTzs(stakeMinor)} | Potential payout ${formatTzs(totals.payoutMinor)}`.replace(/\s+/g, ' ').trim()
     try {
       if (navigator.share) {
         await navigator.share({ title: title || 'Bet slip', text })
@@ -491,10 +512,10 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
                     <button type="button" disabled={busy} onClick={() => runAction(slip.id, 'duplicate')} className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-main-text hover:border-accent/40 disabled:opacity-60">
                       <Copy className="h-3 w-3" /> Copy
                     </button>
-                    <button type="button" disabled={busy} onClick={() => loadSavedSlipAsWinner(slip)} className="inline-flex items-center gap-1 rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200 disabled:opacity-60">
+                    <button type="button" disabled={busy} onClick={() => loadSavedSlipAsWinner(slip)} className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-200 disabled:opacity-60">
                       <Trophy className="h-3 w-3" /> Winner
                     </button>
-                    <button type="button" disabled={busy} onClick={() => runAction(slip.id, 'mark-won')} className="inline-flex items-center gap-1 rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200 disabled:opacity-60">
+                    <button type="button" disabled={busy} onClick={() => runAction(slip.id, 'mark-won')} className="inline-flex items-center gap-1 rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-200 disabled:opacity-60">
                       <Trophy className="h-3 w-3" /> Won
                     </button>
                     {slip.status === 'WON' ? (
@@ -674,7 +695,7 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
                       <button
                         type="button"
                         onClick={() => loadSharedSlipAsWinner(slip)}
-                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-[11px] font-semibold text-amber-200 transition-opacity hover:opacity-90"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-emerald-300/40 bg-emerald-300/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 transition-opacity hover:opacity-90"
                       >
                         <Trophy className="h-3 w-3" /> Use as winner
                       </button>
@@ -838,6 +859,26 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
                       <span className="mb-1 block text-[10px] text-muted-text">Final score (optional)</span>
                       <input value={selection.finalScore} onChange={event => updateSelection(selection.id, { finalScore: event.target.value })} placeholder="e.g. 2 - 1" className="w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-xs text-main-text outline-none focus:border-accent/60" />
                     </label>
+                    <div className="block sm:col-span-2">
+                      <span className="mb-1 block text-[10px] text-muted-text">Result marker</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {MARKER_OPTIONS.map(option => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setMarker(selection.id, option.value)}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                              selection.marker === option.value
+                                ? option.active
+                                : 'border-border bg-surface text-muted-text hover:text-main-text'
+                            }`}
+                          >
+                            <span className={`h-2.5 w-2.5 rounded-full ${option.dot}`} />
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
                   </div>
                 </div>
@@ -848,15 +889,15 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
           <section className="rounded-2xl border border-border bg-surface/60 p-5">
             <h2 className="font-display text-base font-bold text-main-text">Finish the slip</h2>
             <p className="mt-2 text-[11px] leading-relaxed text-muted-text">
-            Marking won marks the slip as won and updates the winner receipt. It only
-            changes this slip image - it does not pay any customer or publish a winner.
+            Marking won adds green result markers to every selection and changes this slip image only.
+            It does not pay any customer or publish a winner.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" disabled={busy} onClick={() => markAllWon(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 py-2.5 text-xs font-semibold text-amber-200 disabled:opacity-60">
+              <button type="button" disabled={busy} onClick={() => markAllWon(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300/40 bg-emerald-300/10 px-4 py-2.5 text-xs font-semibold text-emerald-200 disabled:opacity-60">
                 <Trophy className="h-3.5 w-3.5" /> Mark as won
               </button>
               <button type="button" disabled={busy} onClick={() => markAllWon(false)} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background/40 px-4 py-2.5 text-xs font-semibold text-main-text disabled:opacity-60">
-                <RotateCcw className="h-3.5 w-3.5" /> Clear ticks
+                <RotateCcw className="h-3.5 w-3.5" /> Clear markers
               </button>
               <button type="button" disabled={busy} onClick={() => { setStatus('READY'); setNotice({ tone: 'ok', text: 'Slip marked ready. Save to keep status.' }) }} className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/10 px-4 py-2.5 text-xs font-semibold text-accent disabled:opacity-60">
                 <ListChecks className="h-3.5 w-3.5" /> Mark ready
@@ -898,7 +939,7 @@ export function BetSlipStudio({ fixtures, sharedSlips, savedSlips }: BetSlipStud
                     : 'border-border bg-background/40 text-muted-text'
                 }`}
               >
-                Black
+                Dark gray
               </button>
               <button
                 type="button"
