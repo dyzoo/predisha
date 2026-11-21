@@ -56,6 +56,8 @@ export async function startWalletDeposit(input: {
   userId: string
   amountMinor: number
   phone: string
+  customerName?: string | null
+  customerEmail?: string | null
 }): Promise<DepositOrderView> {
   const minDepositMinor = await getDepositMinMinor()
   if (
@@ -88,6 +90,8 @@ export async function startWalletDeposit(input: {
     currency: 'TZS',
     description: 'SpotibetBet wallet deposit',
     webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
+    customerName: input.customerName,
+    customerEmail: input.customerEmail,
   })
 
   if (!order.success || !order.orderId) {

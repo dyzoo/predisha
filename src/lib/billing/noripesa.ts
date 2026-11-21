@@ -57,6 +57,17 @@ export function noripesaWebhookSecretConfigured(): boolean {
   return webhookSecret().length > 0
 }
 
+function providerFields(payload: Record<string, unknown> | null): Array<{ field: string; message: string }> {
+  const errors = payload?.errors
+  if (!Array.isArray(errors)) return []
+  return errors.flatMap(error => {
+    if (!error || typeof error !== 'object') return []
+    const field = (error as { field?: unknown }).field
+    const message = (error as { message?: unknown }).message
+    return typeof field === 'string' && typeof message === 'string' ? [{ field, message }] : []
+  })
+}
+
 function providerError(context: string, status: number, payload: Record<string, unknown> | null): string {
   const code = typeof payload?.code === 'string' ? payload.code.trim().toUpperCase() : ''
   const raw =
@@ -65,8 +76,19 @@ function providerError(context: string, status: number, payload: Record<string, 
       : typeof payload?.error === 'string' && payload.error.trim()
         ? payload.error.trim()
         : null
+  const fields = providerFields(payload)
 
-  console.error('[noripesa] request failed', { context, status, code, message: raw })
+  console.error('[noripesa] request failed', { context, status, code, message: raw, fields })
+
+  if (fields.some(field => field.field === 'phone')) {
+    return 'That mobile number was not accepted. Check the number and try again.'
+  }
+  if (fields.some(field => field.field === 'amount')) {
+    return 'That amount is outside the allowed range. Try a different amount.'
+  }
+  if (fields.some(field => field.field === 'customer_name' || field.field === 'customer_email')) {
+    return 'Add your name and email to your account, then try again.'
+  }
 
   if (status >= 200 && status < 300 && payload?.status === 'success') {
     return 'The payment provider did not return a payment reference. Please try again.'
@@ -142,6 +164,8 @@ export async function createNoripesaOrder(input: NoripesaOrderInput): Promise<No
   }
 
   const merchantReference = input.merchantReference ?? `noripesa_${randomUUID()}`
+  const customerName = input.customerName?.trim() || 'Customer'
+  const customerEmail = input.customerEmail?.trim() || `customer-${input.phone}@spotibet.invalid`
   try {
     const response = await fetch(`${baseUrl()}/collect`, {
       method: 'POST',
@@ -153,8 +177,8 @@ export async function createNoripesaOrder(input: NoripesaOrderInput): Promise<No
       body: JSON.stringify({
         amount: amountTzsFor(input),
         phone: input.phone,
-        ...(input.customerName ? { customer_name: input.customerName } : {}),
-        ...(input.customerEmail ? { customer_email: input.customerEmail } : {}),
+        customer_name: customerName,
+        customer_email: customerEmail,
         merchant_reference: merchantReference,
         description: input.description,
       }),

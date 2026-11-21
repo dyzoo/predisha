@@ -136,6 +136,8 @@ export async function startSlipPayment(input: {
   code: string
   phone: string
   userId?: string | null
+  customerName?: string | null
+  customerEmail?: string | null
   source?: 'wallet' | 'phone'
   now?: Date
 }): Promise<SlipPaymentResult> {
@@ -237,6 +239,8 @@ export async function startSlipPayment(input: {
     currency: 'TZS',
     description: `SpotibetBet slip ${record.code}`,
     webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
+    customerName: input.customerName,
+    customerEmail: input.customerEmail,
   })
 
   if (!order.success || !order.orderId) {

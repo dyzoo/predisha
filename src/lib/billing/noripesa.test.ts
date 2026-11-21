@@ -63,7 +63,13 @@ describe('noripesa helpers', () => {
     )
     const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string)
     expect(body).not.toHaveProperty('webhook_url')
-    expect(body).toMatchObject({ amount: 1000, phone: '255712345678', merchant_reference: expect.any(String) })
+    expect(body).toMatchObject({
+      amount: 1000,
+      phone: '255712345678',
+      customer_name: 'Customer',
+      customer_email: 'customer-255712345678@spotibet.invalid',
+      merchant_reference: expect.any(String),
+    })
   })
 
   it('returns a useful message when the provider rejects the request', async () => {
@@ -86,6 +92,31 @@ describe('noripesa helpers', () => {
     expect(result.success).toBe(false)
     expect(result.error).toBe('That mobile number was not accepted. Check the number and try again.')
     expect(result.error).not.toMatch(/status 400/)
+  })
+
+  it('uses provider field errors to explain invalid requests', async () => {
+    vi.stubEnv('NORIPESA_API_KEY', 'nori_test')
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        status: 'error',
+        code: 'INVALID_REQUEST',
+        message: 'Invalid request body.',
+        errors: [{ field: 'amount', message: 'Number must be greater than or equal to 100' }],
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await createNoripesaOrder({
+      phone: '255712345678',
+      amountMinor: 50,
+      currency: 'TZS',
+      description: 'test',
+      webhookUrl: null,
+    })
+
+    expect(result.error).toBe('That amount is outside the allowed range. Try a different amount.')
   })
 
   it('gets order status through the status endpoint', async () => {
