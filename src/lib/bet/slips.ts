@@ -967,7 +967,7 @@ export async function placeAdminSlipBet(input: {
   if (!slip) {
     throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
   }
-  await assertBetStakeMinor(slip.stakeMinor)
+  await assertBetStakeMinor(entry.stakeMinor)
 
   const slipSelections = parseSelections(slip.selections)
   if (slipSelections.length === 0) {
@@ -975,13 +975,13 @@ export async function placeAdminSlipBet(input: {
   }
   const clock = resolveMatchClock(slip, now)
   const clocked = clock ? attachSimulationClock(slipSelections, clock) : slipSelections
-  const quote = inPlayQuote(slip.stakeMinor, clocked, clock, now.getTime())
+  const quote = inPlayQuote(entry.stakeMinor, clocked, clock, now.getTime())
   const selections = quote.selections
   const { totalOdds, potentialReturnMinor } = quote
   const code = await generateTicketCode()
   const draft: TicketDraft = {
     code,
-    stakeMinor: slip.stakeMinor,
+    stakeMinor: entry.stakeMinor,
     selections,
     totalOdds,
     potentialReturnMinor,

@@ -141,12 +141,14 @@ export async function startSlipPayment(input: {
   customerName?: string | null
   customerEmail?: string | null
   source?: 'wallet' | 'phone'
+  stakeMinor?: number | null
   now?: Date
 }): Promise<SlipPaymentResult> {
   const now = input.now ?? new Date()
   const slip = await getAdminBetSlipByCode(input.code, now)
   const record = await prisma.adminBetSlip.findUniqueOrThrow({ where: { code: slip.code } })
-  await assertBetStakeMinor(record.stakeMinor)
+  const stakeMinor = input.stakeMinor ?? record.stakeMinor
+  await assertBetStakeMinor(stakeMinor)
 
   if (isSlipFrozen(record, now)) {
     throw new BetError('Betting is closed for this slip.', 409, 'SLIP_FROZEN', {
@@ -163,10 +165,10 @@ export async function startSlipPayment(input: {
       select: { balanceMinor: true },
     })
     const balanceMinor = wallet?.balanceMinor ?? 0
-    if (balanceMinor < record.stakeMinor) {
+    if (balanceMinor < stakeMinor) {
       throw new BetError('Not enough balance in your wallet. Add funds to take this slip.', 422, 'INSUFFICIENT_FUNDS', {
         balanceMinor,
-        stakeMinor: record.stakeMinor,
+        stakeMinor,
       })
     }
     const entry = await prisma.adminBetEntry.create({
@@ -174,7 +176,7 @@ export async function startSlipPayment(input: {
         slipId: record.id,
         userId: input.userId,
         phone: input.phone.trim(),
-        stakeMinor: record.stakeMinor,
+        stakeMinor,
         selections: slip.selections as unknown as Prisma.InputJsonValue,
         totalOdds: slip.totalOdds,
         status: 'PAID',
@@ -208,7 +210,7 @@ export async function startSlipPayment(input: {
         slipId: record.id,
         userId: entryUserId,
         phone: normalized.phone,
-        stakeMinor: record.stakeMinor,
+        stakeMinor,
         selections: slip.selections as unknown as Prisma.InputJsonValue,
         totalOdds: slip.totalOdds,
         status: 'PAID',
@@ -220,7 +222,7 @@ export async function startSlipPayment(input: {
       await prisma.$transaction(tx =>
         creditWallet(tx, {
           userId: entryUserId,
-          amountMinor: record.stakeMinor,
+          amountMinor: stakeMinor,
           type: 'DEPOSIT',
           reference: `slip:${record.code}:entry:${entry.id}:sandbox-float`,
           note: 'Guest stake',
@@ -242,7 +244,7 @@ export async function startSlipPayment(input: {
 
   const order = await createNoripesaOrder({
     phone: normalized.phone,
-    amountMinor: record.stakeMinor,
+    amountMinor: stakeMinor,
     currency: 'TZS',
     description: `SpotibetBet slip ${record.code}`,
     webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
@@ -260,7 +262,7 @@ export async function startSlipPayment(input: {
       slipId: record.id,
       userId: entryUserId,
       phone: normalized.phone,
-      stakeMinor: record.stakeMinor,
+      stakeMinor,
       selections: slip.selections as unknown as Prisma.InputJsonValue,
       totalOdds: slip.totalOdds,
       status: 'PENDING',

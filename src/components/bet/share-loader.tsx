@@ -201,14 +201,64 @@ function kickoffLabel(selection: { kickoffIso: string }): string {
 }
 
 function statusClass(status: string): string {
-  if (status === 'LIVE') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+  if (status === 'LIVE') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
   if (status === 'OPEN' || status === 'PAID' || status === 'PLACED') {
     return 'border-accent/30 bg-accent/10 text-accent'
   }
   if (status === 'FROZEN' || status === 'PENDING') {
-    return 'border-amber-700/30 bg-amber-700/10 text-amber-900'
+    return 'border-amber-700/30 bg-amber-700/10 text-amber-200'
   }
-  return 'border-red-700/30 bg-red-700/10 text-red-800'
+  return 'border-red-700/30 bg-red-700/10 text-red-300'
+}
+
+function StakePicker({
+  stakeMinor,
+  minStakeMinor,
+  onChange,
+}: {
+  stakeMinor: number
+  minStakeMinor: number
+  onChange: (value: number) => void
+}) {
+  const options = useMemo(() => slipStakeOptions(minStakeMinor), [minStakeMinor])
+  return (
+    <div className="mt-3">
+      <label className="block">
+        <span className="mb-1 block text-[10px] uppercase tracking-wide text-muted-text">
+          Stake (TZS)
+        </span>
+        <input
+          type="number"
+          min={minStakeMinor}
+          max={MAX_STAKE_MINOR}
+          step={100}
+          value={stakeMinor}
+          onChange={event => onChange(Number(event.target.value))}
+          className="w-full rounded-lg border border-border bg-background/50 px-2.5 py-2 text-xs font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
+        />
+      </label>
+      <p className="mt-2 text-[10px] uppercase tracking-wide text-muted-text">Quick stake</p>
+      <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {options.map(amount => (
+          <button
+            key={amount}
+            type="button"
+            onClick={() => onChange(amount)}
+            className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+              stakeMinor === amount
+                ? 'border-accent bg-accent/15 text-accent'
+                : 'border-border bg-background/40 text-main-text hover:border-accent/40'
+            }`}
+          >
+            {formatTzs(amount)}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1 text-[10px] text-muted-text">
+        Minimum {formatTzs(minStakeMinor)}. Enter any amount above the minimum.
+      </p>
+    </div>
+  )
 }
 
 function promoDismissed(key: string): boolean {
@@ -280,7 +330,7 @@ export function ShareLoader({ code }: { code: string }) {
   const [liveGames, setLiveGames] = useState<BetEvent[]>([])
   const [upcomingGames, setUpcomingGames] = useState<BetEvent[]>([])
   const [minStakeMinor, setMinStakeMinor] = useState(configuredMinStakeMinor)
-  const quickStakeOptions = useMemo(() => slipStakeOptions(minStakeMinor), [minStakeMinor])
+  const [paymentStakeMinor, setPaymentStakeMinor] = useState(0)
   const [phone, setPhone] = useState('')
   const [paying, setPaying] = useState(false)
   const [entry, setEntry] = useState<SlipEntry | null>(null)
@@ -303,6 +353,7 @@ export function ShareLoader({ code }: { code: string }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const loadedCode = useRef<string | null>(null)
   const promoStarted = useRef(false)
+  const activePaymentStakeMinor = paymentStakeMinor || slip?.stakeMinor || 0
 
   const activeClock = slip?.clock ?? null
   const activeMatch = activeClock ? matchClock(activeClock, now) : null
@@ -318,7 +369,7 @@ export function ShareLoader({ code }: { code: string }) {
   const frozen = isAdminSlip ? !slip!.inPlay && (slip!.frozen || slip!.status === 'CLOSED') : false
   const canPay = !frozen && !paid && !pending
   const walletBalanceMinor = wallet?.balanceMinor ?? 0
-  const hasWalletFunds = walletBalanceMinor >= (slip?.stakeMinor ?? 0)
+  const hasWalletFunds = walletBalanceMinor >= activePaymentStakeMinor
 
   const simulatedLiveMatches = useMemo<SharedLiveMatch[]>(() => {
     if (!slip || !activeClock) return []
@@ -371,22 +422,16 @@ export function ShareLoader({ code }: { code: string }) {
     })
   }, [failed, isAdminSlip, items, paid, placedTicket, slip])
 
-  const receiptStakeMinor = isAdminSlip ? slip!.stakeMinor : stakeMinor
+  const receiptStakeMinor = isAdminSlip ? activePaymentStakeMinor : stakeMinor
   const receiptOdds = isAdminSlip
     ? slip!.inPlay
       ? slip!.quote.totalOdds
       : slip!.totalOdds
     : totalOdds
   const receiptGrossMinor = isAdminSlip
-    ? slip!.inPlay
-      ? slip!.quote.potentialReturnMinor
-      : slip!.potentialReturnMinor
+    ? Math.floor(receiptOdds * activePaymentStakeMinor)
     : potentialReturnMinor
-  const receiptVat = isAdminSlip
-    ? slip!.inPlay
-      ? { vatMinor: slip!.quote.vatMinor, netPayoutMinor: slip!.quote.netPayoutMinor }
-      : { vatMinor: slip!.vatMinor, netPayoutMinor: slip!.netPayoutMinor }
-    : applyVat(receiptGrossMinor)
+  const receiptVat = applyVat(receiptGrossMinor)
   const receiptStatus = isAdminSlip
     ? paid
       ? 'PAID'
@@ -430,6 +475,7 @@ export function ShareLoader({ code }: { code: string }) {
         if (cancelled) return
         if (payload.slip) {
           setSlip(payload.slip)
+          setPaymentStakeMinor(payload.slip.stakeMinor)
         } else if (payload.share) {
           const selections = payload.share.selections
           setSharedSlip(selections.map(toSlipItem))
@@ -652,7 +698,7 @@ export function ShareLoader({ code }: { code: string }) {
       setPayError(slip.frozenReason || 'Betting is closed for this slip.')
       return
     }
-    if (slip.stakeMinor < minStakeMinor) {
+    if (activePaymentStakeMinor < minStakeMinor) {
       setPayError(`The minimum stake is now ${formatTzs(minStakeMinor)}.`)
       return
     }
@@ -667,7 +713,12 @@ export function ShareLoader({ code }: { code: string }) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, phone: source === 'wallet' ? '' : cleaned, source }),
+        body: JSON.stringify({
+          code,
+          phone: source === 'wallet' ? '' : cleaned,
+          source,
+          stakeMinor: activePaymentStakeMinor,
+        }),
       })
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string
@@ -850,7 +901,7 @@ export function ShareLoader({ code }: { code: string }) {
                     {match.home.name}
                   </span>
                 </div>
-                <span className="shrink-0 rounded-md bg-white/60 px-2 py-1 font-mono text-sm font-bold tabular-nums text-main-text">
+                <span className="shrink-0 rounded-md bg-background/60 px-2 py-1 font-mono text-sm font-bold tabular-nums text-main-text">
                   {match.score ? `${match.score.home} - ${match.score.away}` : 'vs'}
                 </span>
                 <div className="flex min-w-0 items-center justify-end gap-2">
@@ -860,7 +911,7 @@ export function ShareLoader({ code }: { code: string }) {
                   <TeamBadge team={match.away} size="xs" />
                 </div>
               </div>
-              <p className="mt-1.5 text-center text-[10px] font-semibold text-red-700">
+              <p className="mt-1.5 text-center text-[10px] font-semibold text-red-300">
                 {match.label ?? liveBadgeLabel ?? (match.minute ? `${match.minute}'` : 'In play')}
                 {simulated ? ' · simulated' : ''}
               </p>
@@ -873,8 +924,8 @@ export function ShareLoader({ code }: { code: string }) {
 
   if (state === 'loading') {
     return (
-      <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-white">
-        <BrandLoading className="min-h-0 w-full max-w-sm bg-white" message="Loading shared slip" />
+      <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-background">
+        <BrandLoading className="min-h-0 w-full max-w-sm" message="Loading shared slip" />
       </div>
     )
   }
@@ -962,20 +1013,6 @@ export function ShareLoader({ code }: { code: string }) {
               {signedIn ? (
                 <>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <label className="block">
-                      <span className="mb-1 block text-[10px] uppercase tracking-wide text-muted-text">
-                        Stake (TZS)
-                      </span>
-                      <input
-                        type="number"
-                        min={minStakeMinor}
-                        max={MAX_STAKE_MINOR}
-                        step={100}
-                        value={stakeMinor}
-                        onChange={event => setStakeMinor(Number(event.target.value))}
-                        className="w-full rounded-lg border border-border bg-background/50 px-2.5 py-2 text-xs font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
-                      />
-                    </label>
                     <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
                       <p className="text-[10px] uppercase tracking-wide text-muted-text">
                         Wallet · {walletLoading && !wallet ? '…' : formatTzs(walletBalanceMinor)}
@@ -984,31 +1021,18 @@ export function ShareLoader({ code }: { code: string }) {
                         {receiptSelections.length} selections
                       </p>
                     </div>
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-text">
-                      Quick stake
-                    </p>
-                    <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {quickStakeOptions.map(amount => (
-                        <button
-                          key={amount}
-                          type="button"
-                          onClick={() => setStakeMinor(amount)}
-                          className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
-                            stakeMinor === amount
-                              ? 'border-accent bg-accent/15 text-accent'
-                              : 'border-border bg-background/40 text-main-text hover:border-accent/40'
-                          }`}
-                        >
-                          {formatTzs(amount)}
-                        </button>
-                      ))}
+                    <div className="rounded-lg border border-border bg-background/40 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-text">Stake</p>
+                      <p className="mt-1 font-mono text-xs font-bold text-main-text">
+                        {formatTzs(stakeMinor)}
+                      </p>
                     </div>
-                    <p className="mt-1 text-[10px] text-muted-text">
-                      Choose a quick stake or enter any amount above the minimum.
-                    </p>
                   </div>
+                  <StakePicker
+                    stakeMinor={stakeMinor}
+                    minStakeMinor={minStakeMinor}
+                    onChange={setStakeMinor}
+                  />
                   <button
                     type="button"
                     onClick={() => void placeSharedBet()}
@@ -1039,7 +1063,7 @@ export function ShareLoader({ code }: { code: string }) {
                 </div>
               )}
               {placeError ? (
-                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-red-700">
+                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-red-300">
                   <CircleAlert className="h-3.5 w-3.5" />
                   {placeError}
                 </p>
@@ -1086,7 +1110,7 @@ export function ShareLoader({ code }: { code: string }) {
       <AviatorPromoBanner />
 
       {slip.inPlay ? (
-        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-800">
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-300">
           <span className="inline-flex items-center gap-2 font-semibold">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-600 opacity-75" />
@@ -1104,7 +1128,7 @@ export function ShareLoader({ code }: { code: string }) {
       ) : null}
 
       <div className="mx-auto flex max-w-[520px] flex-wrap items-center justify-between gap-3">
-        <BrandLogo surface="light" className="h-12 w-auto" />
+        <BrandLogo surface="dark" className="h-12 w-auto" />
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative" ref={menuRef}>
             <button
@@ -1114,7 +1138,7 @@ export function ShareLoader({ code }: { code: string }) {
               aria-expanded={menuOpen}
               aria-controls="shared-slip-account-menu"
               aria-label="Open profile menu"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white/60 text-main-text transition-colors hover:border-accent/40 hover:bg-white/80"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/60 text-main-text transition-colors hover:border-accent/40 hover:bg-white/10"
             >
               <Menu className="h-4 w-4" />
             </button>
@@ -1122,7 +1146,7 @@ export function ShareLoader({ code }: { code: string }) {
               <div
                 id="shared-slip-account-menu"
                 role="menu"
-                className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-border bg-white/95 shadow-2xl backdrop-blur-xl"
+                className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-border bg-surface/95 shadow-2xl backdrop-blur-xl"
               >
                 {signedIn ? (
                   <>
@@ -1133,18 +1157,18 @@ export function ShareLoader({ code }: { code: string }) {
                       <p className="truncate text-[11px] text-muted-text">{slipViewer?.email}</p>
                     </div>
                     <nav className="flex flex-col py-1.5">
-                      <Link href="/bet/bets" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/60">
+                      <Link href="/bet/bets" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/5">
                         My bets
                       </Link>
-                      <Link href="/bet/account" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/60">
+                      <Link href="/bet/account" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/5">
                         Wallet
                       </Link>
                       {canUseSpecial ? (
-                        <Link href="/admin" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/60">
+                        <Link href="/admin" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/5">
                           Special tools
                         </Link>
                       ) : null}
-                      <Link href="/dashboard" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/60">
+                      <Link href="/dashboard" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/5">
                         Dashboard
                       </Link>
                     </nav>
@@ -1153,7 +1177,7 @@ export function ShareLoader({ code }: { code: string }) {
                         type="button"
                         role="menuitem"
                         onClick={() => void handleSignOut()}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-main-text hover:bg-white/60"
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-main-text hover:bg-white/5"
                       >
                         <LogOut className="h-4 w-4 text-muted-text" />
                         Sign out
@@ -1162,15 +1186,15 @@ export function ShareLoader({ code }: { code: string }) {
                   </>
                 ) : (
                   <nav className="flex flex-col py-1.5">
-                    <Link href="/sign-in" role="menuitem" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/60">
+                    <Link href="/sign-in" role="menuitem" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/5">
                       <LogIn className="h-4 w-4 text-accent" />
                       Sign in
                     </Link>
-                    <Link href="/sign-up" role="menuitem" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/60">
+                    <Link href="/sign-up" role="menuitem" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/5">
                       <UserPlus className="h-4 w-4 text-accent" />
                       Create account
                     </Link>
-                    <Link href="/bet/sports" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/60">
+                    <Link href="/bet/sports" role="menuitem" onClick={() => setMenuOpen(false)} className="px-4 py-2.5 text-sm font-medium text-main-text hover:bg-white/5">
                       Browse sportsbook
                     </Link>
                   </nav>
@@ -1186,7 +1210,7 @@ export function ShareLoader({ code }: { code: string }) {
           <button
             type="button"
             onClick={() => void copyLink()}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/50 px-2.5 py-1 text-[10px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:bg-white/70 hover:text-main-text"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/50 px-2.5 py-1 text-[10px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:bg-white/10 hover:text-main-text"
           >
             {copied ? <CircleCheck className="h-3 w-3 text-accent" /> : <Copy className="h-3 w-3" />}
             {copied ? 'Copied' : 'Share'}
@@ -1232,13 +1256,13 @@ export function ShareLoader({ code }: { code: string }) {
         </div>
 
         {slip.inPlay ? (
-          <p className="mt-2 text-center text-[10px] font-semibold text-emerald-700">
+          <p className="mt-2 text-center text-[10px] font-semibold text-emerald-300">
             Live prices are reduced as the match progresses. A stake placed now settles at these odds.
           </p>
         ) : null}
 
         {frozen ? (
-          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-xs text-amber-900">
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-xs text-amber-200">
             <Lock className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{slip.frozenReason || 'Betting is closed for this slip.'}</span>
           </div>
@@ -1419,14 +1443,14 @@ export function ShareLoader({ code }: { code: string }) {
             ) : null}
             {entry?.ticketId && (ticket?.status === 'OPEN' || ticket?.status === 'CASHED_OUT') ? (
               <div className="mx-auto mt-4 max-w-sm rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2.5 text-center">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
                   Cash-out offer
                 </p>
-                <p className="mt-0.5 font-mono text-lg font-bold tabular-nums text-emerald-700">
+                <p className="mt-0.5 font-mono text-lg font-bold tabular-nums text-emerald-300">
                   {formatTzs(ticket?.cashoutOfferMinor ?? 0)}
                 </p>
                 {ticket?.status === 'CASHED_OUT' ? (
-                  <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+                  <p className="mt-1 text-[11px] font-semibold text-emerald-300">
                     Cashed out for {formatTzs(ticket.payoutMinor)}
                   </p>
                 ) : ticket?.cashoutOfferMinor != null ? (
@@ -1444,7 +1468,7 @@ export function ShareLoader({ code }: { code: string }) {
                     Cash-out offer recalculates as the match progresses.
                   </p>
                 )}
-                {cashoutError ? <p className="mt-1 text-[10px] text-red-700">{cashoutError}</p> : null}
+                {cashoutError ? <p className="mt-1 text-[10px] text-red-300">{cashoutError}</p> : null}
               </div>
             ) : null}
             {ticket && (ticket.status === 'WON' || ticket.status === 'LOST' || ticket.status === 'VOID') ? (
@@ -1476,7 +1500,12 @@ export function ShareLoader({ code }: { code: string }) {
                 <p className="mt-1 text-xs leading-relaxed text-muted-text">
                   Your bet is placed instantly and winnings return to your wallet.
                 </p>
-                <div className="mt-4 grid grid-cols-2 gap-2">
+                <StakePicker
+                  stakeMinor={activePaymentStakeMinor}
+                  minStakeMinor={minStakeMinor}
+                  onChange={setPaymentStakeMinor}
+                />
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
                     <p className="text-[10px] uppercase tracking-wide text-muted-text">Balance</p>
                     <p className="mt-0.5 font-mono text-sm font-bold text-main-text">
@@ -1486,18 +1515,18 @@ export function ShareLoader({ code }: { code: string }) {
                   <div className="rounded-xl border border-border bg-background/40 px-3 py-2">
                     <p className="text-[10px] uppercase tracking-wide text-muted-text">Stake</p>
                     <p className="mt-0.5 font-mono text-sm font-bold text-main-text">
-                      {formatTzs(slip.stakeMinor)}
+                      {formatTzs(activePaymentStakeMinor)}
                     </p>
                   </div>
                 </div>
-                {slip.stakeMinor < minStakeMinor ? (
-                  <div className="mt-3 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-[11px] text-amber-900">
-                    The minimum stake for shared slips is now {formatTzs(minStakeMinor)}. Ask a special
-                    user to update this slip.
+                {activePaymentStakeMinor < minStakeMinor ? (
+                  <div className="mt-3 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-[11px] text-amber-200">
+                    The minimum stake is now {formatTzs(minStakeMinor)}. Choose a quick stake or enter
+                    a custom amount above the minimum.
                   </div>
                 ) : null}
                 {!hasWalletFunds && !walletLoading ? (
-                  <div className="mt-3 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-[11px] leading-relaxed text-amber-900">
+                  <div className="mt-3 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-[11px] leading-relaxed text-amber-200">
                     Add funds to your wallet to take this slip.{' '}
                     <Link href="/bet/deposit" className="font-bold underline underline-offset-2">
                       Add funds
@@ -1514,12 +1543,12 @@ export function ShareLoader({ code }: { code: string }) {
                     !hasWalletFunds ||
                     walletLoading ||
                     !wallet ||
-                    slip.stakeMinor < minStakeMinor
+                    activePaymentStakeMinor < minStakeMinor
                   }
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <WalletCards className="h-4 w-4" />}
-                  {paying ? 'Placing bet…' : `Place bet · ${formatTzs(slip.stakeMinor)}`}
+                  {paying ? 'Placing bet…' : `Place bet · ${formatTzs(activePaymentStakeMinor)}`}
                 </button>
               </div>
             ) : (
@@ -1532,6 +1561,11 @@ export function ShareLoader({ code }: { code: string }) {
                   Enter the mobile-money number. You will get a prompt to approve the payment, then
                   the bet is placed automatically.
                 </p>
+                <StakePicker
+                  stakeMinor={activePaymentStakeMinor}
+                  minStakeMinor={minStakeMinor}
+                  onChange={setPaymentStakeMinor}
+                />
                 <label className="mt-4 block">
                   <span className="mb-1.5 block text-[11px] font-medium text-muted-text">
                     Mobile number
@@ -1543,7 +1577,7 @@ export function ShareLoader({ code }: { code: string }) {
                     onChange={event => setPhone(event.target.value)}
                     placeholder="07XX XXX XXX"
                     disabled={!canPay && !failed}
-                    className="w-full rounded-xl border border-border bg-white/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60 disabled:opacity-60"
+                    className="w-full rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus:border-accent/60 disabled:opacity-60"
                   />
                 </label>
                 {pending ? (
@@ -1555,23 +1589,23 @@ export function ShareLoader({ code }: { code: string }) {
                 <button
                   type="button"
                   onClick={() => void startPayment('phone')}
-                  disabled={!canPay || paying || frozen}
+                  disabled={!canPay || paying || frozen || activePaymentStakeMinor < minStakeMinor}
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
-                  {paying ? 'Starting payment…' : `Pay ${formatTzs(slip.stakeMinor)}`}
+                  {paying ? 'Starting payment…' : `Pay ${formatTzs(activePaymentStakeMinor)}`}
                 </button>
               </div>
             )}
 
             {failed ? (
-              <p className="mt-4 flex items-center gap-1.5 rounded-xl border border-red-700/25 bg-red-700/10 px-3 py-2 text-xs text-red-800">
+              <p className="mt-4 flex items-center gap-1.5 rounded-xl border border-red-700/25 bg-red-700/10 px-3 py-2 text-xs text-red-300">
                 <CircleAlert className="h-4 w-4" />
                 {entry?.message ?? 'The bet could not be placed. You can try again.'}
               </p>
             ) : null}
             {payError ? (
-              <p className="mt-3 flex items-center gap-1.5 text-[11px] text-red-700">
+              <p className="mt-3 flex items-center gap-1.5 text-[11px] text-red-300">
                 <CircleAlert className="h-3.5 w-3.5" />
                 {payError}
               </p>

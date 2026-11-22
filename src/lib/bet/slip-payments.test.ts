@@ -271,6 +271,42 @@ describe('startSlipPayment', () => {
     expect(state.createOrder).not.toHaveBeenCalled()
   })
 
+  it('uses a custom stake for wallet-funded entries', async () => {
+    const result = await startSlipPayment({
+      code: 'ABC123',
+      phone: '',
+      userId: 'user-1',
+      source: 'wallet',
+      stakeMinor: 5_000,
+    })
+
+    expect(result.entry.stakeMinor).toBe(5_000)
+    expect(state.createEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ provider: 'wallet', stakeMinor: 5_000 }),
+      }),
+    )
+  })
+
+  it('sends a custom stake to the mobile-money provider', async () => {
+    const result = await startSlipPayment({
+      code: 'ABC123',
+      phone: '0712345678',
+      userId: 'user-1',
+      stakeMinor: 250_000,
+    })
+
+    expect(result.entry.stakeMinor).toBe(250_000)
+    expect(state.createOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ amountMinor: 250_000 }),
+    )
+    expect(state.createEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'PENDING', stakeMinor: 250_000 }),
+      }),
+    )
+  })
+
   it('rejects wallet payment when balance is below stake', async () => {
     state.findWallet.mockImplementation(async () => ({ balanceMinor: 500 }))
 

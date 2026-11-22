@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       customerName: viewer.name,
       customerEmail: viewer.email,
       source: parsed.data.source,
+      stakeMinor: parsed.data.stakeMinor,
       now: new Date(),
     })
     return json({ entry: result.entry, slip: result.slip, mode: result.mode })
