@@ -1,6 +1,6 @@
 import { getMatchAnalyses, type MatchAnalysis } from '@/lib/sports/service'
 import type { FixtureStatus } from '@/lib/sports/provider'
-import { buildMarkets } from './odds'
+import { buildFallbackMarkets, buildMarkets } from './odds'
 import { formatKickoffLabel } from './format'
 import type { BetEvent } from './types'
 
@@ -30,7 +30,7 @@ function effectiveStatusFor(analysis: MatchAnalysis, now: Date): FixtureStatus {
 
 export function buildBetEvent(analysis: MatchAnalysis, now: Date): BetEvent {
   const { fixture, prediction, competition, sport, home, away } = analysis
-  const markets = buildMarkets(prediction)
+  const markets = prediction ? buildMarkets(prediction) : buildFallbackMarkets()
   const effectiveStatus = effectiveStatusFor(analysis, now)
   const probability = prediction
     ? {

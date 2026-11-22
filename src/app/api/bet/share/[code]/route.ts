@@ -1,5 +1,5 @@
 import { apiError, json } from '@/lib/api'
-import { getBetCatalog } from '@/lib/bet/catalog'
+import { getBetCatalog, getFixtureResults, type FixtureResult } from '@/lib/bet/catalog'
 import { handleBetError } from '@/lib/bet/errors'
 import { loadShareCode } from '@/lib/bet/share'
 import { toAdminSlipView } from '@/lib/bet/slips'
@@ -7,7 +7,8 @@ import { prisma } from '@/lib/prisma'
 import { shareCodeSchema } from '@/lib/bet/validation'
 import { getBetMode } from '@/lib/bet/mode'
 import { getMinStakeMinor } from '@/lib/bet/stake-settings'
-import type { TicketSelection } from '@/lib/bet/types'
+import { isProviderFixtureId, type TicketSelection } from '@/lib/bet/types'
+import { refreshFootballDataFixtures } from '@/lib/sports/sync'
 
 function hasActiveLiveOverride(selection: TicketSelection): boolean {
   return (
@@ -15,6 +16,91 @@ function hasActiveLiveOverride(selection: TicketSelection): boolean {
     !selection.finalScore &&
     (selection.liveScore != null || selection.liveMinute != null)
   )
+}
+
+interface SharedResolvedResult extends FixtureResult {
+  source: 'admin' | 'provider'
+}
+
+function finishedResult(value: {
+  status: FixtureResult['status']
+  homeScore?: number | null
+  awayScore?: number | null
+  halfTimeHomeScore?: number | null
+  halfTimeAwayScore?: number | null
+}): FixtureResult | null {
+  if (
+    value.status !== 'FINISHED' ||
+    typeof value.homeScore !== 'number' ||
+    typeof value.awayScore !== 'number'
+  ) {
+    return null
+  }
+  return {
+    status: value.status,
+    homeScore: value.homeScore,
+    awayScore: value.awayScore,
+    halfTimeHomeScore: value.halfTimeHomeScore ?? null,
+    halfTimeAwayScore: value.halfTimeAwayScore ?? null,
+  }
+}
+
+async function resolveSharedResults(
+  selections: TicketSelection[],
+  catalog: Awaited<ReturnType<typeof getBetCatalog>>,
+  now: Date,
+): Promise<Record<string, SharedResolvedResult>> {
+  const providerIds = [
+    ...new Set(
+      selections
+        .filter(selection => !selection.finalScore && isProviderFixtureId(selection.fixtureId))
+        .map(selection => selection.fixtureId),
+    ),
+  ].slice(0, 10)
+
+  const refreshed = providerIds.length > 0
+    ? await refreshFootballDataFixtures(providerIds).catch(() => [])
+    : []
+  const refreshedById = new Map(refreshed.map(fixture => [fixture.id, fixture]))
+  const storedResults = await getFixtureResults(now)
+  const eventsById = new Map(catalog.events.map(event => [event.id, event]))
+  const results: Record<string, SharedResolvedResult> = {}
+
+  for (const selection of selections) {
+    const manual = selection.finalScore
+    if (manual && typeof manual.home === 'number' && typeof manual.away === 'number') {
+      results[selection.fixtureId] = {
+        status: 'FINISHED',
+        homeScore: manual.home,
+        awayScore: manual.away,
+        halfTimeHomeScore: null,
+        halfTimeAwayScore: null,
+        source: 'admin',
+      }
+      continue
+    }
+
+    if (!isProviderFixtureId(selection.fixtureId)) continue
+
+    const event = eventsById.get(selection.fixtureId)
+    const refreshedResult = finishedResult(refreshedById.get(selection.fixtureId) ?? {
+      status: 'SCHEDULED' as const,
+    })
+    const storedResult = finishedResult(
+      storedResults.get(selection.fixtureId) ?? { status: 'SCHEDULED' as const },
+    )
+    const catalogResult = finishedResult({
+      status: event?.effectiveStatus ?? 'SCHEDULED',
+      homeScore: event?.score?.home ?? null,
+      awayScore: event?.score?.away ?? null,
+    })
+    const resolved = refreshedResult ?? storedResult ?? catalogResult
+    if (resolved) {
+      results[selection.fixtureId] = { ...resolved, source: 'provider' }
+    }
+  }
+
+  return results
 }
 
 async function liveMatchesFor(selections: TicketSelection[], now: Date) {
@@ -91,6 +177,7 @@ export async function GET(
       return json({
         share: { code: view.code, selections: view.selections, expiresAt: view.autoFreezeAt, stale: false },
         slip: { ...view, frozenReason: null },
+        results: await resolveSharedResults(view.selections, catalog, now),
         live: await liveMatchesFor(view.selections, now),
         liveGames,
         upcomingGames,
@@ -102,6 +189,7 @@ export async function GET(
     return json({
       share,
       slip: null,
+      results: await resolveSharedResults(share.selections, catalog, now),
       live: await liveMatchesFor(share.selections, now),
       liveGames,
       upcomingGames,

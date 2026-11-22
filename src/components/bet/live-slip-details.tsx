@@ -122,7 +122,7 @@ export function LiveSlipDetails({ slip: view }: { slip: AdminBetSlipView }) {
             const selectionMatch = selectionClock ? matchClock(selectionClock, now) : null
             const score =
               selection.liveScore ??
-              (selectionClock && selectionMatch
+              (view.timeMode === 'SIMULATED' && selectionClock && selectionMatch
                 ? simulatedScore(selection, selectionClock, selectionMatch.minute)
                 : null)
             return (

@@ -395,6 +395,43 @@ export function buildMarkets(prediction: PredictionResult | null): BetMarket[] {
   return [...predictionMarkets, ...staticMarkets]
 }
 
+export function buildFallbackMarkets(): BetMarket[] {
+  const market = (
+    id: BetMarketId,
+    specs: Array<{ selectionId: string; label: string; shortLabel: string; probability: number }>,
+  ): BetMarket => ({
+    id,
+    name: MARKET_NAMES[id],
+    selections: specs.map(spec => ({
+      id: `${id}:${spec.selectionId}`,
+      marketId: id,
+      marketName: MARKET_NAMES[id],
+      selectionId: spec.selectionId,
+      label: spec.label,
+      shortLabel: spec.shortLabel,
+      probability: spec.probability,
+      odds: oddsForProbability(spec.probability),
+      simulated: true as const,
+    })),
+  })
+
+  return [
+    market('1x2', [
+      { selectionId: 'HOME', label: 'Home', shortLabel: '1', probability: 0.4 },
+      { selectionId: 'DRAW', label: 'Draw', shortLabel: 'X', probability: 0.3 },
+      { selectionId: 'AWAY', label: 'Away', shortLabel: '2', probability: 0.3 },
+    ]),
+    market('btts', [
+      { selectionId: 'BTTS_YES', label: 'Yes', shortLabel: 'Yes', probability: 0.5 },
+      { selectionId: 'BTTS_NO', label: 'No', shortLabel: 'No', probability: 0.5 },
+    ]),
+    market('total-goals', [
+      { selectionId: 'OVER_1_5', label: 'Over 1.5', shortLabel: 'O1.5', probability: 0.6 },
+      { selectionId: 'UNDER_3_5', label: 'Under 3.5', shortLabel: 'U3.5', probability: 0.6 },
+    ]),
+  ]
+}
+
 export function combineOdds(odds: number[]): number {
   const product = odds.reduce((total, value) => total * value, 1)
   return Math.max(1, Math.round(product * 100) / 100)

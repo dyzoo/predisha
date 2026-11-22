@@ -18,6 +18,7 @@ export interface SharedSlipSelection {
   selectionLabel: string
   odds: number
   marker: SharedSlipMarker
+  matched?: boolean
   finalScore?: string | null
 }
 
@@ -227,8 +228,29 @@ export function SharedSlipReceipt({
                   <p className="mt-0.5 truncate text-[10px]" style={{ color: palette.muted }}>
                     {selection.competition}
                   </p>
-                  <p className="mt-1 truncate text-[11px] font-semibold" style={{ color: palette.text }}>
-                    {selection.marketName} · {selection.selectionLabel}
+                  <p className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: palette.text }}>
+                    {selection.matched ? (
+                      <span
+                        aria-hidden="true"
+                        className="inline-block shrink-0 rounded-full"
+                        style={{
+                          width: 10,
+                          height: 10,
+                          border: `2px solid ${palette.green}`,
+                          backgroundColor: palette.green,
+                        }}
+                      />
+                    ) : null}
+                    <span
+                      className={`truncate ${selection.matched ? 'rounded-full px-1.5 py-0.5' : ''}`}
+                      style={
+                        selection.matched
+                          ? { border: `1px solid ${palette.green}`, backgroundColor: `${palette.green}22` }
+                          : undefined
+                      }
+                    >
+                      {selection.marketName} · {selection.selectionLabel}
+                    </span>
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5 pt-0.5">

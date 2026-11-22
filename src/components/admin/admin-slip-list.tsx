@@ -831,7 +831,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
               <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
                 <p className="text-[11px] font-semibold text-main-text">Enter final scores</p>
                 <p className="mt-0.5 text-[10px] text-muted-text">
-                  Leave a match blank to auto-win it at full time.
+                  Blank matches stay pending unless a real result is available from football-data.org.
                 </p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {slip.selections.map((selection, index) => {

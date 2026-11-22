@@ -12,6 +12,7 @@ import {
 import { getBetCatalog } from './catalog'
 import { BetError, isUniqueConstraintError } from './errors'
 import { formatKickoffLabel } from './format'
+import { settleMarket } from './odds'
 import { randomCode } from './random'
 import { getBetMode, type BetMode } from './mode'
 import { getMinStakeMinor } from './stake-settings'
@@ -29,10 +30,30 @@ import {
   type AdminSlipTimeMode,
   isProviderFixtureId,
   type BetTicketView,
+  type TicketResult,
   type TicketSelection,
   type TicketSimulationMeta,
 } from './types'
 
+
+function settledResultForSelection(
+  selection: TicketSelection,
+  result:
+    | {
+        homeScore: number
+        awayScore: number
+        halfTimeHomeScore?: number | null
+        halfTimeAwayScore?: number | null
+      }
+    | undefined,
+): TicketResult | null {
+  if (!result) return null
+  const won = settleMarket(selection.selectionId, result.homeScore, result.awayScore, {
+    halfTimeHomeScore: result.halfTimeHomeScore,
+    halfTimeAwayScore: result.halfTimeAwayScore,
+  })
+  return won === null ? null : won ? 'WON' : 'LOST'
+}
 
 export type AdminBetSlipStatusView = 'OPEN' | 'FROZEN' | 'CLOSED'
 
@@ -898,7 +919,7 @@ export async function finishAdminBetSlip(input: {
     const result = resultByFixture.get(selection.fixtureId)
     return {
       ...selection,
-      result: result ? ('WON' as const) : selection.result,
+      result: settledResultForSelection(selection, result) ?? selection.result,
       finalScore: result
         ? { home: result.homeScore, away: result.awayScore }
         : (selection.finalScore ?? selection.liveScore ?? null),
@@ -941,7 +962,7 @@ export async function finishAdminBetSlip(input: {
         const result = resultByFixture.get(selection.fixtureId)
         return {
           ...selection,
-          result: result ? ('WON' as const) : selection.result,
+          result: settledResultForSelection(selection, result) ?? selection.result,
           finalScore: result
             ? { home: result.homeScore, away: result.awayScore }
             : selection.finalScore,

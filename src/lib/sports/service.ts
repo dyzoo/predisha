@@ -244,6 +244,8 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
     (latestFinishedKickoff === null || at.getTime() - latestFinishedKickoff >= 21 * DAY_MS)
 
   let usedDemoData = false
+  let hasRealFixtures = fixtures.length > 0 && health.mode !== 'demo'
+
   if (fixtures.length < MIN_STORED_FIXTURES || storedDataStale) {
     try {
       const from = new Date(at.getTime() - 120 * DAY_MS)
@@ -275,6 +277,7 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
         }))
         fixtures = providerFixtures
         usedDemoData = health.mode === 'demo'
+        hasRealFixtures = !usedDemoData
       }
     } catch {
       // Fall through to the public real-data provider below.
@@ -298,6 +301,7 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
         realProvider.getHealth(),
       ])
       if (realFixtures.length > 0) {
+        hasRealFixtures = true
         sports = mergeById(
           sports,
           realSports.map(item => ({ id: item.id, name: item.name, slug: item.slug })),
@@ -340,6 +344,7 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
   }
 
   if (
+    !hasRealFixtures &&
     fixtures.length < MIN_STORED_FIXTURES &&
     health.mode !== 'demo' &&
     process.env.DISABLE_DEMO_FALLBACK !== 'true'

@@ -63,8 +63,8 @@ describe('formatLiveMinute', () => {
   })
 })
 
-describe('evaluateTicket auto-win', () => {
-  it('marks a finished selection as won even when the score would lose', () => {
+describe('evaluateTicket settlement', () => {
+  it('settles by the real score even when an autoWin flag is present', () => {
     const pending = { ...selection(2), result: 'PENDING' as const, finalScore: null }
     const results = new Map([
       [
@@ -75,9 +75,9 @@ describe('evaluateTicket auto-win', () => {
 
     const evaluation = evaluateTicket([pending], 1000, results)
 
-    expect(evaluation.status).toBe('WON')
-    expect(evaluation.payoutMinor).toBe(2000)
-    expect(evaluation.selections[0]?.result).toBe('WON')
+    expect(evaluation.status).toBe('LOST')
+    expect(evaluation.payoutMinor).toBe(0)
+    expect(evaluation.selections[0]?.result).toBe('LOST')
     expect(evaluation.selections[0]?.finalScore).toEqual({ home: 0, away: 5 })
   })
 })

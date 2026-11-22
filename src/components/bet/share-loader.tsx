@@ -25,6 +25,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { formatDateTimeLabel, formatTzs } from '@/lib/bet/format'
+import { settleMarket } from '@/lib/bet/odds'
 import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
 import { matchClock, type MatchClockState } from '@/lib/bet/match-clock'
@@ -151,6 +152,15 @@ interface EditDraft {
   selections: EditSelectionDraft[]
 }
 
+interface SharedResult {
+  status: string
+  homeScore: number
+  awayScore: number
+  halfTimeHomeScore?: number | null
+  halfTimeAwayScore?: number | null
+  source: 'admin' | 'provider'
+}
+
 interface ShareResponse {
   share?: {
     code: string
@@ -159,6 +169,7 @@ interface ShareResponse {
     stale: boolean
   }
   slip?: AdminSlip
+  results?: Record<string, SharedResult>
   live?: SharedLiveMatch[]
   liveGames?: BetEvent[]
   upcomingGames?: BetEvent[]
@@ -331,6 +342,7 @@ export function ShareLoader({ code }: { code: string }) {
   const [message, setMessage] = useState<string | null>(null)
   const [stale, setStale] = useState(false)
   const [slip, setSlip] = useState<AdminSlip | null>(null)
+  const [results, setResults] = useState<Record<string, SharedResult>>({})
   const [live, setLive] = useState<SharedLiveMatch[]>([])
   const [liveGames, setLiveGames] = useState<BetEvent[]>([])
   const [upcomingGames, setUpcomingGames] = useState<BetEvent[]>([])
@@ -378,7 +390,7 @@ export function ShareLoader({ code }: { code: string }) {
   const hasWalletFunds = walletBalanceMinor >= activePaymentStakeMinor
 
   const simulatedLiveMatches = useMemo<SharedLiveMatch[]>(() => {
-    if (!slip || !activeClock) return []
+    if (!slip || !activeClock || slip.timeMode !== 'SIMULATED') return []
     return slip.selections.flatMap(selection => {
       if (isProviderFixtureId(selection.fixtureId)) return []
       const clock = selection.simulation ?? activeClock
@@ -413,12 +425,23 @@ export function ShareLoader({ code }: { code: string }) {
     const source: Array<TicketSelection | BetSlipItem> = isAdminSlip ? slip!.selections : items
     return source.map((selection, index) => {
       const ticketSelection = selection as TicketSelection
-      const marker = isAdminSlip
+      const result = results[selection.fixtureId]
+      const finalScore = result
+        ? { home: result.homeScore, away: result.awayScore }
+        : (ticketSelection.finalScore ?? ticketSelection.liveScore)
+      const outcome = result
+        ? settleMarket(selection.selectionId, result.homeScore, result.awayScore, {
+            halfTimeHomeScore: result.halfTimeHomeScore,
+            halfTimeAwayScore: result.halfTimeAwayScore,
+          })
+        : null
+      const fallbackMarker = isAdminSlip
         ? markerForSelection(ticketSelection, paid ? 'PAID' : slip!.status, failed)
         : placedTicket
           ? 'green'
           : 'gray'
-      const finalScore = ticketSelection.finalScore ?? ticketSelection.liveScore
+      const marker =
+        failed || outcome === false ? 'red' : outcome === true ? 'green' : fallbackMarker
       return {
         key: `${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`,
         time: kickoffLabel(selection),
@@ -428,10 +451,11 @@ export function ShareLoader({ code }: { code: string }) {
         selectionLabel: selection.selectionLabel,
         odds: selection.odds,
         marker,
+        matched: outcome === true,
         finalScore: finalScore ? `${finalScore.home} - ${finalScore.away}` : null,
       }
     })
-  }, [failed, isAdminSlip, items, paid, placedTicket, slip])
+  }, [failed, isAdminSlip, items, paid, placedTicket, results, slip])
 
   const receiptStakeMinor = isAdminSlip ? activePaymentStakeMinor : stakeMinor
   const receiptOdds = isAdminSlip
@@ -494,6 +518,7 @@ export function ShareLoader({ code }: { code: string }) {
           unlockSlip()
           openSlip()
         }
+        setResults(payload.results ?? {})
         setLive(payload.live ?? [])
         setLiveGames(payload.liveGames ?? [])
         setUpcomingGames(payload.upcomingGames ?? [])
@@ -525,6 +550,7 @@ export function ShareLoader({ code }: { code: string }) {
         })
         const payload = (await response.json().catch(() => ({}))) as ShareResponse
         if (cancelled || !response.ok) return
+        if (payload.results) setResults(payload.results)
         if (payload.live) setLive(payload.live)
         if (payload.liveGames) setLiveGames(payload.liveGames)
         if (payload.upcomingGames) setUpcomingGames(payload.upcomingGames)
