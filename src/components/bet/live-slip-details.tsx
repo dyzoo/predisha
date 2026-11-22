@@ -7,6 +7,7 @@ import { formatOdds, formatTzs } from '@/lib/bet/format'
 import { matchClock, type MatchClockState } from '@/lib/bet/match-clock'
 import { simulatedScore } from '@/lib/bet/simulation'
 import type { AdminBetSlipView } from '@/lib/bet/slips'
+import { formatLiveMinute } from '@/lib/bet/types'
 
 function teamsFromFixtureLabel(label: string) {
   const [home = 'Home', away = 'Away'] = label.split(/\s+vs\.?\s+/i)
@@ -120,9 +121,10 @@ export function LiveSlipDetails({ slip: view }: { slip: AdminBetSlipView }) {
             const selectionClock = selection.simulation ?? view.clock
             const selectionMatch = selectionClock ? matchClock(selectionClock, now) : null
             const score =
-              selectionClock && selectionMatch
+              selection.liveScore ??
+              (selectionClock && selectionMatch
                 ? simulatedScore(selection, selectionClock, selectionMatch.minute)
-                : null
+                : null)
             return (
               <li
                 key={`${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`}
@@ -146,7 +148,9 @@ export function LiveSlipDetails({ slip: view }: { slip: AdminBetSlipView }) {
                     </span>
                   ) : null}
                   <span className="text-[10px] font-bold text-red-700">
-                    {selectionMatch?.label ?? (selectionClock ? 'Not started' : '')}
+                    {formatLiveMinute(selection.liveMinute) ??
+                      selectionMatch?.label ??
+                      (selectionClock ? 'Not started' : '')}
                   </span>
                   <span className="rounded-md border border-emerald-600/30 bg-emerald-100 px-2 py-1 font-mono text-xs font-black tabular-nums text-emerald-700">
                     {formatOdds(selection.odds)}

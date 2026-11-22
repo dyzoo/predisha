@@ -36,7 +36,12 @@ import type {
   TicketSelection,
   TicketSimulationMeta,
 } from '@/lib/bet/types'
-import { isProviderFixtureId, MAX_STAKE_MINOR, slipStakeOptions } from '@/lib/bet/types'
+import {
+  formatLiveMinute,
+  isProviderFixtureId,
+  MAX_STAKE_MINOR,
+  slipStakeOptions,
+} from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { BrandLogo } from '@/components/brand-logo'
 import { BrandLoading } from '@/components/ui/brand-loading'
@@ -395,7 +400,12 @@ export function ShareLoader({ code }: { code: string }) {
   }, [slip, activeClock, now])
 
   const simulatedLive = simulatedLiveMatches.length > 0
-  const liveBadgeLabel = simulatedLiveMatches[0]?.label ?? activeMatch?.label ?? null
+  const liveMinute = live.find(match => match.minute != null)?.minute ?? null
+  const liveBadgeLabel =
+    formatLiveMinute(liveMinute) ??
+    simulatedLiveMatches[0]?.label ??
+    activeMatch?.label ??
+    null
   const awaitingSimulatedStart =
     slip?.timeMode === 'SIMULATED' && !slip.liveStartedAt && slip.status !== 'CLOSED'
 
@@ -408,7 +418,7 @@ export function ShareLoader({ code }: { code: string }) {
         : placedTicket
           ? 'green'
           : 'gray'
-      const finalScore = ticketSelection.finalScore
+      const finalScore = ticketSelection.finalScore ?? ticketSelection.liveScore
       return {
         key: `${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`,
         time: kickoffLabel(selection),
@@ -921,7 +931,7 @@ export function ShareLoader({ code }: { code: string }) {
                 </div>
               </div>
               <p className="mt-1.5 text-center text-[10px] font-semibold text-red-300">
-                {match.label ?? liveBadgeLabel ?? (match.minute ? `${match.minute}'` : 'In play')}
+                {match.label ?? formatLiveMinute(match.minute) ?? liveBadgeLabel ?? 'In play'}
               </p>
             </li>
           ))}
@@ -1251,7 +1261,7 @@ export function ShareLoader({ code }: { code: string }) {
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5 text-accent" />
-            {simulatedLive || activeMatch?.live
+            {simulatedLive || live.length > 0 || activeMatch?.live
               ? `Match clock ${liveBadgeLabel ?? activeMatch?.label ?? ''}`
               : nextKickoffIso
                 ? `Starts ${formatDateTimeLabel(nextKickoffIso)}`

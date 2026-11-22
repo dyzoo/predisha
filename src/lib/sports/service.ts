@@ -270,7 +270,11 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
     }
   }
 
-  if (fixtures.length === 0 && health.mode !== 'demo' && process.env.NODE_ENV !== 'production') {
+  if (
+    fixtures.length === 0 &&
+    health.mode !== 'demo' &&
+    process.env.DISABLE_DEMO_FALLBACK !== 'true'
+  ) {
     try {
       const demoProvider = new DemoSportsProvider()
       const demoHealth = await demoProvider.getHealth()
@@ -303,7 +307,12 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
           }))
           fixtures = demoFixtures
           usedDemoData = true
-          health = demoHealth
+          health = {
+            ...demoHealth,
+            message: health.message
+              ? `${health.message} Showing demo fixtures until live data is available.`
+              : demoHealth.message,
+          }
         }
       }
     } catch {

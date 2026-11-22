@@ -218,7 +218,11 @@ export function buildDemoDataset(anchor: Date = new Date()): DemoDataset {
 }
 
 export function isDemoDataEnabled(): boolean {
-  return process.env.NODE_ENV !== 'production' && (process.env.SPORTS_DATA_PROVIDER ?? 'demo') === 'demo'
+  if (process.env.DISABLE_DEMO_FALLBACK === 'true') return false
+  if ((process.env.SPORTS_DATA_PROVIDER ?? 'demo').toLowerCase() === 'demo') {
+    return process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEMO_FALLBACK === 'true'
+  }
+  return true
 }
 
 export class DemoSportsProvider implements SportsDataProvider {

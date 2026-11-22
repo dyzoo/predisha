@@ -23,6 +23,8 @@ import {
   Trophy,
 } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
+import { formatLiveMinute } from '@/lib/bet/types'
+
 
 export interface AdminSlipSelectionView {
   fixtureId: string
@@ -34,7 +36,10 @@ export interface AdminSlipSelectionView {
   kickoffIso?: string | null
   kickoffLabel?: string | null
   finalScore?: { home: number; away: number } | null
+  liveScore?: { home: number; away: number } | null
+  liveMinute?: number | null
 }
+
 
 
 export interface AdminSlipEntryView {
@@ -80,6 +85,7 @@ export interface AdminSlipListItemView {
 }
 
 type ScoreDraft = { home: string; away: string }
+type LiveScoreDraft = { home: string; away: string; minute: string }
 
 function statusClass(status: AdminSlipListItemView['status']): string {
 
@@ -132,7 +138,11 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [scoreDrafts, setScoreDrafts] = useState<Record<string, Record<string, ScoreDraft>>>({})
+  const [liveScoreDrafts, setLiveScoreDrafts] = useState<
+    Record<string, Record<string, LiveScoreDraft>>
+  >({})
   const [resultsOpenCode, setResultsOpenCode] = useState<string | null>(null)
+  const [liveOpenCode, setLiveOpenCode] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'ALL' | AdminSlipListItemView['status']>('ALL')
 
   const [modeFilter, setModeFilter] = useState<'ALL' | AdminSlipListItemView['mode']>('ALL')
@@ -157,8 +167,15 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
 
   async function act(
     code: string,
-    action: 'freeze' | 'unfreeze' | 'close' | 'start-live' | 'start-match' | 'finish-match',
-    results?: Array<{ fixtureId: string; homeScore: number; awayScore: number }>,
+    action:
+      | 'freeze'
+      | 'unfreeze'
+      | 'close'
+      | 'start-live'
+      | 'start-match'
+      | 'set-live-score'
+      | 'finish-match',
+    results?: Array<{ fixtureId: string; homeScore: number; awayScore: number; minute?: number }>,
   ) {
 
     if (pendingCode) return
@@ -186,10 +203,12 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
             ? `Slip ${code} is open again.`
             : action === 'start-live' || action === 'start-match'
               ? `Slip ${code} is live.`
+              : action === 'set-live-score'
+                ? `Live score updated for ${results?.length ?? 0} match(es).`
                 : action === 'finish-match'
                   ? `Slip ${code} is marked as full time.${results?.length ? ` ${results.length} result(s) applied.` : ''}`
 
-                : `Slip ${code} is closed permanently.`,
+                  : `Slip ${code} is closed permanently.`,
       )
       router.refresh()
     } catch {
@@ -247,6 +266,75 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
     }))
     await act(slip.code, 'finish-match', results)
     setResultsOpenCode(null)
+  }
+
+  function updateLiveScoreDraft(
+    code: string,
+    fixtureId: string,
+    side: keyof LiveScoreDraft,
+    value: string,
+  ) {
+    setLiveScoreDrafts(current => {
+      const slipDrafts = current[code] ?? {}
+      const draft = slipDrafts[fixtureId] ?? { home: '', away: '', minute: '' }
+      return {
+        ...current,
+        [code]: {
+          ...slipDrafts,
+          [fixtureId]: { ...draft, [side]: value },
+        },
+      }
+    })
+  }
+
+  async function saveLiveScores(slip: AdminSlipListItemView) {
+    const drafts = liveScoreDrafts[slip.code] ?? {}
+    const scored = slip.selections.map(selection => {
+      const draft = drafts[selection.fixtureId]
+      return {
+        selection,
+        home: draft?.home ?? (selection.liveScore ? String(selection.liveScore.home) : ''),
+        away: draft?.away ?? (selection.liveScore ? String(selection.liveScore.away) : ''),
+        minute:
+          draft?.minute ?? (selection.liveMinute ? String(selection.liveMinute) : ''),
+      }
+    })
+    const filled = scored.filter(
+      score => score.home !== '' || score.away !== '' || score.minute !== '',
+    )
+    if (!filled.length) {
+      setError('Enter at least one live score.')
+      return
+    }
+    const invalid = filled.some(score => {
+      const home = Number(score.home)
+      const away = Number(score.away)
+      const minute = score.minute === '' ? null : Number(score.minute)
+      return (
+        score.home === '' ||
+        score.away === '' ||
+        !Number.isInteger(home) ||
+        !Number.isInteger(away) ||
+        home < 0 ||
+        home > 50 ||
+        away < 0 ||
+        away > 50 ||
+        (minute !== null &&
+          (!Number.isInteger(minute) || minute < 1 || minute > 120))
+      )
+    })
+    if (invalid) {
+      setError('Scores must be 0-50 and minutes must be 1-120.')
+      return
+    }
+    const results = filled.map(score => ({
+      fixtureId: score.selection.fixtureId,
+      homeScore: Number(score.home),
+      awayScore: Number(score.away),
+      ...(score.minute === '' ? {} : { minute: Number(score.minute) }),
+    }))
+    await act(slip.code, 'set-live-score', results)
+    setLiveOpenCode(null)
   }
 
   async function deleteSlip(code: string) {
@@ -523,6 +611,20 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                 {slip.status !== 'CLOSED' ? (
                   <button
                     type="button"
+                    onClick={() => {
+                      setResultsOpenCode(null)
+                      setLiveOpenCode(current => (current === slip.code ? null : slip.code))
+                    }}
+                    disabled={busy}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/30 bg-red-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-red-200 transition-colors hover:border-red-400/50 disabled:opacity-60"
+                  >
+                    <Radio className="h-3.5 w-3.5" />
+                    Set live score
+                  </button>
+                ) : null}
+                {slip.status !== 'CLOSED' ? (
+                  <button
+                    type="button"
                     onClick={() => act(slip.code, 'finish-match')}
 
                     disabled={busy}
@@ -632,6 +734,97 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
               <p className="mt-2 text-[10px] text-muted-text">
                 This slip has paid, pending or placed entries. Close it to enable deletion.
               </p>
+            ) : null}
+
+            {liveOpenCode === slip.code && slip.status !== 'CLOSED' ? (
+              <div className="mt-3 rounded-xl border border-red-400/25 bg-red-400/5 p-3">
+                <p className="text-[11px] font-semibold text-main-text">Enter live scores</p>
+                <p className="mt-0.5 text-[10px] text-muted-text">
+                  Updates shared slips and open tickets immediately. Use 46 for half time and 91+ for stoppage time.
+                </p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {slip.selections.map((selection, index) => {
+                    const draft = liveScoreDrafts[slip.code]?.[selection.fixtureId]
+                    return (
+                      <label
+                        key={`${slip.id}:live:${index}`}
+                        className="rounded-lg border border-border bg-background/40 p-2"
+                      >
+                        <span className="block truncate text-[10px] text-main-text">
+                          {index + 1}. {selection.fixtureLabel}
+                        </span>
+                        {selection.liveScore || selection.liveMinute ? (
+                          <span className="mt-0.5 block text-[10px] text-muted-text">
+                            Current: {selection.liveScore ? `${selection.liveScore.home} - ${selection.liveScore.away}` : '- - -'} · {formatLiveMinute(selection.liveMinute) ?? 'no minute'}
+                          </span>
+                        ) : null}
+                        <span className="mt-1 flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={50}
+                            value={
+                              draft?.home ??
+                              (selection.liveScore ? String(selection.liveScore.home) : '')
+                            }
+                            onChange={event =>
+                              updateLiveScoreDraft(slip.code, selection.fixtureId, 'home', event.target.value)
+                            }
+                            aria-label={`${selection.fixtureLabel} live home score`}
+                            className="w-14 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-semibold tabular-nums text-main-text outline-none focus:border-red-400/60"
+                          />
+                          <span className="text-[10px] text-muted-text">-</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={50}
+                            value={
+                              draft?.away ??
+                              (selection.liveScore ? String(selection.liveScore.away) : '')
+                            }
+                            onChange={event =>
+                              updateLiveScoreDraft(slip.code, selection.fixtureId, 'away', event.target.value)
+                            }
+                            aria-label={`${selection.fixtureLabel} live away score`}
+                            className="w-14 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-semibold tabular-nums text-main-text outline-none focus:border-red-400/60"
+                          />
+                          <span className="text-[10px] text-muted-text">@</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={120}
+                            value={draft?.minute ?? (selection.liveMinute ? String(selection.liveMinute) : '')}
+                            onChange={event =>
+                              updateLiveScoreDraft(slip.code, selection.fixtureId, 'minute', event.target.value)
+                            }
+                            aria-label={`${selection.fixtureLabel} live minute`}
+                            placeholder="min"
+                            className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-semibold tabular-nums text-main-text outline-none focus:border-red-400/60"
+                          />
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveLiveScores(slip)}
+                    disabled={busy}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-[11px] font-bold text-red-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Radio className="h-3.5 w-3.5" />}
+                    Update live score
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLiveOpenCode(null)}
+                    className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-semibold text-muted-text hover:text-main-text"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : null}
 
             {resultsOpenCode === slip.code && slip.status !== 'CLOSED' ? (

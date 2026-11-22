@@ -6,6 +6,7 @@ import {
   finishAdminBetSlip,
   freezeAdminBetSlip,
   getAdminBetSlipByCode,
+  setAdminSlipLiveScores,
   startAdminBetSlip,
   startAdminSlipSimulation,
   unfreezeAdminBetSlip,
@@ -73,6 +74,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
         input.action === 'start-live'
           ? await startAdminSlipSimulation({ id: slip.id, actorId, now: new Date() })
           : await startAdminBetSlip({ id: slip.id, actorId, now: new Date() })
+      return json({ slip: updated })
+    }
+
+    if (input.action === 'set-live-score') {
+      const updated = await setAdminSlipLiveScores({
+        id: slip.id,
+        actorId,
+        now: new Date(),
+        results: input.results,
+      })
       return json({ slip: updated })
     }
 

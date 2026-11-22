@@ -95,6 +95,8 @@ export default async function AdminBetsPage() {
       kickoffIso: selection.kickoffIso,
       kickoffLabel: selection.kickoffLabel ?? null,
       finalScore: selection.finalScore ?? null,
+      liveScore: selection.liveScore ?? null,
+      liveMinute: selection.liveMinute ?? null,
     })),
   }))
 

@@ -31,6 +31,7 @@ import {
   simulationMinute,
 } from '@/lib/bet/simulation'
 import {
+  formatLiveMinute,
   isProviderFixtureId,
   type BetEvent,
   type BetTicketView,
@@ -99,6 +100,8 @@ function isLiveTicket(ticket: BetTicketView, events: EventMap, now: number): boo
 }
 
 function selectionScore(selection: TicketSelection, event: BetEvent | undefined, now: number) {
+  if (selection.finalScore) return selection.finalScore
+  if (selection.liveScore) return selection.liveScore
   if (isProviderFixtureId(selection.fixtureId) && event?.score) return event.score
   const clock = simulationClockFromSelection(selection)
   if (clock) return simulatedScore(selection, clock, simulationMinute(clock, now))
@@ -106,6 +109,9 @@ function selectionScore(selection: TicketSelection, event: BetEvent | undefined,
 }
 
 function liveMinute(selection: TicketSelection, event: BetEvent | undefined, now: number): string | null {
+  if (selection.finalScore) return 'FT'
+  const adminMinute = formatLiveMinute(selection.liveMinute)
+  if (adminMinute) return adminMinute
   if (isProviderFixtureId(selection.fixtureId) && event?.live) {
     return typeof event.minute === 'number' ? `${event.minute}'` : 'LIVE'
   }

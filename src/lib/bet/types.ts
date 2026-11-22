@@ -174,6 +174,34 @@ export function isProviderFixtureId(fixtureId: string): boolean {
   return /^\d+$/.test(fixtureId.trim())
 }
 
+export interface LiveScore {
+  home: number
+  away: number
+}
+
+export function formatLiveMinute(minute?: number | null): string | null {
+  if (minute === null || minute === undefined || !Number.isFinite(minute)) return null
+  const value = Math.max(1, Math.floor(minute))
+  if (value === 46) return 'HT'
+  if (value <= 45) return `${value}'`
+  if (value <= 90) return `${value}'`
+  return `90+${value - 90}'`
+}
+
+export function liveScoreForSelection(
+  selection: Pick<TicketSelection, 'liveScore'>,
+  fallback?: LiveScore | null,
+): LiveScore | null {
+  return selection.liveScore ?? fallback ?? null
+}
+
+export function liveMinuteForSelection(
+  selection: Pick<TicketSelection, 'liveMinute'>,
+  fallback?: number | null,
+): number | null {
+  return selection.liveMinute ?? fallback ?? null
+}
+
 export interface TicketSelection {
   fixtureId: string
   fixtureLabel: string
@@ -190,6 +218,8 @@ export interface TicketSelection {
   probability: number
   result: TicketResult
   finalScore: { home: number; away: number } | null
+  liveScore?: LiveScore | null
+  liveMinute?: number | null
   demoResult: boolean
   simulation?: TicketSimulationMeta | null
 }

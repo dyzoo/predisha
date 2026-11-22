@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { computeTicketTotals, evaluateTicket } from './bets'
 import { maskTzPhone } from './phone'
 import { canDeleteAdminBetSlip, isSlipFrozen, maskPhone, toAdminSlipView } from './slips'
-import { slipStakeOptions, type TicketSelection } from './types'
+import { formatLiveMinute, slipStakeOptions, type TicketSelection } from './types'
 
 function selection(odds: number): TicketSelection {
   return {
@@ -49,6 +49,17 @@ describe('slipStakeOptions', () => {
 
   it('falls back to the admin minimum when every preset is below it', () => {
     expect(slipStakeOptions(250_000)).toEqual([250_000])
+  })
+})
+
+describe('formatLiveMinute', () => {
+  it('formats first-half minutes', () => {
+    expect(formatLiveMinute(12)).toBe("12'")
+  })
+
+  it('uses half-time and stoppage labels', () => {
+    expect(formatLiveMinute(46)).toBe('HT')
+    expect(formatLiveMinute(93)).toBe("90+3'")
   })
 })
 

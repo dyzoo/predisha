@@ -167,10 +167,19 @@ export const adminMatchResultSchema = z.object({
   fixtureId: z.string().trim().min(1).max(160),
   homeScore: z.number().int().min(0).max(50),
   awayScore: z.number().int().min(0).max(50),
+  minute: z.number().int().min(1).max(120).optional(),
 })
 
 export const adminSlipActionSchema = z.object({
-  action: z.enum(['freeze', 'unfreeze', 'close', 'start-live', 'start-match', 'finish-match']),
+  action: z.enum([
+    'freeze',
+    'unfreeze',
+    'close',
+    'start-live',
+    'start-match',
+    'set-live-score',
+    'finish-match',
+  ]),
   reason: z.string().trim().max(200).optional(),
   results: z.array(adminMatchResultSchema).max(MAX_SELECTIONS).optional(),
 })

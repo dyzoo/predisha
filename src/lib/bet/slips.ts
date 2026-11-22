@@ -787,6 +787,83 @@ export async function startAdminBetSlip(input: {
   return toAdminSlipView(updated, now)
 }
 
+export async function setAdminSlipLiveScores(input: {
+  id: string
+  actorId: string
+  now?: Date
+  results?: Array<{ fixtureId: string; homeScore: number; awayScore: number; minute?: number }>
+}): Promise<AdminBetSlipView> {
+  const now = input.now ?? new Date()
+  if (!input.results?.length) {
+    throw new BetError('Enter at least one live score.', 400, 'LIVE_SCORE_REQUIRED')
+  }
+
+  const slip = await prisma.adminBetSlip.findUnique({
+    where: { id: input.id },
+    include: { entries: { where: { ticketId: { not: null } }, select: { ticketId: true } } },
+  })
+  if (!slip) {
+    throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
+  }
+  if (slip.status === 'CLOSED') {
+    throw new BetError('A closed slip cannot be updated.', 409, 'SLIP_CLOSED')
+  }
+
+  const resultByFixture = new Map(input.results.map(result => [result.fixtureId, result]))
+  const applyLiveScore = (selection: TicketSelection) => {
+    const result = resultByFixture.get(selection.fixtureId)
+    if (!result) return selection
+    return {
+      ...selection,
+      result: 'PENDING' as const,
+      finalScore: null,
+      liveScore: { home: result.homeScore, away: result.awayScore },
+      liveMinute: result.minute ?? selection.liveMinute ?? null,
+    }
+  }
+
+  const selections = parseSelections(slip.selections).map(applyLiveScore)
+  const ticketIds = [...new Set(slip.entries.map(entry => entry.ticketId).filter(Boolean))] as string[]
+
+  const updated = await prisma.$transaction(async tx => {
+    const next = await tx.adminBetSlip.update({
+      where: { id: slip.id },
+      data: {
+        status: 'OPEN',
+        frozenAt: null,
+        liveStartedAt: slip.liveStartedAt ?? now,
+        freezeReason: 'Live score updated by admin. In-play stakes are available.',
+        selections: selections as unknown as Prisma.InputJsonValue,
+      },
+    })
+
+    for (const ticketId of ticketIds) {
+      const ticket = await tx.betTicket.findUnique({ where: { id: ticketId } })
+      if (!ticket || ticket.status !== 'OPEN') continue
+      const ticketSelections = parseSelections(ticket.selections).map(applyLiveScore)
+      await tx.betTicket.update({
+        where: { id: ticket.id },
+        data: { selections: ticketSelections as unknown as Prisma.InputJsonValue },
+      })
+    }
+
+    await tx.adminAuditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: 'admin.slip.set-live-score',
+        target: slip.code,
+        metadata: {
+          updatedAt: now.toISOString(),
+          resultsProvided: input.results?.length ?? 0,
+        },
+      },
+    })
+    return next
+  })
+
+  return toAdminSlipView(updated, now)
+}
+
 export async function finishAdminBetSlip(input: {
   id: string
   actorId: string
@@ -824,7 +901,9 @@ export async function finishAdminBetSlip(input: {
       result: result ? ('WON' as const) : selection.result,
       finalScore: result
         ? { home: result.homeScore, away: result.awayScore }
-        : selection.finalScore,
+        : (selection.finalScore ?? selection.liveScore ?? null),
+      liveScore: null,
+      liveMinute: null,
       ...(simulate
         ? {
             simulation: {
