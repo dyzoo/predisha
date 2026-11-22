@@ -34,6 +34,7 @@ import type {
   BetEvent,
   BetSlipItem,
   BetTicketView,
+  SlipResultMarker,
   TicketSelection,
   TicketSimulationMeta,
 } from '@/lib/bet/types'
@@ -141,6 +142,7 @@ interface EditSelectionDraft {
   selectionId: string
   selectionLabel: string
   odds: string
+  marker: SlipResultMarker
   kickoffIso: string
 }
 
@@ -176,6 +178,20 @@ interface ShareResponse {
   minStakeMinor?: number
   error?: string
 }
+
+interface ForceCashoutResponse {
+  count?: number
+  totalMinor?: number
+  errors?: string[]
+  tickets?: BetTicketView[]
+  error?: string
+}
+
+const RESULT_MARKER_OPTIONS: Array<{ value: SlipResultMarker; label: string; color: string }> = [
+  { value: 'green', label: 'Won', color: '#2DB763' },
+  { value: 'gray', label: 'Pending', color: '#A7B0BA' },
+  { value: 'red', label: 'Lost', color: '#E24B4B' },
+]
 
 function teamsFromFixtureLabel(label: string, fixtureId: string): { home: SharedTeam; away: SharedTeam } {
   const [home = 'Home', away = 'Away'] = label.split(/\s+vs\.?\s+/i)
@@ -360,6 +376,8 @@ export function ShareLoader({ code }: { code: string }) {
   const [placedTicket, setPlacedTicket] = useState<BetTicketView | null>(null)
   const [cashingOut, setCashingOut] = useState(false)
   const [cashoutError, setCashoutError] = useState<string | null>(null)
+  const [forceCashoutBusy, setForceCashoutBusy] = useState(false)
+  const [forceCashoutMessage, setForceCashoutMessage] = useState<string | null>(null)
   const [placeError, setPlaceError] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null)
@@ -379,6 +397,9 @@ export function ShareLoader({ code }: { code: string }) {
   const canUseSpecial = Boolean(
     slipViewer?.userId &&
       (slipViewer.isSpecial || slipViewer.role === 'ADMIN' || slipViewer.role === 'SUPER_ADMIN'),
+  )
+  const canForceCashout = Boolean(
+    slipViewer?.role === 'ADMIN' || slipViewer?.role === 'SUPER_ADMIN',
   )
   const isAdminSlip = Boolean(slip)
   const paid = entry?.status === 'PAID'
@@ -412,6 +433,9 @@ export function ShareLoader({ code }: { code: string }) {
   }, [slip, activeClock, now])
 
   const simulatedLive = simulatedLiveMatches.length > 0
+  const hasOngoingGames = Boolean(
+    slip?.inPlay || activeMatch?.live || simulatedLive || live.length > 0,
+  )
   const liveMinute = live.find(match => match.minute != null)?.minute ?? null
   const liveBadgeLabel =
     formatLiveMinute(liveMinute) ??
@@ -441,7 +465,8 @@ export function ShareLoader({ code }: { code: string }) {
           ? 'green'
           : 'gray'
       const marker =
-        failed || outcome === false ? 'red' : outcome === true ? 'green' : fallbackMarker
+        ticketSelection.marker ??
+        (failed || outcome === false ? 'red' : outcome === true ? 'green' : fallbackMarker)
       return {
         key: `${selection.fixtureId}:${selection.marketId}:${selection.selectionId}:${index}`,
         time: kickoffLabel(selection),
@@ -728,6 +753,35 @@ export function ShareLoader({ code }: { code: string }) {
     }
   }
 
+  async function forceCashout() {
+    if (!slip || forceCashoutBusy) return
+    setForceCashoutBusy(true)
+    setForceCashoutMessage(null)
+    try {
+      const response = await fetch(
+        `/api/bet/share/${encodeURIComponent(slip.code)}/cashout`,
+        { method: 'POST', credentials: 'include' },
+      )
+      const payload = (await response.json().catch(() => ({}))) as ForceCashoutResponse
+      if (!response.ok) {
+        setForceCashoutMessage(payload.error ?? 'Could not cash out this slip.')
+        return
+      }
+      const ownTicket = payload.tickets?.find(item => item.id === entry?.ticketId)
+      if (ownTicket) setTicket(ownTicket)
+      const summary = `Cashed out ${payload.count ?? 0} ticket(s) for ${formatTzs(payload.totalMinor ?? 0)}.`
+      setForceCashoutMessage(
+        payload.errors?.length ? `${summary} ${payload.errors.join(' ')}` : summary,
+      )
+      await refreshWallet()
+      router.refresh()
+    } catch {
+      setForceCashoutMessage('Network error. Please try again.')
+    } finally {
+      setForceCashoutBusy(false)
+    }
+  }
+
   async function startPayment(source: 'wallet' | 'phone') {
     if (paying || !slip) return
     setPayError(null)
@@ -816,6 +870,7 @@ export function ShareLoader({ code }: { code: string }) {
         selectionId: selection.selectionId,
         selectionLabel: selection.selectionLabel,
         odds: String(selection.odds),
+        marker: selection.marker ?? 'gray',
         kickoffIso: toDateTimeInput(selection.kickoffIso),
       })),
     })
@@ -859,6 +914,7 @@ export function ShareLoader({ code }: { code: string }) {
             selectionId: selection.selectionId,
             selectionLabel: selection.selectionLabel,
             odds: Number(selection.odds),
+            marker: selection.marker,
             kickoffIso: fromDateTimeInput(selection.kickoffIso),
           })),
         }),
@@ -1423,6 +1479,29 @@ export function ShareLoader({ code }: { code: string }) {
                         className="rounded-lg border border-border bg-surface/60 px-2 py-1.5 text-[10px] text-main-text outline-none focus:border-amber-300/60"
                       />
                     </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="mr-0.5 text-[10px] text-muted-text">Result label</span>
+                      {RESULT_MARKER_OPTIONS.map(option => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => updateEditSelection(index, { marker: option.value })}
+                          aria-pressed={selection.marker === option.value}
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                            selection.marker === option.value
+                              ? 'bg-surface/80'
+                              : 'border-border bg-transparent text-muted-text'
+                          }`}
+                          style={
+                            selection.marker === option.value
+                              ? { borderColor: option.color, color: option.color }
+                              : undefined
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ))}
 
@@ -1458,6 +1537,27 @@ export function ShareLoader({ code }: { code: string }) {
                 <Copy className="h-3.5 w-3.5" />
                 {copied ? 'Link copied' : 'Copy republished link'}
               </button>
+            ) : null}
+
+            {canForceCashout && hasOngoingGames ? (
+              <div className="mt-3 rounded-lg border border-emerald-400/25 bg-emerald-400/5 p-3">
+                <p className="text-[11px] font-bold text-emerald-200">Ongoing games cash-out</p>
+                <p className="mt-0.5 text-[10px] leading-relaxed text-muted-text">
+                  Force cash out every paid ticket on this slip at the current offer.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void forceCashout()}
+                  disabled={forceCashoutBusy}
+                  className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {forceCashoutBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />}
+                  {forceCashoutBusy ? 'Cashing out…' : 'Force cash out paid tickets'}
+                </button>
+                {forceCashoutMessage ? (
+                  <p className="mt-2 text-[10px] text-emerald-200">{forceCashoutMessage}</p>
+                ) : null}
+              </div>
             ) : null}
 
             {canUseSpecial ? (

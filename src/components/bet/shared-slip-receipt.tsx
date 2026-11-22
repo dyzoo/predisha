@@ -254,6 +254,12 @@ export function SharedSlipReceipt({
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                  <span
+                    className="text-[9px] font-bold"
+                    style={{ color: markerColor(palette, selection.marker) }}
+                  >
+                    {MARKER_LABELS[selection.marker]}
+                  </span>
                   <MarkerDot marker={selection.marker} palette={palette} />
                   <span className="text-[12px] font-black tabular-nums" style={{ color: palette.text }}>
                     {formatOdds(selection.odds)}

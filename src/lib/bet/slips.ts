@@ -68,6 +68,7 @@ export interface AdminSlipSelectionInput {
   kickoffIso?: string
   marketName?: string
   selectionLabel?: string
+  marker?: TicketSelection['marker']
   probability?: number
   finalScore?: { home: number; away: number } | null
 }
@@ -476,6 +477,7 @@ export async function createAdminBetSlip(input: {
         result: 'PENDING',
         finalScore: selection.finalScore ?? null,
         demoResult: false,
+        marker: selection.marker ?? 'gray',
         kickoffLabel: formatKickoffLabel(customKickoff),
       } as TicketSelection
     }
@@ -519,6 +521,7 @@ export async function createAdminBetSlip(input: {
       result: 'PENDING',
       finalScore: selection.finalScore ?? null,
       demoResult: false,
+      marker: selection.marker ?? 'gray',
       kickoffLabel: formatKickoffLabel(effectiveKickoff),
     } as TicketSelection
   })

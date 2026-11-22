@@ -583,16 +583,17 @@ function cashoutOffer(
   })
 }
 
-export async function cashoutTicket(
-  userId: string,
-  ticketId: string,
-  now: Date = new Date(),
+async function cashoutTicketRecord(
+  ticket: BetTicket,
+  now: Date,
 ): Promise<BetTicketView> {
-  const ticket = await prisma.betTicket.findFirst({ where: { id: ticketId, userId } })
-  if (!ticket) throw new BetError('Ticket not found.', 404, 'TICKET_NOT_FOUND')
   const openTicket = await settleTicketRecord(ticket, now)
   if (openTicket.status !== 'OPEN') {
     throw new BetError('This ticket is no longer open.', 409, 'TICKET_CLOSED')
+  }
+  const ownerId = openTicket.userId
+  if (!ownerId) {
+    throw new BetError('This ticket has no owner.', 409, 'TICKET_NO_OWNER')
   }
 
   const selections = parseSelections(openTicket.selections)
@@ -607,7 +608,7 @@ export async function cashoutTicket(
 
   const updated = await prisma.$transaction(async tx => {
     const result = await tx.betTicket.updateMany({
-      where: { id: ticket.id, userId, status: 'OPEN' },
+      where: { id: ticket.id, userId: ownerId, status: 'OPEN' },
       data: {
         status: 'CASHED_OUT',
         payoutMinor: offer,
@@ -619,7 +620,7 @@ export async function cashoutTicket(
       throw new BetError('This ticket is no longer open.', 409, 'TICKET_CLOSED')
     }
     await creditWallet(tx, {
-      userId,
+      userId: ownerId,
       amountMinor: offer,
       type: 'BET_CASHOUT',
       reference: `ticket:${ticket.code}:cashout`,
@@ -629,6 +630,25 @@ export async function cashoutTicket(
   })
 
   return toTicketView(updated)
+}
+
+export async function cashoutTicket(
+  userId: string,
+  ticketId: string,
+  now: Date = new Date(),
+): Promise<BetTicketView> {
+  const ticket = await prisma.betTicket.findFirst({ where: { id: ticketId, userId } })
+  if (!ticket) throw new BetError('Ticket not found.', 404, 'TICKET_NOT_FOUND')
+  return cashoutTicketRecord(ticket, now)
+}
+
+export async function cashoutTicketById(
+  ticketId: string,
+  now: Date = new Date(),
+): Promise<BetTicketView> {
+  const ticket = await prisma.betTicket.findUnique({ where: { id: ticketId } })
+  if (!ticket) throw new BetError('Ticket not found.', 404, 'TICKET_NOT_FOUND')
+  return cashoutTicketRecord(ticket, now)
 }
 
 export async function resolveDemoTicket(

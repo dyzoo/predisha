@@ -25,6 +25,7 @@ const selectionSchema = z.object({
   selectionId: z.string().min(1).max(120),
   selectionLabel: z.string().min(1).max(160),
   odds: z.number().finite().min(1.01).max(1000),
+  marker: z.enum(['green', 'gray', 'red']).nullable().optional(),
   kickoffIso: isoString.nullable().optional(),
 })
 
@@ -78,6 +79,7 @@ function buildSelections(
       result: 'PENDING',
       finalScore: null,
       demoResult: false,
+      marker: edit.marker ?? base?.marker ?? 'gray',
     } as TicketSelection
   })
 

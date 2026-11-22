@@ -202,7 +202,10 @@ export function liveMinuteForSelection(
   return selection.liveMinute ?? fallback ?? null
 }
 
+export type SlipResultMarker = 'green' | 'gray' | 'red'
+
 export interface TicketSelection {
+  marker?: SlipResultMarker
   fixtureId: string
   fixtureLabel: string
   competition: string

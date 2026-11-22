@@ -143,6 +143,7 @@ export const adminSlipSelectionSchema = z.object({
   kickoffIso: z.string().datetime().optional(),
   marketName: z.string().trim().max(80).optional(),
   selectionLabel: z.string().trim().max(120).optional(),
+  marker: z.enum(['green', 'gray', 'red']).optional(),
   probability: z.number().min(0).max(1).optional(),
   finalScore: z
     .object({
