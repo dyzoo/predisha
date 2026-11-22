@@ -799,3 +799,29 @@ button, a { cursor: pointer; }
     display: none;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .receipt-print-target,
+  .receipt-print-target * {
+    visibility: visible !important;
+  }
+
+  .receipt-print-target {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .winner-confetti {
+    display: none !important;
+  }
+}

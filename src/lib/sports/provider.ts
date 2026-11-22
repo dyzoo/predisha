@@ -43,6 +43,13 @@ export interface Fixture {
   status: FixtureStatus
   homeScore?: number | null
   awayScore?: number | null
+  liveMinute?: number | null
+  liveHomeScore?: number | null
+  liveAwayScore?: number | null
+  halfTimeHomeScore?: number | null
+  halfTimeAwayScore?: number | null
+  venue?: string | null
+  referee?: string | null
   lastSyncedAt?: Date | null
 }
 

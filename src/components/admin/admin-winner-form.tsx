@@ -1,11 +1,13 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   CalendarDays,
   CircleAlert,
   CircleCheck,
+  Copy,
   Database,
   Dices,
   Layers3,
@@ -138,6 +140,7 @@ export function AdminWinnerForm({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<WinnerResponse | null>(null)
+  const [copiedShareUrl, setCopiedShareUrl] = useState(false)
   const [sourceKey, setSourceKey] = useState('MANUAL')
   const [sourceSlipId, setSourceSlipId] = useState<string | null>(null)
   const [homeTeam, setHomeTeam] = useState('')
@@ -203,7 +206,18 @@ export function AdminWinnerForm({
       return
     }
     setResult(payload)
+    setCopiedShareUrl(false)
     router.refresh()
+  }
+
+  async function copyShareUrl() {
+    if (!result?.shareUrl) return
+    try {
+      await navigator.clipboard.writeText(new URL(result.shareUrl, window.location.origin).toString())
+      setCopiedShareUrl(true)
+    } catch {
+      setCopiedShareUrl(false)
+    }
   }
 
   async function createFromTicket() {
@@ -1029,10 +1043,31 @@ export function AdminWinnerForm({
               </>
             ) : null}
           </p>
+          {result.shareUrl ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/25 bg-background/40 px-2.5 py-2">
+              <span className="min-w-0 flex-1 truncate text-[10px] text-muted-text">
+                Share link <span className="font-mono text-amber-200">{result.shareUrl}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => void copyShareUrl()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/40 bg-amber-300/10 px-2.5 py-1.5 text-[10px] font-bold text-amber-200 hover:bg-amber-300/20"
+              >
+                {copiedShareUrl ? <CircleCheck className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copiedShareUrl ? 'Copied' : 'Copy link'}
+              </button>
+            </div>
+          ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="text-[10px] text-muted-text">
               The user can now see the payout in their wallet and withdraw it.
             </span>
+            <Link
+              href={result.shareUrl ?? `/bet/winner/${result.winner.code}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface/60 px-2.5 py-1.5 text-[10px] font-bold text-main-text hover:border-amber-300/40"
+            >
+              Open receipt
+            </Link>
           </div>
         </div>
       ) : null}

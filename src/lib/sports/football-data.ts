@@ -59,13 +59,37 @@ function toDate(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function mapMatchToFixture(match: ApiMatch): Fixture | null {
+function scorePair(value: ApiScorePair | null | undefined): { home: number; away: number } | null {
+  if (!value) return null
+  if (typeof value.home !== 'number' || typeof value.away !== 'number') return null
+  if (!Number.isFinite(value.home) || !Number.isFinite(value.away)) return null
+  return { home: value.home, away: value.away }
+}
+
+function firstFiniteNumber(...values: Array<unknown>): number | null {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+  }
+  return null
+}
+
+function clampMinute(value: number, cap: number): number {
+  return Math.min(cap, Math.max(1, Math.floor(value)))
+}
+
+export function mapMatchToFixture(match: ApiMatch): Fixture | null {
   const kickoff = toDate(match.utcDate)
   if (!kickoff) return null
   if (match.homeTeam?.id == null || match.awayTeam?.id == null) return null
   if (match.competition?.id == null) return null
-  const homeScore = match.score.fullTime?.home ?? null
-  const awayScore = match.score.fullTime?.away ?? null
+
+  const status = apiStatusToFixtureStatus(match.status)
+  const fullTime = scorePair(match.score?.fullTime)
+  const halfTime = scorePair(match.score?.halfTime)
+  const isLive = status === 'LIVE'
+  const providerMinute = firstFiniteNumber(match.minute, match.score?.minute)
+  const minuteCap = match.score?.duration === 'REGULAR' ? 90 : 120
+
   return {
     id: String(match.id),
     providerId: String(match.id),
@@ -76,9 +100,16 @@ function mapMatchToFixture(match: ApiMatch): Fixture | null {
     homeTeam: teamFromApi(match.homeTeam),
     awayTeam: teamFromApi(match.awayTeam),
     kickoffUtc: kickoff,
-    status: apiStatusToFixtureStatus(match.status),
-    homeScore: typeof homeScore === 'number' ? homeScore : null,
-    awayScore: typeof awayScore === 'number' ? awayScore : null,
+    status,
+    homeScore: fullTime?.home ?? null,
+    awayScore: fullTime?.away ?? null,
+    liveMinute: isLive && providerMinute !== null ? clampMinute(providerMinute, minuteCap) : null,
+    liveHomeScore: isLive ? fullTime?.home ?? null : null,
+    liveAwayScore: isLive ? fullTime?.away ?? null : null,
+    halfTimeHomeScore: halfTime?.home ?? null,
+    halfTimeAwayScore: halfTime?.away ?? null,
+    venue: match.venue?.trim() || null,
+    referee: match.referee?.trim() || null,
     lastSyncedAt: new Date(),
   }
 }
@@ -157,15 +188,29 @@ interface ApiStanding {
   }>
 }
 
-interface ApiMatch {
+interface ApiScorePair {
+  home?: number | null
+  away?: number | null
+}
+
+export interface ApiMatch {
   id: number
   utcDate: string
   status: string
   competition: { id: number; name: string; code: string } | null
   homeTeam: { id: number | null; name: string | null; shortName: string | null; crest?: string | null }
   awayTeam: { id: number | null; name: string | null; shortName: string | null; crest?: string | null }
+  venue?: string | null
+  referee?: string | null
+  minute?: number | null
   score: {
-    fullTime?: { home?: number | null; away?: number | null } | null
+    winner?: string | null
+    duration?: string | null
+    minute?: number | null
+    fullTime?: ApiScorePair | null
+    halfTime?: ApiScorePair | null
+    extraTime?: ApiScorePair | null
+    penalties?: ApiScorePair | null
   }
 }
 

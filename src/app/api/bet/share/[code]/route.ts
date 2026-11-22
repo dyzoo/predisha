@@ -6,6 +6,7 @@ import { toAdminSlipView } from '@/lib/bet/slips'
 import { prisma } from '@/lib/prisma'
 import { shareCodeSchema } from '@/lib/bet/validation'
 import { getBetMode } from '@/lib/bet/mode'
+import { getMinStakeMinor } from '@/lib/bet/stake-settings'
 import type { TicketSelection } from '@/lib/bet/types'
 
 async function liveMatchesFor(selections: TicketSelection[], now: Date) {
@@ -49,6 +50,7 @@ export async function GET(
         liveGames,
         upcomingGames,
         mode: await getBetMode(),
+        minStakeMinor: await getMinStakeMinor(),
       })
     }
     const share = await loadShareCode(parsed.data, now)
@@ -59,6 +61,7 @@ export async function GET(
       liveGames,
       upcomingGames,
       mode: await getBetMode(),
+      minStakeMinor: await getMinStakeMinor(),
     })
   } catch (error) {
     return handleBetError(error)

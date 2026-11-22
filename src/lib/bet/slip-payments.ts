@@ -1,4 +1,5 @@
-﻿import { prisma } from '@/lib/prisma'
+﻿import { Prisma } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import {
   NORIPESA_PROVIDER_NAME,
   createNoripesaOrder,
@@ -10,6 +11,7 @@ import { BetError } from './errors'
 import { normalizeTzPhone } from './phone'
 import { creditWallet } from './wallet'
 import {
+  assertBetStakeMinor,
   getAdminBetSlipByCode,
   isSlipFrozen,
   maskPhone,
@@ -144,6 +146,7 @@ export async function startSlipPayment(input: {
   const now = input.now ?? new Date()
   const slip = await getAdminBetSlipByCode(input.code, now)
   const record = await prisma.adminBetSlip.findUniqueOrThrow({ where: { code: slip.code } })
+  await assertBetStakeMinor(record.stakeMinor)
 
   if (isSlipFrozen(record, now)) {
     throw new BetError('Betting is closed for this slip.', 409, 'SLIP_FROZEN', {
@@ -172,6 +175,8 @@ export async function startSlipPayment(input: {
         userId: input.userId,
         phone: input.phone.trim(),
         stakeMinor: record.stakeMinor,
+        selections: slip.selections as unknown as Prisma.InputJsonValue,
+        totalOdds: slip.totalOdds,
         status: 'PAID',
         provider: 'wallet',
         paidAt: now,
@@ -204,6 +209,8 @@ export async function startSlipPayment(input: {
         userId: entryUserId,
         phone: normalized.phone,
         stakeMinor: record.stakeMinor,
+        selections: slip.selections as unknown as Prisma.InputJsonValue,
+        totalOdds: slip.totalOdds,
         status: 'PAID',
         provider: 'sandbox',
         paidAt: now,
@@ -254,6 +261,8 @@ export async function startSlipPayment(input: {
       userId: entryUserId,
       phone: normalized.phone,
       stakeMinor: record.stakeMinor,
+      selections: slip.selections as unknown as Prisma.InputJsonValue,
+      totalOdds: slip.totalOdds,
       status: 'PENDING',
       provider: NORIPESA_PROVIDER_NAME,
       providerOrderId: order.orderId,

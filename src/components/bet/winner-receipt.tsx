@@ -1,11 +1,18 @@
+'use client'
+
+import { useRef, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   BadgeCheck,
   CalendarDays,
+  CircleAlert,
   CircleCheck,
+  Download,
+  Loader2,
+  Printer,
   ReceiptText,
   Sparkles,
-  Trophy,
   Wallet,
 } from 'lucide-react'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
@@ -14,16 +21,80 @@ import { VAT_PERCENT } from '@/lib/bet/vat'
 import { WinnerConfetti } from './winner-confetti'
 
 export function WinnerReceipt({ winner }: { winner: PublicWinnerSlipView }) {
+  const receiptRef = useRef<HTMLDivElement>(null)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  async function downloadSlip() {
+    if (!receiptRef.current || downloading) return
+    setDownloading(true)
+    setDownloadError(null)
+    try {
+      const { toPng } = await import('html-to-image')
+      const dataUrl = await toPng(receiptRef.current, {
+        pixelRatio: 2,
+        backgroundColor: '#141A21',
+        cacheBust: true,
+      })
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = `winner-slip-${winner.code}.png`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch {
+      setDownloadError('Download failed. Please try again.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <div className="relative overflow-hidden rounded-3xl border-2 border-amber-300/60 bg-[radial-gradient(120%_100%_at_50%_0%,rgba(240,213,46,0.2),transparent_58%),linear-gradient(180deg,#252C36_0%,#141A21_100%)] p-5 shadow-[0_30px_80px_-50px_rgba(240,213,46,0.65)] sm:p-7">
+      <div className="flex flex-wrap items-center justify-end gap-2 print:hidden">
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-4 py-2.5 text-xs font-semibold text-main-text transition-colors hover:border-amber-300/50"
+        >
+          <Printer className="h-4 w-4 text-amber-300" />
+          Print receipt
+        </button>
+        <button
+          type="button"
+          onClick={() => void downloadSlip()}
+          disabled={downloading}
+          className="inline-flex items-center gap-2 rounded-xl bg-amber-300 px-4 py-2.5 text-xs font-bold text-amber-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {downloading ? 'Preparing image…' : 'Download winner slip'}
+        </button>
+      </div>
+      {downloadError ? (
+        <p className="flex items-center justify-end gap-1.5 text-[11px] text-red-300 print:hidden">
+          <CircleAlert className="h-3.5 w-3.5" />
+          {downloadError}
+        </p>
+      ) : null}
+
+      <div
+        ref={receiptRef}
+        className="receipt-print-target relative overflow-hidden rounded-3xl border-2 border-amber-300/60 bg-[radial-gradient(120%_100%_at_50%_0%,rgba(240,213,46,0.2),transparent_58%),linear-gradient(180deg,#252C36_0%,#141A21_100%)] p-5 shadow-[0_30px_80px_-50px_rgba(240,213,46,0.65)] sm:p-7"
+      >
         <WinnerConfetti />
 
         <div className="relative">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-300/50 bg-amber-300/15 text-amber-300 shadow-[0_0_50px_-10px_rgba(240,213,46,0.8)] sm:h-20 sm:w-20">
-                <Trophy className="h-8 w-8 text-amber-300 sm:h-10 sm:w-10" />
+              <span className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-amber-300/50 bg-amber-300/15 shadow-[0_0_50px_-10px_rgba(240,213,46,0.8)] sm:h-20 sm:w-20">
+                <Image
+                  src="/trophy.png"
+                  alt="Winner trophy"
+                  width={80}
+                  height={80}
+                  unoptimized
+                  className="h-full w-full object-contain"
+                />
               </span>
               <div>
                 <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.24em] text-amber-300">
@@ -133,9 +204,7 @@ export function WinnerReceipt({ winner }: { winner: PublicWinnerSlipView }) {
                           <p className="font-mono text-lg font-black tabular-nums text-amber-200">
                             {selection.finalScore.home} - {selection.finalScore.away}
                           </p>
-                          <p className="text-[10px] uppercase tracking-wide text-muted-text">
-                            Final
-                          </p>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-text">Final</p>
                         </>
                       ) : null}
                       <p className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-amber-200">

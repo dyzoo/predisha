@@ -13,9 +13,10 @@ import {
   X,
 } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
-import { MIN_STAKE_MINOR, type BetTicketView } from '@/lib/bet/types'
+import type { BetTicketView } from '@/lib/bet/types'
 import { BrandLogo } from '@/components/brand-logo'
 import { useBetSlip } from './bet-slip-provider'
+import { useBetMode } from './bet-mode-context'
 
 const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
 
@@ -37,6 +38,7 @@ export function BetSlipDock() {
     openSlip,
     closeSlip,
   } = useBetSlip()
+  const { minStakeMinor } = useBetMode()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<BetTicketView | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
@@ -272,7 +274,7 @@ export function BetSlipDock() {
                   <input
                     id="bet-stake"
                     type="number"
-                    min={MIN_STAKE_MINOR}
+                    min={minStakeMinor}
                     step={500}
                     value={stakeMinor}
                     onChange={event => setStakeMinor(Number(event.target.value))}

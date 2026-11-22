@@ -15,13 +15,21 @@ import {
 import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { BetSlip } from '@/components/matches/bet-slip'
+import { MatchAutoRefresh } from '@/components/matches/match-explorer'
+import { MatchStatsTabs } from '@/components/matches/match-stats-tabs'
 import { SaveMatchButton } from '@/components/matches/save-match-button'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { canViewPremium } from '@/lib/auth/entitlements'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 import { prisma } from '@/lib/prisma'
 import { getMatchAnalysis } from '@/lib/sports/service'
-import { formatDateTime, formatMatchTime, outcomeLabel, toMatchView } from '@/lib/sports/view-model'
+import {
+  buildMatchStatsView,
+  formatDateTime,
+  formatMatchTime,
+  outcomeLabel,
+  toMatchView,
+} from '@/lib/sports/view-model'
 
 export const metadata: Metadata = {
   title: 'Match analysis',
@@ -45,8 +53,17 @@ export default async function MatchPage({ params }: { params: Promise<{ matchId:
   if (!analysis) notFound()
 
   const view = toMatchView(analysis)
+  const stats = buildMatchStatsView(analysis, dataset.fixtures, dataset.teams)
   const { fixture, prediction, features, home, away, competition, sport } = analysis
   const isFinished = view.effectiveStatus === 'FINISHED'
+  const statusLabel =
+    view.effectiveStatus === 'LIVE'
+      ? `LIVE${typeof view.minute === 'number' ? ` ${view.minute}'` : ''}`
+      : view.effectiveStatus === 'FINISHED'
+        ? 'Full time'
+        : view.effectiveStatus === 'SCHEDULED'
+          ? 'Upcoming'
+          : view.effectiveStatus
 
   const viewer = await getViewer()
   const premiumView = canViewPremium(viewer) || dataset.isDemo
@@ -64,6 +81,7 @@ export default async function MatchPage({ params }: { params: Promise<{ matchId:
     <div className="flex min-h-screen flex-col bg-background text-main-text">
       <SiteHeader />
       <main className="flex-1">
+        <MatchAutoRefresh />
         <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
           <Link
             href="/matches"
@@ -84,7 +102,7 @@ export default async function MatchPage({ params }: { params: Promise<{ matchId:
                 ) : (
                   <CalendarClock className="h-3 w-3" />
                 )}
-                {view.effectiveStatus}
+                {statusLabel}
               </span>
             </div>
 
@@ -138,6 +156,8 @@ export default async function MatchPage({ params }: { params: Promise<{ matchId:
                   Input as of {formatDateTime(prediction.inputDataAsOf)}
                 </span>
               ) : null}
+              {fixture.venue ? <span>Venue: {fixture.venue}</span> : null}
+              {fixture.referee ? <span>Referee: {fixture.referee}</span> : null}
               <div className="ml-auto">
                 <SaveMatchButton
                   fixtureId={fixture.id}
@@ -416,6 +436,8 @@ export default async function MatchPage({ params }: { params: Promise<{ matchId:
               </section>
             </aside>
           </div>
+
+          <MatchStatsTabs stats={stats} homeName={home.name} awayName={away.name} />
 
           {isFinished ? (
             <section className="mt-6 rounded-2xl border border-border bg-surface/60 p-5">

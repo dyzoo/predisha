@@ -158,6 +158,13 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
         status: f.status as FixtureStatus,
         homeScore: f.homeScore ?? null,
         awayScore: f.awayScore ?? null,
+        liveMinute: f.liveMinute ?? null,
+        liveHomeScore: f.liveHomeScore ?? null,
+        liveAwayScore: f.liveAwayScore ?? null,
+        halfTimeHomeScore: f.halfTimeHomeScore ?? null,
+        halfTimeAwayScore: f.halfTimeAwayScore ?? null,
+        venue: f.venue ?? null,
+        referee: f.referee ?? null,
         lastSyncedAt: f.lastSyncedAt ?? null,
       }
     })

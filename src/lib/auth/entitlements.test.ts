@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canUseFreePreview,
+  canUseSpecialBetTools,
   canViewAdmin,
   canViewPremium,
   entitlementFor,
@@ -13,7 +14,14 @@ import {
 } from './entitlements'
 
 function viewer(entitlement: Viewer['entitlement'], role: Viewer['role']): Viewer {
-  return { userId: 'user', email: 'user@example.com', name: 'Test User', role, entitlement }
+  return {
+    userId: 'user',
+    email: 'user@example.com',
+    name: 'Test User',
+    role,
+    isSpecial: false,
+    entitlement,
+  }
 }
 
 describe('entitlements', () => {
@@ -42,6 +50,12 @@ describe('entitlements', () => {
     expect(isSuperAdmin(viewer('ADMIN', 'SUPER_ADMIN'))).toBe(true)
     expect(isSuperAdmin(viewer('ADMIN', 'ADMIN'))).toBe(false)
     expect(isSuperAdmin(viewer('ADMIN', 'USER'))).toBe(false)
+  })
+
+  it('allows special users and admins to use special bet tools', () => {
+    expect(canUseSpecialBetTools(viewer('FREE', 'USER'))).toBe(false)
+    expect(canUseSpecialBetTools(viewer('ADMIN', 'ADMIN'))).toBe(true)
+    expect(canUseSpecialBetTools({ ...viewer('FREE', 'USER'), isSpecial: true })).toBe(true)
   })
 
   it('limits free previews but unlocks demo and premium', () => {
@@ -76,6 +90,7 @@ describe('toClientViewer', () => {
       email: 'user@example.com',
       name: 'Test User',
       role: 'USER',
+      isSpecial: false,
       entitlement: 'PREMIUM',
       premium: true,
     })
@@ -88,6 +103,7 @@ describe('toClientViewer', () => {
       email: null,
       name: null,
       role: null,
+      isSpecial: false,
       entitlement: 'FREE',
       premium: false,
     })

@@ -1,11 +1,24 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { CalendarDays, ChevronLeft, ChevronRight, Search, TriangleAlert, X } from 'lucide-react'
 import type { MatchView } from '@/lib/sports/view-model'
 import { MatchCard } from '@/components/matches/match-card'
 
 const PAGE_SIZE = 6
+const REFRESH_INTERVAL_MS = 30_000
+
+export function MatchAutoRefresh({ intervalMs = REFRESH_INTERVAL_MS }: { intervalMs?: number }) {
+  const router = useRouter()
+
+  useEffect(() => {
+    const timer = window.setInterval(() => router.refresh(), intervalMs)
+    return () => window.clearInterval(timer)
+  }, [router, intervalMs])
+
+  return null
+}
 
 type StatusFilter = 'ALL' | 'UPCOMING' | 'LIVE' | 'FINISHED'
 
@@ -70,6 +83,7 @@ export function MatchExplorer({
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+      <MatchAutoRefresh />
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">

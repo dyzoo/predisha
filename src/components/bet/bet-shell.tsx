@@ -445,16 +445,18 @@ export function BetShell({
   viewer,
   mode,
   depositMinMinor,
+  minStakeMinor,
   children,
 }: {
   viewer: ClientViewer
   mode: BetMode
   depositMinMinor?: number
+  minStakeMinor?: number
   children: ReactNode
 }) {
   return (
-    <BetSlipProvider viewer={viewer}>
-      <BetModeProvider mode={mode} depositMinMinor={depositMinMinor}>
+    <BetSlipProvider viewer={viewer} minStakeMinor={minStakeMinor}>
+      <BetModeProvider mode={mode} depositMinMinor={depositMinMinor} minStakeMinor={minStakeMinor}>
         <ShellInner viewer={viewer}>{children}</ShellInner>
       </BetModeProvider>
     </BetSlipProvider>

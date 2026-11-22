@@ -5,13 +5,8 @@ import { BetError } from './errors'
 import { formatKickoffLabel } from './format'
 import { combineOdds } from './odds'
 import { randomCode } from './random'
-import { toAdminSlipView } from './slips'
-import {
-  MAX_SELECTIONS,
-  MAX_STAKE_MINOR,
-  MIN_STAKE_MINOR,
-  type TicketSelection,
-} from './types'
+import { assertBetStakeMinor, toAdminSlipView } from './slips'
+import { MAX_SELECTIONS, type TicketSelection } from './types'
 import { applyVat, VAT_PERCENT } from './vat'
 import { creditWallet } from './wallet'
 
@@ -195,13 +190,7 @@ export async function createWinnerSlip(input: {
   if (!Number.isInteger(input.stakeMinor)) {
     throw new BetError('Stake must be a whole amount.', 422, 'BAD_STAKE')
   }
-  if (input.stakeMinor < MIN_STAKE_MINOR || input.stakeMinor > MAX_STAKE_MINOR) {
-    throw new BetError(
-      `Stake must be between ${MIN_STAKE_MINOR} and ${MAX_STAKE_MINOR} TZS.`,
-      422,
-      'BAD_STAKE',
-    )
-  }
+  await assertBetStakeMinor(input.stakeMinor)
   if (input.selections.length === 0) {
     throw new BetError('Add at least one winning selection.', 422, 'EMPTY_SLIP')
   }
@@ -298,10 +287,13 @@ export async function createWinnerSlip(input: {
       })
 
       if (sourceEntry) {
-        await tx.adminBetEntry.update({
-          where: { id: sourceEntry.id },
+        const claimed = await tx.adminBetEntry.updateMany({
+          where: { id: sourceEntry.id, status: 'PAID', ticketId: null },
           data: { ticketId: ticket.id, status: 'PAID' },
         })
+        if (claimed.count !== 1) {
+          throw new BetError('This entry has already been assigned to a winner.', 409, 'ENTRY_CLAIMED')
+        }
       }
 
       await creditWallet(tx, {
@@ -420,11 +412,15 @@ export async function assignAdminSlipEntryWin(input: {
     })
   }
 
+  const entrySelections = entry.selections ? parseSelections(entry.selections) : []
+  const winnerSelections =
+    entrySelections.length > 0 ? entrySelections : parseSelections(entry.slip.selections)
+
   return createWinnerSlip({
     userId: entry.userId,
     title: entry.slip.title ?? `Winner · ${entry.slip.code}`,
     stakeMinor: entry.stakeMinor,
-    selections: parseSelections(entry.slip.selections),
+    selections: winnerSelections,
     note: `Assigned from shared slip ${entry.slip.code}`,
     createdBy: input.createdBy,
     now,

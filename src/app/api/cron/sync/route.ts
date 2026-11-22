@@ -2,7 +2,7 @@ import { json, apiError } from '@/lib/api'
 import { settleAllOpenTickets } from '@/lib/bet/bets'
 import { syncFootballData } from '@/lib/sports/sync'
 
-export async function POST(request: Request): Promise<Response> {
+async function runCron(request: Request): Promise<Response> {
   const configuredSecret = process.env.CRON_SECRET
   if (!configuredSecret) {
     return apiError('Cron is not configured on this deployment.', 503)
@@ -29,4 +29,12 @@ export async function POST(request: Request): Promise<Response> {
       500,
     )
   }
+}
+
+export async function GET(request: Request): Promise<Response> {
+  return runCron(request)
+}
+
+export async function POST(request: Request): Promise<Response> {
+  return runCron(request)
 }

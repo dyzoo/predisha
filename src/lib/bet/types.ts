@@ -25,6 +25,56 @@ export type BetMarketId =
   | 'goalkeeper-score'
   | 'first-goal'
   | 'goals-0-5'
+  | 'ht-ft'
+  | '1h-1x2'
+  | '2h-1x2'
+  | '1h-totals'
+  | '2h-totals'
+  | 'correct-score'
+  | 'odd-even-goals'
+  | 'both-halves-win'
+  | 'score-both-halves'
+  | 'win-to-nil'
+  | 'clean-sheet'
+  | 'handicap-2way'
+  | 'handicap-3way'
+  | 'total-goals-extra'
+
+export type BetMarketGroup = 'popular' | 'goals' | 'halves' | 'special'
+
+export const MARKET_GROUPS: Record<BetMarketId, BetMarketGroup> = {
+  '1x2': 'popular',
+  'double-chance': 'popular',
+  'ht-ft': 'popular',
+  'handicap-2way': 'popular',
+  'handicap-3way': 'popular',
+  'win-to-nil': 'popular',
+  'clean-sheet': 'popular',
+  'total-goals': 'goals',
+  'total-goals-extra': 'goals',
+  goals: 'goals',
+  btts: 'goals',
+  'first-goal': 'goals',
+  'correct-score': 'goals',
+  'odd-even-goals': 'goals',
+  'score-both-halves': 'goals',
+  'goals-0-5': 'goals',
+  'shots-on-target': 'goals',
+  '1h-1x2': 'halves',
+  '2h-1x2': 'halves',
+  '1h-totals': 'halves',
+  '2h-totals': 'halves',
+  'both-halves-win': 'halves',
+  'total-corners': 'special',
+  'substitutions-2h': 'special',
+  'yellow-cards-1h': 'special',
+  'red-card': 'special',
+  'goalkeeper-score': 'special',
+}
+
+export function marketGroupForId(id: BetMarketId): BetMarketGroup {
+  return MARKET_GROUPS[id]
+}
 
 export const EXTRA_MARKET_IDS: BetMarketId[] = [
   'double-chance',

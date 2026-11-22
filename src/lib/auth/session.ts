@@ -54,6 +54,7 @@ interface SessionUser {
   email: string
   name: string | null
   role: 'USER' | 'ADMIN' | 'SUPER_ADMIN'
+  isSpecial: boolean
   subscription: { status: string } | null
 }
 
@@ -71,6 +72,7 @@ function toViewer(user: SessionUser): Viewer {
     email: user.email,
     name: user.name,
     role: user.role,
+    isSpecial: user.isSpecial,
     entitlement: entitlementFor(user.role, status),
   }
 }

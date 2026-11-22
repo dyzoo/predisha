@@ -12,6 +12,7 @@ const updateUserSchema = z.object({
     .enum(['INACTIVE', 'TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'UNPAID'])
     .optional(),
   planId: z.enum(['weekly', 'monthly', 'quarterly']).optional(),
+  isSpecial: z.boolean().optional(),
 })
 
 function requestIp(request: Request): string | null {
@@ -87,6 +88,26 @@ export async function PATCH(
         },
       })
       changes.push('role')
+    }
+
+    if (parsed.data.isSpecial !== undefined && parsed.data.isSpecial !== target.isSpecial) {
+      if (!isSuperAdmin(access.viewer)) {
+        return apiError('Only a super admin can change special bet tools.', 403)
+      }
+      await prisma.user.update({
+        where: { id: target.id },
+        data: { isSpecial: parsed.data.isSpecial },
+      })
+      await prisma.adminAuditLog.create({
+        data: {
+          actorId,
+          action: 'user.special.update',
+          target: target.email,
+          ipAddress,
+          metadata: { from: target.isSpecial, to: parsed.data.isSpecial },
+        },
+      })
+      changes.push('special')
     }
 
     if (parsed.data.subscriptionStatus) {
@@ -172,6 +193,7 @@ export async function PATCH(
         email: true,
         name: true,
         role: true,
+        isSpecial: true,
         subscription: { select: { status: true, planId: true } },
       },
     })

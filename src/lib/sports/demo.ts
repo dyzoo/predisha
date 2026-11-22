@@ -198,6 +198,9 @@ export function buildDemoDataset(anchor: Date = new Date()): DemoDataset {
           status: isLive ? 'LIVE' : 'SCHEDULED',
           homeScore: isLive ? 1 : null,
           awayScore: isLive ? 0 : null,
+          liveMinute: isLive ? 26 : null,
+          liveHomeScore: isLive ? 1 : null,
+          liveAwayScore: isLive ? 0 : null,
           lastSyncedAt: anchor,
         })
       })

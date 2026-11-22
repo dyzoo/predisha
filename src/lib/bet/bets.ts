@@ -50,7 +50,6 @@ export function toTicketView(
 export function buildSnapshot(
   input: BetSelectionInput[],
   events: Awaited<ReturnType<typeof getBetCatalog>>['events'],
-  now: Date,
 ): TicketSelection[] {
   const eventById = new Map(events.map(event => [event.id, event]))
   const seen = new Set<string>()
@@ -70,15 +69,6 @@ export function buildSnapshot(
         fixtureId: event.id,
       })
     }
-    if (
-      event.status === 'SCHEDULED' &&
-      new Date(event.kickoffIso).getTime() < now.getTime() - 10 * 60 * 1000
-    ) {
-      throw new BetError('This match has already started.', 422, 'FIXTURE_CLOSED', {
-        fixtureId: event.id,
-      })
-    }
-
     const marketKey = `${event.id}:${selection.marketId}`
     if (seen.has(marketKey)) {
       throw new BetError('Choose only one selection per market.', 422, 'DUPLICATE_MARKET')
@@ -232,7 +222,7 @@ export async function placeBet(
   now: Date = new Date(),
 ): Promise<BetTicketView> {
   const catalog = await getBetCatalog(now)
-  const selections = buildSnapshot(input.selections, catalog.events, now)
+  const selections = buildSnapshot(input.selections, catalog.events)
   return placeBetFromSelections(userId, { stakeMinor: input.stakeMinor, selections })
 }
 
@@ -269,7 +259,10 @@ export function evaluateTicket(
       typeof result.homeScore === 'number' &&
       typeof result.awayScore === 'number'
     ) {
-      const won = settleMarket(selection.selectionId, result.homeScore, result.awayScore)
+      const won = settleMarket(selection.selectionId, result.homeScore, result.awayScore, {
+        halfTimeHomeScore: result.halfTimeHomeScore,
+        halfTimeAwayScore: result.halfTimeAwayScore,
+      })
       if (won === null) return selection
       changed = true
       return {
@@ -537,6 +530,10 @@ function cashoutOffer(
         selection.selectionId,
         finishedResult.homeScore,
         finishedResult.awayScore,
+        {
+          halfTimeHomeScore: finishedResult.halfTimeHomeScore,
+          halfTimeAwayScore: finishedResult.halfTimeAwayScore,
+        },
       )
       if (won === true) wins += 1
       else if (won === false) losses += 1

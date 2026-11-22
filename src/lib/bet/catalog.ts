@@ -7,6 +7,7 @@ import type { BetEvent } from './types'
 const DAY_MS = 24 * 60 * 60 * 1000
 const CATALOG_LOOKBACK_MS = 2 * DAY_MS
 const CATALOG_LOOKAHEAD_MS = 30 * DAY_MS
+const STALE_MATCH_MS = 4 * 60 * 60 * 1000
 
 export interface BetCatalog {
   events: BetEvent[]
@@ -18,7 +19,10 @@ export interface BetCatalog {
 
 function effectiveStatusFor(analysis: MatchAnalysis, now: Date): FixtureStatus {
   const status = analysis.fixture.status
-  if (status === 'SCHEDULED' && analysis.fixture.kickoffUtc.getTime() < now.getTime() - 3 * 60 * 60 * 1000) {
+  if (status === 'SCHEDULED' && analysis.fixture.kickoffUtc.getTime() < now.getTime() - STALE_MATCH_MS) {
+    return 'FINISHED'
+  }
+  if (status === 'LIVE' && analysis.fixture.kickoffUtc.getTime() < now.getTime() - STALE_MATCH_MS) {
     return 'FINISHED'
   }
   return status
@@ -132,6 +136,8 @@ export interface FixtureResult {
   status: FixtureStatus
   homeScore: number | null
   awayScore: number | null
+  halfTimeHomeScore?: number | null
+  halfTimeAwayScore?: number | null
 }
 
 export async function getFixtureResults(
@@ -145,6 +151,8 @@ export async function getFixtureResults(
         status: analysis.fixture.status,
         homeScore: analysis.fixture.homeScore ?? null,
         awayScore: analysis.fixture.awayScore ?? null,
+        halfTimeHomeScore: analysis.fixture.halfTimeHomeScore ?? null,
+        halfTimeAwayScore: analysis.fixture.halfTimeAwayScore ?? null,
       },
     ]),
   )

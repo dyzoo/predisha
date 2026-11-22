@@ -26,6 +26,7 @@ const state = vi.hoisted(() => ({
 }))
 
 vi.mock('./slips', () => ({
+  assertBetStakeMinor: vi.fn(async () => undefined),
   getAdminBetSlipByCode: state.slipByCode,
   isSlipFrozen: state.isFrozen,
   maskPhone: (phone: string) => `masked:${phone}`,

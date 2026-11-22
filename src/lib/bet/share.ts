@@ -20,7 +20,7 @@ export async function createShareCode(
   now: Date = new Date(),
 ): Promise<{ code: string; expiresAt: string; url: string }> {
   const catalog = await getBetCatalog(now)
-  const selections = buildSnapshot(input.selections, catalog.events, now)
+  const selections = buildSnapshot(input.selections, catalog.events)
   const expiresAt = new Date(now.getTime() + SHARE_CODE_HOURS * 60 * 60 * 1000)
 
   for (let attempt = 0; attempt < 8; attempt += 1) {

@@ -16,6 +16,7 @@ model User {
   image         String?
   passwordHash  String?
   role          Role      @default(USER)
+  isSpecial     Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -149,6 +150,13 @@ model Fixture {
   status                FixtureStatus @default(SCHEDULED)
   homeScore             Int?
   awayScore             Int?
+  liveHomeScore         Int?
+  liveAwayScore         Int?
+  liveMinute            Int?
+  halfTimeHomeScore     Int?
+  halfTimeAwayScore     Int?
+  venue                 String?
+  referee               String?
   lastSyncedAt          DateTime      @default(now())
   sourceProvider        String?       @default("unknown")
   sourceFilePath        String?
@@ -728,6 +736,8 @@ model AdminBetEntry {
   provider        String?
   providerOrderId String?             @unique
   ticketId        String?             @unique
+  selections      Json?
+  totalOdds       Float?
   placementStartedAt DateTime?
   failureReason   String?
   paidAt          DateTime?

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { CircleAlert, CircleCheck, Loader2, Save, WalletCards } from 'lucide-react'
+import { CircleAlert, CircleCheck, Loader2, Save, Sparkles, WalletCards } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
 import { MAX_DEPOSIT_MINOR } from '@/lib/bet/types'
 
@@ -23,6 +23,7 @@ interface AdminUserActionsProps {
   status: Status | null
   planId: string | null
   walletBalanceMinor: number
+  isSpecial: boolean
   isSelf: boolean
   canManageRoles: boolean
 }
@@ -42,6 +43,7 @@ export function AdminUserActions({
   status,
   planId,
   walletBalanceMinor,
+  isSpecial,
   isSelf,
   canManageRoles,
 }: AdminUserActionsProps) {
@@ -59,6 +61,7 @@ export function AdminUserActions({
   const [fundError, setFundError] = useState<string | null>(null)
   const [funded, setFunded] = useState(false)
   const [updatedBalanceMinor, setUpdatedBalanceMinor] = useState<number | null>(null)
+  const [nextSpecial, setNextSpecial] = useState(isSpecial)
 
   async function onFundWallet(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -108,6 +111,7 @@ export function AdminUserActions({
       canManageRoles && !isSelf && role !== 'SUPER_ADMIN' && nextRole !== role
         ? nextRole
         : undefined
+    const specialChange = canManageRoles && nextSpecial !== isSpecial ? nextSpecial : undefined
 
     try {
       const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
@@ -118,6 +122,7 @@ export function AdminUserActions({
           role: roleChange,
           subscriptionStatus: nextStatus,
           planId: nextStatus === 'INACTIVE' ? undefined : nextPlan,
+          isSpecial: specialChange,
         }),
       })
       const payload = (await response.json().catch(() => ({}))) as UpdateResponse
@@ -197,6 +202,29 @@ export function AdminUserActions({
         </label>
       </div>
 
+      <label className="flex items-start gap-2.5 rounded-xl border border-amber-300/25 bg-amber-300/5 p-2.5">
+        <input
+          type="checkbox"
+          checked={nextSpecial}
+          onChange={event => {
+            setNextSpecial(event.target.checked)
+            setSaved(false)
+          }}
+          disabled={pending || !canManageRoles}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-amber-300 disabled:opacity-60"
+        />
+        <span className="min-w-0">
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-200">
+            <Sparkles className="h-3.5 w-3.5" />
+            Special user
+          </span>
+          <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-text">
+            Special users can edit shared slips after matches finish and self-assign winners from
+            paid entries. Every change is audited.
+          </span>
+        </span>
+      </label>
+
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
@@ -214,7 +242,7 @@ export function AdminUserActions({
           </span>
         ) : !canManageRoles ? (
           <span className="text-[11px] text-muted-text">
-            Only a super admin can create or change admins.
+            Only a super admin can change roles or special bet tools.
           </span>
         ) : null}
         {saved ? (
@@ -281,6 +309,7 @@ export function AdminUserActions({
           </span>
         ) : null}
       </form>
+
     </div>
   )
 }

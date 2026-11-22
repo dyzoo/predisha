@@ -60,7 +60,7 @@ export function MatchCard({ match, isDemo }: { match: MatchView; isDemo: boolean
           {isLive ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-300">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
-              Live
+              Live{typeof match.minute === 'number' ? ` ${match.minute}'` : ''}
             </span>
           ) : isFinished ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-text">

@@ -8,6 +8,7 @@ export interface Viewer {
   email: string | null
   name: string | null
   role: ViewerRole | null
+  isSpecial: boolean
   entitlement: Entitlement
 }
 
@@ -16,6 +17,7 @@ export const ANONYMOUS_VIEWER: Viewer = {
   email: null,
   name: null,
   role: null,
+  isSpecial: false,
   entitlement: 'FREE',
 }
 
@@ -28,6 +30,7 @@ export interface ClientViewer {
   email: string | null
   name: string | null
   role: ViewerRole | null
+  isSpecial: boolean
   entitlement: Entitlement
   premium: boolean
 }
@@ -38,6 +41,7 @@ export function toClientViewer(viewer: Viewer): ClientViewer {
     email: viewer.email,
     name: viewer.name,
     role: viewer.role,
+    isSpecial: viewer.isSpecial,
     entitlement: viewer.entitlement,
     premium: canViewPremium(viewer),
   }
@@ -73,6 +77,14 @@ export function canViewAdmin(viewer: Viewer): boolean {
 
 export function isSuperAdmin(viewer: Viewer): boolean {
   return viewer.role === 'SUPER_ADMIN' && viewer.entitlement === 'ADMIN'
+}
+
+export function canUseSpecialBetTools(viewer: Viewer): boolean {
+  return (
+    viewer.isSpecial ||
+    viewer.role === 'ADMIN' ||
+    viewer.role === 'SUPER_ADMIN'
+  )
 }
 
 /**

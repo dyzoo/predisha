@@ -73,20 +73,18 @@ function normalizeItems(value: unknown): BetSlipItem[] {
   return value.filter(isSlipItem).slice(0, MAX_SELECTIONS)
 }
 
-function isSlipItemStarted(item: BetSlipItem): boolean {
-  const kickoff = new Date(item.kickoffIso).getTime()
-  return Number.isNaN(kickoff) || kickoff <= Date.now()
-}
-
 export function BetSlipProvider({
   viewer,
+  minStakeMinor = MIN_STAKE_MINOR,
   children,
 }: {
   viewer: ClientViewer
+  minStakeMinor?: number
   children: ReactNode
 }) {
+  const effectiveMinStakeMinor = Math.max(MIN_STAKE_MINOR, minStakeMinor)
   const [items, setItems] = useState<BetSlipItem[]>([])
-  const [stakeMinor, setStakeMinorState] = useState(DEFAULT_STAKE)
+  const [stakeMinor, setStakeMinorState] = useState(Math.max(DEFAULT_STAKE, effectiveMinStakeMinor))
   const [hydrated, setHydrated] = useState(false)
   const [wallet, setWallet] = useState<BetWalletView | null>(null)
   const [walletLoading, setWalletLoading] = useState(false)
@@ -105,7 +103,7 @@ export function BetSlipProvider({
         if (
           typeof parsed.stakeMinor === 'number' &&
           Number.isInteger(parsed.stakeMinor) &&
-          parsed.stakeMinor >= MIN_STAKE_MINOR
+          parsed.stakeMinor >= effectiveMinStakeMinor
         ) {
           setStakeMinorState(parsed.stakeMinor)
         }
@@ -115,7 +113,7 @@ export function BetSlipProvider({
     } finally {
       setHydrated(true)
     }
-  }, [])
+  }, [effectiveMinStakeMinor])
 
   useEffect(() => {
     if (!hydrated) return
@@ -219,9 +217,9 @@ export function BetSlipProvider({
 
   const setStakeMinor = useCallback((value: number) => {
     if (!Number.isFinite(value)) return
-    const rounded = Math.max(MIN_STAKE_MINOR, Math.round(value))
+    const rounded = Math.max(effectiveMinStakeMinor, Math.round(value))
     setStakeMinorState(rounded)
-  }, [])
+  }, [effectiveMinStakeMinor])
 
   const hasSelection = useCallback(
     (key: string) => items.some(item => item.key === key),
@@ -245,13 +243,12 @@ export function BetSlipProvider({
     if (items.length === 0) {
       return { ok: false, code: 'EMPTY_SLIP', error: 'Add at least one selection.' }
     }
-    if (stakeMinor < MIN_STAKE_MINOR) {
-      return { ok: false, code: 'BAD_STAKE', error: 'Stake is below the minimum.' }
-    }
-
-    const startedItem = items.find(item => isSlipItemStarted(item))
-    if (startedItem) {
-      return { ok: false, code: 'FIXTURE_CLOSED', error: 'This match has already started.' }
+    if (stakeMinor < effectiveMinStakeMinor) {
+      return {
+        ok: false,
+        code: 'BAD_STAKE',
+        error: `Stake is below the minimum of ${effectiveMinStakeMinor} TZS.`,
+      }
     }
 
     setPlacing(true)
@@ -290,7 +287,7 @@ export function BetSlipProvider({
     } finally {
       setPlacing(false)
     }
-  }, [items, refreshWallet, stakeMinor, viewer.userId])
+  }, [effectiveMinStakeMinor, items, refreshWallet, stakeMinor, viewer.userId])
 
   const value = useMemo<BetSlipContextValue>(
     () => ({

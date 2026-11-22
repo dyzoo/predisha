@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { connection } from 'next/server'
 import { getDepositMinMinor } from '@/lib/bet/deposit-settings'
 import { getBetMode } from '@/lib/bet/mode'
+import { getMinStakeMinor } from '@/lib/bet/stake-settings'
 import { toClientViewer } from '@/lib/auth/entitlements'
 import { getViewer } from '@/lib/auth/session'
 import { BetShell } from '@/components/bet/bet-shell'
@@ -18,13 +19,19 @@ export const metadata: Metadata = {
 
 export default async function BetLayout({ children }: { children: ReactNode }) {
   await connection()
-  const [mode, depositMinMinor, viewer] = await Promise.all([
+  const [mode, depositMinMinor, minStakeMinor, viewer] = await Promise.all([
     getBetMode(),
     getDepositMinMinor(),
+    getMinStakeMinor(),
     getViewer(),
   ])
   return (
-    <BetShell viewer={toClientViewer(viewer)} mode={mode} depositMinMinor={depositMinMinor}>
+    <BetShell
+      viewer={toClientViewer(viewer)}
+      mode={mode}
+      depositMinMinor={depositMinMinor}
+      minStakeMinor={minStakeMinor}
+    >
       {children}
     </BetShell>
   )

@@ -14,6 +14,7 @@ import { BetError, isUniqueConstraintError } from './errors'
 import { formatKickoffLabel } from './format'
 import { randomCode } from './random'
 import { getBetMode, type BetMode } from './mode'
+import { getMinStakeMinor } from './stake-settings'
 import { clockFromKickoff, inPlayQuote } from './in-play'
 import { matchClock, type MatchClockState } from './match-clock'
 import {
@@ -24,7 +25,6 @@ import {
 import {
   MAX_SELECTIONS,
   MAX_STAKE_MINOR,
-  MIN_STAKE_MINOR,
   type AdminSlipSelectionSource,
   type AdminSlipTimeMode,
   type BetTicketView,
@@ -126,6 +126,20 @@ export function maskPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '')
   if (digits.length < 6) return phone
   return `${digits.slice(0, 5)}•••${digits.slice(-2)}`
+}
+
+export async function assertBetStakeMinor(stakeMinor: number): Promise<void> {
+  if (!Number.isInteger(stakeMinor)) {
+    throw new BetError('Stake must be a whole amount.', 422, 'BAD_STAKE')
+  }
+  const minimum = await getMinStakeMinor()
+  if (stakeMinor < minimum || stakeMinor > MAX_STAKE_MINOR) {
+    throw new BetError(
+      `Stake must be between ${minimum} and ${MAX_STAKE_MINOR} TZS.`,
+      422,
+      'BAD_STAKE',
+    )
+  }
 }
 
 type SlipClockSource = Pick<AdminBetSlip, 'status' | 'autoFreezeAt'> &
@@ -368,16 +382,7 @@ export async function createAdminBetSlip(input: {
   const simulatedDurationMinutes =
     input.simulatedDurationMinutes ?? DEFAULT_SIMULATED_DURATION_MINUTES
 
-  if (!Number.isInteger(input.stakeMinor)) {
-    throw new BetError('Stake must be a whole amount.', 422, 'BAD_STAKE')
-  }
-  if (input.stakeMinor < MIN_STAKE_MINOR || input.stakeMinor > MAX_STAKE_MINOR) {
-    throw new BetError(
-      `Stake must be between ${MIN_STAKE_MINOR} and ${MAX_STAKE_MINOR} TZS.`,
-      422,
-      'BAD_STAKE',
-    )
-  }
+  await assertBetStakeMinor(input.stakeMinor)
   if (input.selections.length === 0) {
     throw new BetError('Add at least one selection.', 422, 'EMPTY_SLIP')
   }
@@ -944,6 +949,7 @@ export async function placeAdminSlipBet(input: {
   if (!slip) {
     throw new BetError('That bet slip does not exist.', 404, 'SLIP_NOT_FOUND')
   }
+  await assertBetStakeMinor(slip.stakeMinor)
 
   const slipSelections = parseSelections(slip.selections)
   if (slipSelections.length === 0) {
