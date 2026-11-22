@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { fallbackLogoUrl } from '@/lib/sports/provider'
 
 type TeamBadgeSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
@@ -22,29 +23,30 @@ export function TeamBadge({
   className?: string
 }) {
   const [failed, setFailed] = useState(false)
-  const showLogo = Boolean(team.logoUrl) && !failed
+  const generatedLogo = fallbackLogoUrl({
+    name: team.name,
+    shortName: team.short,
+    color: team.color,
+  })
+  const src = !team.logoUrl || failed ? generatedLogo : team.logoUrl
 
   return (
     <span
       aria-hidden
       className={`flex shrink-0 items-center justify-center overflow-hidden border border-white/10 ${SIZE_CLASSES[size]} ${className}`}
-      style={showLogo ? undefined : { backgroundColor: team.color }}
+      style={{ backgroundColor: team.color }}
       title={team.name}
     >
-      {showLogo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={team.logoUrl ?? ''}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          referrerPolicy="no-referrer"
-          onError={() => setFailed(true)}
-          className="h-full w-full object-contain p-1"
-        />
-      ) : (
-        <span className="font-bold leading-none text-background">{team.short}</span>
-      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        className="h-full w-full object-contain p-1"
+      />
     </span>
   )
 }

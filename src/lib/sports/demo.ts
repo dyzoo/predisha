@@ -1,4 +1,5 @@
 import { FootballDataProvider } from './football-data'
+import { TheSportsDBProvider } from './the-sports-db'
 import { fallbackLogoUrl } from './provider'
 import type {
   Competition,
@@ -183,13 +184,10 @@ export function buildDemoDataset(anchor: Date = new Date()): DemoDataset {
         }
 
         const futureRound = round - PAST_ROUNDS
-        const isLive = futureRound === 0 && index === 0
-        const kickoff = isLive
-          ? new Date(anchor.getTime() - 26 * 60 * 1000)
-          : new Date(anchor.getTime() + (futureRound + 1) * 2 * DAY + index * 3 * HOUR)
-        if (!isLive) {
-          kickoff.setUTCHours(16 + index, 0, 0, 0)
-        }
+        const kickoff = new Date(
+          anchor.getTime() + (futureRound + 1) * 2 * DAY + index * 3 * HOUR,
+        )
+        kickoff.setUTCHours(16 + index, 0, 0, 0)
 
         fixtures.push({
           id,
@@ -199,12 +197,12 @@ export function buildDemoDataset(anchor: Date = new Date()): DemoDataset {
           homeTeamId: home.id,
           awayTeamId: away.id,
           kickoffUtc: kickoff,
-          status: isLive ? 'LIVE' : 'SCHEDULED',
-          homeScore: isLive ? 1 : null,
-          awayScore: isLive ? 0 : null,
-          liveMinute: isLive ? 26 : null,
-          liveHomeScore: isLive ? 1 : null,
-          liveAwayScore: isLive ? 0 : null,
+          status: 'SCHEDULED',
+          homeScore: null,
+          awayScore: null,
+          liveMinute: null,
+          liveHomeScore: null,
+          liveAwayScore: null,
           lastSyncedAt: anchor,
         })
       })
@@ -338,6 +336,9 @@ export function getSportsProvider(): SportsDataProvider {
   }
   if (provider === 'football-data') {
     return new FootballDataProvider()
+  }
+  if (provider === 'thesportsdb') {
+    return new TheSportsDBProvider()
   }
   return new UnavailableSportsProvider()
 }

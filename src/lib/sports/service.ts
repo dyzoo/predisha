@@ -11,6 +11,7 @@ import {
 } from '@/lib/predictions/engine'
 import { DemoSportsProvider, getSportsProvider } from './demo'
 import { refreshFootballDataFixtures } from './sync'
+import { TheSportsDBProvider } from './the-sports-db'
 import { prisma } from '@/lib/prisma'
 import { fallbackLogoUrl } from './provider'
 import type {
@@ -274,6 +275,64 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
         }))
         fixtures = providerFixtures
         usedDemoData = health.mode === 'demo'
+      }
+    } catch {
+      // Fall through to the public real-data provider below.
+    }
+  }
+
+  if (
+    (fixtures.length < MIN_STORED_FIXTURES || teams.some(team => !team.logoUrl)) &&
+    process.env.DISABLE_REAL_FIXTURE_FALLBACK !== 'true'
+  ) {
+    try {
+      const realProvider = new TheSportsDBProvider()
+      const [realSports, realCompetitions, realTeams, realFixtures, realHealth] = await Promise.all([
+        realProvider.getSports(),
+        realProvider.getCompetitions(),
+        realProvider.getTeams(),
+        realProvider.getFixtures(
+          new Date(at.getTime() - 2 * DAY_MS),
+          new Date(at.getTime() + 30 * DAY_MS),
+        ),
+        realProvider.getHealth(),
+      ])
+      if (realFixtures.length > 0) {
+        sports = mergeById(
+          sports,
+          realSports.map(item => ({ id: item.id, name: item.name, slug: item.slug })),
+        )
+        competitions = mergeById(
+          competitions,
+          realCompetitions.map(item => ({
+            id: item.id,
+            name: item.name,
+            country: item.country ?? null,
+            season: item.season ?? null,
+            sportId: item.sportId,
+            providerId: item.providerId ?? null,
+          })),
+        )
+        teams = mergeById(
+          teams,
+          realTeams.map(item => ({
+            id: item.id,
+            name: item.name,
+            shortName: item.shortName,
+            color: item.color,
+            logoUrl: item.logoUrl ?? null,
+            providerId: item.providerId ?? null,
+          })),
+        )
+        fixtures = mergeById(fixtures, realFixtures).sort(
+          (left, right) => left.kickoffUtc.getTime() - right.kickoffUtc.getTime(),
+        )
+        health = {
+          ...realHealth,
+          message: health.message
+            ? `${health.message} ${realHealth.message}`
+            : realHealth.message,
+        }
       }
     } catch {
       // Fall through to demo/local fallback below.
