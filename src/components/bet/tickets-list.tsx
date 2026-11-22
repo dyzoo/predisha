@@ -30,11 +30,12 @@ import {
   simulationClockFromSelection,
   simulationMinute,
 } from '@/lib/bet/simulation'
-import type {
-  BetEvent,
-  BetTicketView,
-  TicketResult,
-  TicketSelection,
+import {
+  isProviderFixtureId,
+  type BetEvent,
+  type BetTicketView,
+  type TicketResult,
+  type TicketSelection,
 } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 import { WinnerConfetti } from './winner-confetti'
@@ -98,12 +99,16 @@ function isLiveTicket(ticket: BetTicketView, events: EventMap, now: number): boo
 }
 
 function selectionScore(selection: TicketSelection, event: BetEvent | undefined, now: number) {
+  if (isProviderFixtureId(selection.fixtureId) && event?.score) return event.score
   const clock = simulationClockFromSelection(selection)
   if (clock) return simulatedScore(selection, clock, simulationMinute(clock, now))
   return event?.score ?? selection.finalScore
 }
 
 function liveMinute(selection: TicketSelection, event: BetEvent | undefined, now: number): string | null {
+  if (isProviderFixtureId(selection.fixtureId) && event?.live) {
+    return typeof event.minute === 'number' ? `${event.minute}'` : 'LIVE'
+  }
   const clock = simulationClockFromSelection(selection)
   if (clock) return matchClock(clock, now).label
   const kickoff = new Date(selection.kickoffIso).getTime()

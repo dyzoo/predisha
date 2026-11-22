@@ -3,7 +3,7 @@ import { buildCashoutQuote, type CashoutOutcome } from './cashout'
 import { matchClock } from './match-clock'
 import { settleMarket } from './odds'
 import { hashString, mulberry32 } from './random-pure'
-import type { TicketSelection, TicketSimulationMeta } from './types'
+import { isProviderFixtureId, type TicketSelection, type TicketSimulationMeta } from './types'
 
 export const DEFAULT_SIMULATED_DURATION_MINUTES = 90
 
@@ -152,6 +152,7 @@ export function simulatedResultsForTicket(
 ): Map<string, FixtureResult> {
   const merged = new Map(results)
   for (const selection of selections) {
+    if (isProviderFixtureId(selection.fixtureId)) continue
     const clock = selection.simulation
     if (!clock || !matchClock(clock, now).finished) continue
     const final = simulatedFinalScore(selection, clock)
@@ -233,6 +234,7 @@ export function simulatedCashoutOffer(input: {
   let started = 0
 
   for (const selection of input.selections) {
+    if (isProviderFixtureId(selection.fixtureId)) continue
     const clock =
       selection.simulation ??
       (input.clock ? simulationClockForSelection(selection, input.clock) : null)

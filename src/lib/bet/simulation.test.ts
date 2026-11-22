@@ -113,6 +113,18 @@ describe('simulated results', () => {
     })
   })
 
+  it('does not override provider fixtures with simulated scores', () => {
+    const item = { ...selection(), fixtureId: '12345' }
+    const liveItem = attachSimulationClock([item], clock)[0]
+    const results = simulatedResultsForTicket(
+      liveItem ? [liveItem] : [],
+      new Map(),
+      Date.parse('2026-01-01T14:00:00.000Z'),
+    )
+
+    expect(results.has(item.fixtureId)).toBe(false)
+  })
+
   it('auto-wins only selections whose kickoff has reached full time', () => {
     const early = { ...selection(), fixtureId: 'early' }
     const late = {

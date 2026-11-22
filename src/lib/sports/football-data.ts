@@ -14,6 +14,15 @@ const PROVIDER_NAME = 'football-data'
 
 const DEFAULT_TEAM_COLOR = '#9CA3AF'
 
+const DEFAULT_COMPETITION_CODES = ['PL', 'ELC', 'PD', 'SA', 'BL1', 'FL1', 'DED', 'PPL', 'BSA', 'CL']
+const configuredCompetitionCodes = (process.env.FOOTBALL_DATA_COMPETITION_CODES ?? '')
+  .split(',')
+  .map(code => code.trim().toUpperCase())
+  .filter(Boolean)
+const ALLOWED_COMPETITION_CODES = new Set(
+  configuredCompetitionCodes.length > 0 ? configuredCompetitionCodes : DEFAULT_COMPETITION_CODES,
+)
+
 const DAY_MS = 24 * 60 * 60 * 1000
 // football-data.org rejects `/matches` ranges longer than 10 days.
 const MAX_RANGE_DAYS = 10
@@ -157,13 +166,20 @@ async function fetchMatches(from: Date, to: Date): Promise<ApiMatch[]> {
     const { matches: chunkMatches } = await request<{ matches: ApiMatch[] }>(
       `/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`,
     )
-    matches.push(...chunkMatches)
+    matches.push(
+      ...chunkMatches.filter(
+        match =>
+          match.competition &&
+          ALLOWED_COMPETITION_CODES.has(match.competition.code.toUpperCase()),
+      ),
+    )
   }
   return matches
 }
 
 interface ApiCompetition {
   id: number
+  code: string
   name: string
   area: { name: string }
   currentSeason?: { startDate?: string; endDate?: string } | null
@@ -226,16 +242,18 @@ export class FootballDataProvider implements SportsDataProvider {
       const { competitions } = await request<{ competitions: ApiCompetition[] }>(
         '/competitions',
       )
-      return competitions.map(item => ({
-        id: String(item.id),
-        name: item.name,
-        country: item.area?.name ?? null,
-        season: item.currentSeason
-          ? `${item.currentSeason.startDate ?? ''}-${item.currentSeason.endDate ?? ''}`.replace(/-$/, '') || null
-          : null,
-        sportId: 'football',
-        providerId: String(item.id),
-      }))
+      return competitions
+        .filter(item => ALLOWED_COMPETITION_CODES.has(item.code?.toUpperCase() ?? ''))
+        .map(item => ({
+          id: String(item.id),
+          name: item.name,
+          country: item.area?.name ?? null,
+          season: item.currentSeason
+            ? `${item.currentSeason.startDate ?? ''}-${item.currentSeason.endDate ?? ''}`.replace(/-$/, '') || null
+            : null,
+          sportId: 'football',
+          providerId: String(item.id),
+        }))
     } catch {
       return []
     }

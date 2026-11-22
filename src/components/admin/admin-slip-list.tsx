@@ -1,7 +1,9 @@
 ﻿'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+
 import {
   Ban,
   CircleAlert,
@@ -10,7 +12,9 @@ import {
   Loader2,
   Lock,
   LockOpen,
+  Pencil,
   Play,
+
   Radio,
   RefreshCw,
   Search,
@@ -484,7 +488,15 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                   <Copy className="h-3.5 w-3.5" />
                   {copiedCode === slip.code ? 'Copied' : 'Copy link'}
                 </button>
+                <Link
+                  href={`/bet/share/${slip.code}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200 transition-colors hover:border-amber-400/50"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit / republish
+                </Link>
                 {slip.status !== 'CLOSED' && !slip.liveStartedAt ? (
+
                   <button
                     type="button"
                     onClick={() => act(slip.code, 'start-match')}

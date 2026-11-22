@@ -15,6 +15,7 @@ import { applyVat, VAT_PERCENT } from './vat'
 import { creditWallet, debitWallet } from './wallet'
 import { sendBetTransactionSms } from '@/lib/billing/nextsms'
 import {
+  isProviderFixtureId,
   type BetSelectionInput,
   type BetTicketStatusView,
   type BetTicketView,
@@ -527,12 +528,15 @@ function cashoutOffer(
   eventById: Map<string, Awaited<ReturnType<typeof getBetCatalog>>['events'][number]>,
   now: Date = new Date(),
 ): { offer: number; blocked: boolean } {
-  if (selections.some(selection => selection.simulation)) {
+  const simulatedSelections = selections.filter(
+    selection => selection.simulation && !isProviderFixtureId(selection.fixtureId),
+  )
+  if (simulatedSelections.length > 0) {
     return simulatedCashoutOffer({
       stakeMinor: ticket.stakeMinor,
       potentialReturnMinor: ticket.potentialReturnMinor,
-      selections,
-      clock: selections.find(selection => selection.simulation)?.simulation,
+      selections: simulatedSelections,
+      clock: simulatedSelections.find(selection => selection.simulation)?.simulation,
       now: now.getTime(),
     })
   }

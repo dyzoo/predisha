@@ -27,10 +27,12 @@ import {
   MAX_STAKE_MINOR,
   type AdminSlipSelectionSource,
   type AdminSlipTimeMode,
+  isProviderFixtureId,
   type BetTicketView,
   type TicketSelection,
   type TicketSimulationMeta,
 } from './types'
+
 
 export type AdminBetSlipStatusView = 'OPEN' | 'FROZEN' | 'CLOSED'
 
@@ -121,6 +123,17 @@ const ACTIVE_ENTRY_STATUSES = new Set(['PENDING', 'PAID'])
 function parseSelections(value: Prisma.JsonValue): TicketSelection[] {
   if (!Array.isArray(value)) return []
   return value as unknown as TicketSelection[]
+}
+
+function usesSimulationClock(
+  slip: { timeMode: string; selectionSource: string },
+  selections: TicketSelection[] = [],
+): boolean {
+  return (
+    slip.timeMode === 'SIMULATED' ||
+    slip.selectionSource === 'RANDOM' ||
+    selections.some(selection => !isProviderFixtureId(selection.fixtureId))
+  )
 }
 
 export function maskPhone(phone: string): string {
@@ -245,20 +258,15 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
   const match = clock ? matchClock(clock, now.getTime()) : null
   const frozen = isSlipFrozen(slip, now)
   const frozenReason = slipFreezeReason(slip, now)
+  const simulate = usesSimulationClock(slip, selections)
   const displaySelections =
-    clock && (slip.timeMode === 'SIMULATED' || slip.timeMode === 'ORIGINAL')
-      ? attachSimulationClock(selections, clock)
-      : selections
+    clock && simulate ? attachSimulationClock(selections, clock) : selections
   const clockSources: TicketSimulationMeta[] =
-    slip.timeMode === 'SIMULATED'
-      ? clock
-        ? displaySelections.map(selection =>
-            selection.simulation ?? simulationClockForSelection(selection, clock),
-          )
-        : []
-      : clock
-        ? displaySelections.map(selection => selection.simulation ?? clock)
-        : []
+    simulate && clock
+      ? displaySelections.map(selection =>
+          selection.simulation ?? simulationClockForSelection(selection, clock),
+        )
+      : []
   const inPlay = clockSources.some(candidate => matchClock(candidate, now.getTime()).live)
   const quote = inPlayQuote(slip.stakeMinor, displaySelections, clock, now.getTime())
   return {
@@ -718,19 +726,23 @@ export async function startAdminBetSlip(input: {
   }
 
   const durationMinutes = slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES
+  const existingSelections = parseSelections(slip.selections)
   const clock = {
     liveStartedAt: now.toISOString(),
     durationMinutes,
     seed: slip.code,
     kickoffIso:
       slip.manualKickoffAt?.toISOString() ??
-      parseSelections(slip.selections)
+      existingSelections
         .map(s => s.kickoffIso)
         .filter(Boolean)
         .sort()[0] ??
       now.toISOString(),
   }
-  const slipSelections = attachSimulationClock(parseSelections(slip.selections), clock)
+  const simulate = usesSimulationClock(slip, existingSelections)
+  const slipSelections = simulate
+    ? attachSimulationClock(existingSelections, clock)
+    : existingSelections
   const ticketIds = [...new Set(slip.entries.map(entry => entry.ticketId).filter(Boolean))] as string[]
 
   const updated = await prisma.$transaction(async tx => {
@@ -752,7 +764,9 @@ export async function startAdminBetSlip(input: {
     for (const ticketId of ticketIds) {
       const ticket = await tx.betTicket.findUnique({ where: { id: ticketId } })
       if (!ticket || ticket.status !== 'OPEN') continue
-      const ticketSelections = attachSimulationClock(parseSelections(ticket.selections), clock)
+      const ticketSelections = simulate
+        ? attachSimulationClock(parseSelections(ticket.selections), clock)
+        : parseSelections(ticket.selections)
       await tx.betTicket.update({
         where: { id: ticket.id },
         data: { selections: ticketSelections as unknown as Prisma.InputJsonValue },
@@ -801,6 +815,7 @@ export async function finishAdminBetSlip(input: {
     seed: slip.code,
     kickoffIso: slip.manualKickoffAt?.toISOString() ?? now.toISOString(),
   }
+  const simulate = usesSimulationClock(slip, selections)
   const finishedSelections = selections.map(selection => {
     const sourceClock = selection.simulation ?? simulationClockForSelection(selection, baseClock)
     const result = resultByFixture.get(selection.fixtureId)
@@ -810,12 +825,16 @@ export async function finishAdminBetSlip(input: {
       finalScore: result
         ? { home: result.homeScore, away: result.awayScore }
         : selection.finalScore,
-      simulation: {
-        ...sourceClock,
-        liveStartedAt: new Date(
-          now.getTime() - ((sourceClock.durationMinutes || durationMinutes) + 20) * 60_000,
-        ).toISOString(),
-      },
+      ...(simulate
+        ? {
+            simulation: {
+              ...sourceClock,
+              liveStartedAt: new Date(
+                now.getTime() - ((sourceClock.durationMinutes || durationMinutes) + 20) * 60_000,
+              ).toISOString(),
+            },
+          }
+        : {}),
     }
   })
   const ticketIds = [...new Set(slip.entries.map(entry => entry.ticketId).filter(Boolean))] as string[]
@@ -835,7 +854,10 @@ export async function finishAdminBetSlip(input: {
     for (const ticketId of ticketIds) {
       const ticket = await tx.betTicket.findUnique({ where: { id: ticketId } })
       if (!ticket || ticket.status !== 'OPEN') continue
-      const ticketSelections = attachSimulationClock(parseSelections(ticket.selections), baseClock).map(selection => {
+      const ticketBase = simulate
+        ? attachSimulationClock(parseSelections(ticket.selections), baseClock)
+        : parseSelections(ticket.selections)
+      const ticketSelections = ticketBase.map(selection => {
         const sourceClock = selection.simulation ?? simulationClockForSelection(selection, baseClock)
         const result = resultByFixture.get(selection.fixtureId)
         return {
@@ -844,12 +866,16 @@ export async function finishAdminBetSlip(input: {
           finalScore: result
             ? { home: result.homeScore, away: result.awayScore }
             : selection.finalScore,
-          simulation: {
-            ...sourceClock,
-            liveStartedAt: new Date(
-              now.getTime() - ((sourceClock.durationMinutes || durationMinutes) + 20) * 60_000,
-            ).toISOString(),
-          },
+          ...(simulate
+            ? {
+                simulation: {
+                  ...sourceClock,
+                  liveStartedAt: new Date(
+                    now.getTime() - ((sourceClock.durationMinutes || durationMinutes) + 20) * 60_000,
+                  ).toISOString(),
+                },
+              }
+            : {}),
         }
       })
       await tx.betTicket.update({
@@ -973,7 +999,8 @@ export async function placeAdminSlipBet(input: {
   if (slipSelections.length === 0) {
     throw new BetError('This slip has no selections to place.', 422, 'EMPTY_SLIP')
   }
-  const clock = resolveMatchClock(slip, now)
+  const simulate = usesSimulationClock(slip, slipSelections)
+  const clock = simulate ? resolveMatchClock(slip, now) : null
   const clocked = clock ? attachSimulationClock(slipSelections, clock) : slipSelections
   const quote = inPlayQuote(entry.stakeMinor, clocked, clock, now.getTime())
   const selections = quote.selections

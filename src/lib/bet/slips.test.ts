@@ -267,4 +267,37 @@ describe('toAdminSlipView', () => {
     expect(view.quote.factor).toBeLessThan(1)
     expect(view.quote.totalOdds).toBeLessThan(2)
   })
+
+  it('does not attach a simulated clock to real catalog fixtures', () => {
+    const realSelection = { ...selection(2), fixtureId: '12345' }
+    const view = toAdminSlipView(
+      {
+        id: 'slip-4',
+        code: 'REAL123',
+        title: null,
+        mode: 'LIVE',
+        selections: [realSelection] as never,
+        totalOdds: 2,
+        stakeMinor: 1000,
+        potentialReturnMinor: 2000,
+        status: 'OPEN',
+        timeMode: 'ORIGINAL',
+        selectionSource: 'CATALOG',
+        manualKickoffAt: null,
+        simulatedDurationMinutes: 90,
+        liveStartedAt: null,
+        freezeReason: null,
+        autoFreezeAt: new Date('2027-01-01T12:00:00.000Z'),
+        frozenAt: null,
+        frozenBy: null,
+        createdBy: 'admin-1',
+        createdAt: now,
+        updatedAt: now,
+      },
+      now,
+    )
+
+    expect(view.inPlay).toBe(false)
+    expect(view.selections[0]?.simulation).toBeUndefined()
+  })
 })

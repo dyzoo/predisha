@@ -10,6 +10,7 @@ import {
   type PredictionResult,
 } from '@/lib/predictions/engine'
 import { DemoSportsProvider, getSportsProvider } from './demo'
+import { refreshFootballDataFixtures } from './sync'
 import { prisma } from '@/lib/prisma'
 import type {
   Competition,
@@ -20,7 +21,41 @@ import type {
   Team,
 } from './provider'
 
-const DAY_MS = 24 * 60 * 60 * 1000
+const MINUTE_MS = 60 * 1000
+const HOUR_MS = 60 * MINUTE_MS
+const DAY_MS = 24 * HOUR_MS
+
+let liveFixtureRefresh: { at: number; promise: Promise<Map<string, Fixture>> } | null = null
+
+async function refreshLiveFixtureScores(
+  fixtures: Fixture[],
+  at: Date,
+): Promise<Map<string, Fixture>> {
+  const candidates = fixtures
+    .filter(fixture => {
+      if (!/^\d+$/.test(fixture.id)) return false
+      const kickoff = fixture.kickoffUtc.getTime()
+      const delta = kickoff - at.getTime()
+      return (
+        fixture.status === 'LIVE' ||
+        (delta <= 0 && delta >= -3 * HOUR_MS) ||
+        (delta > 0 && delta <= 15 * MINUTE_MS)
+      )
+    })
+    .slice(0, 10)
+
+  if (candidates.length === 0) return new Map()
+  const now = at.getTime()
+  if (liveFixtureRefresh && now - liveFixtureRefresh.at < MINUTE_MS) {
+    return liveFixtureRefresh.promise
+  }
+
+  const promise = refreshFootballDataFixtures(candidates.map(fixture => fixture.id))
+    .then(updated => new Map(updated.map(fixture => [fixture.id, fixture])))
+    .catch(() => new Map<string, Fixture>())
+  liveFixtureRefresh = { at: now, promise }
+  return promise
+}
 
 export interface MatchAnalysis {
   fixture: Fixture
@@ -179,6 +214,13 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
     mode: 'unavailable' as ProviderHealth['mode'],
     message: 'Sports data provider unavailable.',
   }))
+
+  if (health.mode === 'live' && fixtures.length > 0) {
+    const updates = await refreshLiveFixtureScores(fixtures, at)
+    if (updates.size > 0) {
+      fixtures = fixtures.map(fixture => updates.get(fixture.id) ?? fixture)
+    }
+  }
 
   const latestFinishedKickoff = fixtures
     .filter(fixture => fixture.status === 'FINISHED')

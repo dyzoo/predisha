@@ -16,6 +16,7 @@ import {
   LogOut,
   Menu,
   Pencil,
+  Radio,
   Share2,
   Smartphone,
   Sparkles,
@@ -35,7 +36,7 @@ import type {
   TicketSelection,
   TicketSimulationMeta,
 } from '@/lib/bet/types'
-import { MAX_STAKE_MINOR, slipStakeOptions } from '@/lib/bet/types'
+import { isProviderFixtureId, MAX_STAKE_MINOR, slipStakeOptions } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { BrandLogo } from '@/components/brand-logo'
 import { BrandLoading } from '@/components/ui/brand-loading'
@@ -123,7 +124,6 @@ interface SharedLiveMatch {
   score: { home: number; away: number } | null
   home: SharedTeam
   away: SharedTeam
-  simulated?: boolean
 }
 
 interface EditSelectionDraft {
@@ -348,6 +348,7 @@ export function ShareLoader({ code }: { code: string }) {
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null)
   const [editBusy, setEditBusy] = useState(false)
   const [editMessage, setEditMessage] = useState<string | null>(null)
+  const [republished, setRepublished] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [winnerUrl, setWinnerUrl] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -374,6 +375,7 @@ export function ShareLoader({ code }: { code: string }) {
   const simulatedLiveMatches = useMemo<SharedLiveMatch[]>(() => {
     if (!slip || !activeClock) return []
     return slip.selections.flatMap(selection => {
+      if (isProviderFixtureId(selection.fixtureId)) return []
       const clock = selection.simulation ?? activeClock
       const clockState = matchClock(clock, now)
       if (!clockState.live) return []
@@ -387,7 +389,6 @@ export function ShareLoader({ code }: { code: string }) {
           label: clockState.label,
           score: simulatedScore(selection, clock, clockState.minute),
           ...teams,
-          simulated: true,
         },
       ]
     })
@@ -763,6 +764,7 @@ export function ShareLoader({ code }: { code: string }) {
   function beginEdit() {
     if (!slip) return
     setEditMessage(null)
+    setRepublished(false)
     const manualKickoffAt = toDateTimeInput(slip.manualKickoffAt ?? slip.selections[0]?.kickoffIso)
     setEditDraft({
       title: slip.title ?? '',
@@ -796,10 +798,11 @@ export function ShareLoader({ code }: { code: string }) {
     )
   }
 
-  async function saveEdit() {
+  async function saveEdit(republish = false) {
     if (!editDraft || editBusy) return
     setEditBusy(true)
     setEditMessage(null)
+    setRepublished(false)
     const kickoffChanged = editDraft.manualKickoffAt !== editDraft.originalManualKickoffAt
     try {
       const response = await fetch(`/api/bet/share/${encodeURIComponent(code)}/edit`, {
@@ -809,6 +812,7 @@ export function ShareLoader({ code }: { code: string }) {
         body: JSON.stringify({
           title: editDraft.title.trim() || null,
           stakeMinor: editDraft.stakeMinor,
+          republish,
           ...(kickoffChanged ? { manualKickoffAt: fromDateTimeInput(editDraft.manualKickoffAt) } : {}),
           selections: editDraft.selections.map(selection => ({
             fixtureId: selection.fixtureId,
@@ -833,7 +837,12 @@ export function ShareLoader({ code }: { code: string }) {
       }
       setSlip(payload.slip)
       setEditDraft(null)
-      setEditMessage('Slip updated. The new kickoff and prices are now live.')
+      setRepublished(republish)
+      setEditMessage(
+        republish
+          ? 'Slip republished. It is open again and the same share link is active.'
+          : 'Slip updated. The new kickoff and prices are now live.',
+      )
       router.refresh()
     } catch {
       setEditMessage('Network error. Please try again.')
@@ -871,7 +880,7 @@ export function ShareLoader({ code }: { code: string }) {
     }
   }
 
-  function liveMatchPanel(title: string, matches: SharedLiveMatch[], simulated: boolean) {
+  function liveMatchPanel(title: string, matches: SharedLiveMatch[]) {
     if (matches.length === 0) return null
     return (
       <div className="receipt-rule mt-4 pt-4">
@@ -913,7 +922,6 @@ export function ShareLoader({ code }: { code: string }) {
               </div>
               <p className="mt-1.5 text-center text-[10px] font-semibold text-red-300">
                 {match.label ?? liveBadgeLabel ?? (match.minute ? `${match.minute}'` : 'In play')}
-                {simulated ? ' · simulated' : ''}
               </p>
             </li>
           ))}
@@ -1281,12 +1289,13 @@ export function ShareLoader({ code }: { code: string }) {
                 className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/40 bg-amber-300/10 px-2.5 py-1.5 text-[10px] font-bold text-amber-200 hover:bg-amber-300/20"
               >
                 <Pencil className="h-3 w-3" />
-                {editDraft ? 'Cancel edit' : 'Edit after finish'}
+                {editDraft ? 'Cancel edit' : 'Edit / republish slip'}
               </button>
             </div>
             <p className="mt-1 text-[10px] leading-relaxed text-muted-text">
               Special users can update title, stake, odds, labels and kickoff even after a match has
-              finished. Saving a new kickoff reopens this slip. Every edit is audited.
+              finished. Save &amp; republish reopens the slip and reactivates the same share link.
+              Every edit is audited.
             </p>
 
             {editDraft ? (
@@ -1381,16 +1390,38 @@ export function ShareLoader({ code }: { code: string }) {
                   </div>
                 ))}
 
-                <button
-                  type="button"
-                  onClick={() => void saveEdit()}
-                  disabled={editBusy}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-300 px-3 py-2 text-[11px] font-bold text-amber-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {editBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  {editBusy ? 'Saving edits…' : 'Save slip edits'}
-                </button>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveEdit()}
+                    disabled={editBusy}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-300 px-3 py-2 text-[11px] font-bold text-amber-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {editBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    {editBusy ? 'Saving edits…' : 'Save slip edits'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveEdit(true)}
+                    disabled={editBusy}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white transition-opacity hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {editBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Radio className="h-3.5 w-3.5" />}
+                    {editBusy ? 'Republishing…' : 'Save & republish'}
+                  </button>
+                </div>
               </div>
+            ) : null}
+
+            {republished ? (
+              <button
+                type="button"
+                onClick={() => void copyLink()}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[11px] font-bold text-emerald-200 hover:bg-emerald-500/20"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                {copied ? 'Link copied' : 'Copy republished link'}
+              </button>
             ) : null}
 
             {canUseSpecial ? (
@@ -1423,8 +1454,8 @@ export function ShareLoader({ code }: { code: string }) {
           </div>
         ) : null}
 
-        {liveMatchPanel('Live matches', simulatedLiveMatches, true)}
-        {liveMatchPanel('Live now', live, false)}
+        {liveMatchPanel('Live matches', simulatedLiveMatches)}
+        {liveMatchPanel('Live now', live)}
 
         {paid ? (
           <div className="receipt-rule mt-5 pt-5 text-center">

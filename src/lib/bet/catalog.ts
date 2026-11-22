@@ -40,12 +40,27 @@ export function buildBetEvent(analysis: MatchAnalysis, now: Date): BetEvent {
       }
     : null
 
-  const hasScore =
-    typeof fixture.homeScore === 'number' && typeof fixture.awayScore === 'number'
-  const minute =
-    effectiveStatus === 'LIVE'
-      ? Math.min(120, Math.max(1, Math.floor((now.getTime() - fixture.kickoffUtc.getTime()) / 60_000)))
+  const isLive = effectiveStatus === 'LIVE'
+  const liveScore =
+    isLive &&
+    typeof fixture.liveHomeScore === 'number' &&
+    typeof fixture.liveAwayScore === 'number'
+      ? { home: fixture.liveHomeScore, away: fixture.liveAwayScore }
       : null
+  const finalScore =
+    typeof fixture.homeScore === 'number' && typeof fixture.awayScore === 'number'
+      ? { home: fixture.homeScore, away: fixture.awayScore }
+      : null
+  const score = liveScore ?? finalScore
+  const elapsedMinute = Math.min(
+    120,
+    Math.max(1, Math.floor((now.getTime() - fixture.kickoffUtc.getTime()) / 60_000)),
+  )
+  const minute = isLive
+    ? typeof fixture.liveMinute === 'number'
+      ? Math.min(120, Math.max(1, Math.floor(fixture.liveMinute)))
+      : elapsedMinute
+    : null
 
   return {
     id: fixture.id,
@@ -72,7 +87,7 @@ export function buildBetEvent(analysis: MatchAnalysis, now: Date): BetEvent {
     },
     kickoffIso: fixture.kickoffUtc.toISOString(),
     kickoffLabel: formatKickoffLabel(fixture.kickoffUtc.toISOString()),
-    score: hasScore ? { home: fixture.homeScore as number, away: fixture.awayScore as number } : null,
+    score,
     minute,
     markets,
     probability,

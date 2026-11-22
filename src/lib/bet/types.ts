@@ -170,6 +170,10 @@ export interface TicketSimulationMeta {
   kickoffIso: string
 }
 
+export function isProviderFixtureId(fixtureId: string): boolean {
+  return /^\d+$/.test(fixtureId.trim())
+}
+
 export interface TicketSelection {
   fixtureId: string
   fixtureLabel: string

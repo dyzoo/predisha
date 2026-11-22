@@ -33,6 +33,7 @@ const editSchema = z.object({
   stakeMinor: z.number().int().min(MIN_STAKE_MINOR).max(MAX_STAKE_MINOR).optional(),
   selections: z.array(selectionSchema).min(1).max(MAX_SELECTIONS).optional(),
   manualKickoffAt: isoString.nullable().optional(),
+  republish: z.boolean().optional(),
 })
 
 type SelectionEdit = z.infer<typeof selectionSchema>
@@ -85,6 +86,41 @@ function buildSelections(
   )
 }
 
+function resetSelectionResults(selections: TicketSelection[]): TicketSelection[] {
+  return selections.map(selection => ({
+    ...selection,
+    result: 'PENDING',
+    finalScore: null,
+    demoResult: false,
+  }))
+}
+
+function shiftPastKickoffs(
+  selections: TicketSelection[],
+  kickoffAt: Date,
+  now: Date,
+): TicketSelection[] {
+  const nextKickoffIso = kickoffAt.toISOString()
+  return selections.map(selection => {
+    const current = new Date(selection.kickoffIso).getTime()
+    if (Number.isFinite(current) && current > now.getTime()) return selection
+    return {
+      ...selection,
+      kickoffIso: nextKickoffIso,
+      kickoffLabel: formatKickoffLabel(nextKickoffIso),
+      ...(selection.simulation
+        ? {
+            simulation: {
+              ...selection.simulation,
+              liveStartedAt: nextKickoffIso,
+              kickoffIso: nextKickoffIso,
+            },
+          }
+        : {}),
+    }
+  })
+}
+
 function requestIp(request: Request): string | null {
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) return forwarded.split(',')[0]?.trim() || null
@@ -112,20 +148,32 @@ export async function PATCH(
 
     const slip = await prisma.adminBetSlip.findUnique({ where: { code: normalized } })
     if (slip) {
+      const republish = input.republish === true
       const stakeMinor = input.stakeMinor ?? slip.stakeMinor
       await assertBetStakeMinor(stakeMinor)
       const existing = parseSelections(slip.selections)
-      const selections = input.selections ? buildSelections(input.selections, existing) : existing
-      if (selections.length === 0) {
-        return apiError('A slip needs at least one selection.', 422)
-      }
-      const totals = computeTicketTotals(stakeMinor, selections)
       const manualKickoff =
         input.manualKickoffAt === undefined
           ? undefined
           : input.manualKickoffAt
             ? new Date(input.manualKickoffAt)
             : null
+      const reopenKickoffAt =
+        manualKickoff && manualKickoff.getTime() > now.getTime()
+          ? manualKickoff
+          : new Date(now.getTime() + 24 * 60 * 60_000)
+      const editedSelections = input.selections
+        ? buildSelections(input.selections, existing)
+        : republish
+          ? resetSelectionResults(existing)
+          : existing
+      const selections = republish
+        ? shiftPastKickoffs(editedSelections, reopenKickoffAt, now)
+        : editedSelections
+      if (selections.length === 0) {
+        return apiError('A slip needs at least one selection.', 422)
+      }
+      const totals = computeTicketTotals(stakeMinor, selections)
 
       const data: Prisma.AdminBetSlipUpdateInput = {
         stakeMinor,
@@ -139,6 +187,15 @@ export async function PATCH(
         data.manualKickoffAt = manualKickoff
         data.liveStartedAt = null
         data.autoFreezeAt = manualKickoff ?? new Date(now.getTime() + 24 * 60 * 60_000)
+        data.status = 'OPEN'
+        data.freezeReason = null
+        data.frozenAt = null
+        data.frozenBy = actorId
+      }
+      if (republish) {
+        if (slip.timeMode === 'MANUAL') data.manualKickoffAt = reopenKickoffAt
+        data.liveStartedAt = null
+        data.autoFreezeAt = reopenKickoffAt
         data.status = 'OPEN'
         data.freezeReason = null
         data.frozenAt = null
@@ -159,13 +216,17 @@ export async function PATCH(
               selectionCount: selections.length,
               manualKickoffAt: manualKickoff?.toISOString() ?? null,
               previousStatus: slip.status,
+              republished: republish,
             },
           },
         })
         return next
       })
 
-      return json({ slip: toAdminSlipView(updated) })
+      return json({
+        slip: toAdminSlipView(updated),
+        shareUrl: `/bet/share/${updated.code}`,
+      })
     }
 
     const share = await prisma.betShareCode.findUnique({ where: { code: normalized } })

@@ -61,6 +61,17 @@ export class SportsDataSyncer {
     return { competitions, teams, fixtures, errors: this.errors }
   }
 
+  async refreshFixtures(fixtureIds: string[]): Promise<Fixture[]> {
+    const refreshed: Fixture[] = []
+    for (const fixtureId of fixtureIds) {
+      const fixture = await this.provider.getFixture(fixtureId)
+      if (!fixture) continue
+      await this.upsertFixture(fixture)
+      refreshed.push(fixture)
+    }
+    return refreshed
+  }
+
   private async syncCompetitions(): Promise<number> {
     const providerCompetitions = await this.provider.getCompetitions()
     let count = 0
@@ -221,6 +232,12 @@ export class SportsDataSyncer {
       }),
     ])
   }
+}
+
+export async function refreshFootballDataFixtures(fixtureIds: string[]): Promise<Fixture[]> {
+  if (fixtureIds.length === 0) return []
+  const provider = new FootballDataProvider()
+  return new SportsDataSyncer(provider).refreshFixtures(fixtureIds)
 }
 
 export async function syncFootballData(): Promise<SyncResult> {
