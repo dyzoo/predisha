@@ -27,7 +27,9 @@ export function MarketAccordion({
 }) {
   const availableMarkets = markets ?? event.markets
   const [tab, setTab] = useState<MarketTab>('all')
-  const [openId, setOpenId] = useState<string | null>(availableMarkets[0]?.id ?? null)
+  const [openIds, setOpenIds] = useState<Set<string>>(
+    () => new Set(availableMarkets.slice(0, 1).map(market => market.id)),
+  )
 
   const visibleMarkets = useMemo(
     () =>
@@ -35,11 +37,28 @@ export function MarketAccordion({
     [availableMarkets, tab],
   )
 
-  const expandedId = visibleMarkets.some(market => market.id === openId)
-    ? openId
-    : openId === null
-      ? null
-      : visibleMarkets[0]?.id ?? null
+  const allVisibleOpen =
+    visibleMarkets.length > 0 && visibleMarkets.every(market => openIds.has(market.id))
+
+  function toggleMarket(marketId: string) {
+    setOpenIds(current => {
+      const next = new Set(current)
+      if (next.has(marketId)) next.delete(marketId)
+      else next.add(marketId)
+      return next
+    })
+  }
+
+  function toggleAllMarkets() {
+    setOpenIds(current => {
+      const next = new Set(current)
+      for (const market of visibleMarkets) {
+        if (allVisibleOpen) next.delete(market.id)
+        else next.add(market.id)
+      }
+      return next
+    })
+  }
 
   const totalSelections = availableMarkets.reduce(
     (total, market) => total + market.selections.length,
@@ -54,7 +73,17 @@ export function MarketAccordion({
     >
       <div className="flex min-w-0 items-center justify-between gap-2">
         <h3 className="truncate text-[11px] font-semibold text-main-text">{title}</h3>
-        <span className="shrink-0 text-[9px] text-muted-text">{totalSelections} selections</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleAllMarkets}
+            disabled={visibleMarkets.length === 0}
+            className="rounded-full border border-border bg-background/60 px-2 py-0.5 text-[9px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:text-main-text disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {allVisibleOpen ? 'Close all' : 'Open all'}
+          </button>
+          <span className="text-[9px] text-muted-text">{totalSelections} selections</span>
+        </div>
       </div>
 
       <div
@@ -83,19 +112,19 @@ export function MarketAccordion({
         })}
       </div>
 
-      <div className="mt-2 space-y-2">
+      <div className="mt-2 overflow-hidden rounded-xl border border-border/70 bg-background/30">
         {visibleMarkets.map(market => {
-          const expanded = market.id === expandedId
+          const expanded = openIds.has(market.id)
           return (
             <div
               key={market.id}
-              className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-background/30"
+              className="min-w-0 border-b border-border/70 last:border-b-0"
             >
               <button
                 type="button"
-                onClick={() => setOpenId(expanded ? null : market.id)}
+                onClick={() => toggleMarket(market.id)}
                 aria-expanded={expanded}
-                className="flex w-full min-w-0 items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="flex w-full min-w-0 items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="truncate text-[11px] font-semibold text-main-text">

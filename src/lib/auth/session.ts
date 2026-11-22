@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import {
@@ -9,6 +9,47 @@ import {
 
 export const SESSION_COOKIE = 'spotibet_session'
 const SESSION_DAYS = 30
+const FALLBACK_SESSION_VERSION = 'v1'
+
+function fallbackSessionSecret(): string {
+  return process.env.AUTH_SECRET ?? ''
+}
+
+function createFallbackSessionToken(userId: string): string {
+  const expiresAt = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000
+  const payload = Buffer.from(JSON.stringify({ sub: userId, exp: expiresAt })).toString('base64url')
+  const signature = createHmac('sha256', fallbackSessionSecret())
+    .update(payload)
+    .digest('base64url')
+  return `${FALLBACK_SESSION_VERSION}.${payload}.${signature}`
+}
+
+function readFallbackSessionToken(token: string): string | null {
+  const [version, payload, signature] = token.split('.')
+  if (version !== FALLBACK_SESSION_VERSION || !payload || !signature) return null
+  const expected = createHmac('sha256', fallbackSessionSecret())
+    .update(payload)
+    .digest('base64url')
+  const providedBuffer = Buffer.from(signature)
+  const expectedBuffer = Buffer.from(expected)
+  if (
+    providedBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(providedBuffer, expectedBuffer)
+  ) {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+      sub?: unknown
+      exp?: unknown
+    }
+    if (typeof parsed.sub !== 'string' || typeof parsed.exp !== 'number') return null
+    if (parsed.exp <= Date.now()) return null
+    return parsed.sub
+  } catch {
+    return null
+  }
+}
 
 export function isAuthConfigured(): boolean {
   return Boolean(process.env.DATABASE_URL && process.env.AUTH_SECRET)
@@ -26,16 +67,19 @@ function cookieOptions(expires: Date) {
 }
 
 export async function createSession(userId: string): Promise<void> {
-  const token = randomBytes(32).toString('hex')
   const expires = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
+  let token: string
 
-  // Housekeeping: drop this account's already-expired sessions so the table
-  // does not grow without bound. Failure here must not block sign-in.
-  await prisma.session
-    .deleteMany({ where: { userId, expires: { lt: new Date() } } })
-    .catch(() => undefined)
+  try {
+    token = randomBytes(32).toString('hex')
+    await prisma.session
+      .deleteMany({ where: { userId, expires: { lt: new Date() } } })
+      .catch(() => undefined)
+    await prisma.session.create({ data: { sessionToken: token, userId, expires } })
+  } catch {
+    token = createFallbackSessionToken(userId)
+  }
 
-  await prisma.session.create({ data: { sessionToken: token, userId, expires } })
   const store = await cookies()
   store.set(SESSION_COOKIE, token, cookieOptions(expires))
 }
@@ -77,12 +121,23 @@ function toViewer(user: SessionUser): Viewer {
   }
 }
 
+async function viewerFromFallbackToken(token: string): Promise<Viewer | null> {
+  const userId = readFallbackSessionToken(token)
+  if (!userId) return null
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { subscription: { select: { status: true } } },
+  })
+  return user ? toViewer(user) : null
+}
+
 export async function getViewer(): Promise<Viewer> {
   if (!isAuthConfigured()) return ANONYMOUS_VIEWER
 
+  let token: string | undefined
   try {
     const store = await cookies()
-    const token = store.get(SESSION_COOKIE)?.value
+    token = store.get(SESSION_COOKIE)?.value
     if (!token) return ANONYMOUS_VIEWER
 
     const session = await prisma.session.findUnique({
@@ -98,13 +153,14 @@ export async function getViewer(): Promise<Viewer> {
       if (session) {
         await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined)
       }
-      return ANONYMOUS_VIEWER
+      return (await viewerFromFallbackToken(token).catch(() => null)) ?? ANONYMOUS_VIEWER
     }
 
     return toViewer(session.user)
   } catch {
-    // A database outage must not crash public pages.
-    return ANONYMOUS_VIEWER
+    return token
+      ? ((await viewerFromFallbackToken(token).catch(() => null)) ?? ANONYMOUS_VIEWER)
+      : ANONYMOUS_VIEWER
   }
 }
 

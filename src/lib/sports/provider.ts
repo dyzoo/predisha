@@ -21,6 +21,17 @@ export interface Team {
   providerId?: string | null
 }
 
+export function fallbackLogoUrl(team: Pick<Team, 'name' | 'shortName' | 'color'>): string {
+  const label =
+    (team.shortName || team.name)
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 3) || 'FC'
+  const color = /^#[0-9a-fA-F]{6}$/.test(team.color) ? team.color : '#334155'
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${color}"/><circle cx="32" cy="32" r="24" fill="rgba(255,255,255,0.18)"/><text x="32" y="39" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#fff">${label}</text></svg>`
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
+
 export interface Competition {
   id: string
   name: string

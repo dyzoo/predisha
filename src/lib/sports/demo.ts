@@ -1,4 +1,5 @@
 import { FootballDataProvider } from './football-data'
+import { fallbackLogoUrl } from './provider'
 import type {
   Competition,
   Fixture,
@@ -26,7 +27,7 @@ export interface DemoDataset {
   fixtures: Fixture[]
 }
 
-const TEAMS: DemoTeam[] = [
+const TEAMS: DemoTeam[] = ([
   { id: 'demo-northbridge', name: 'Northbridge FC', shortName: 'NBR', color: '#5B8CFF', strength: 1.28, providerId: 'demo-northbridge' },
   { id: 'demo-atlas', name: 'Atlas United', shortName: 'ATL', color: '#FF7A59', strength: 1.12, providerId: 'demo-atlas' },
   { id: 'demo-harbor', name: 'Harbor City', shortName: 'HBR', color: '#E41827', strength: 1.05, providerId: 'demo-harbor' },
@@ -39,7 +40,10 @@ const TEAMS: DemoTeam[] = [
   { id: 'demo-aurora', name: 'Aurora FC', shortName: 'AUR', color: '#E41827', strength: 1.02, providerId: 'demo-aurora' },
   { id: 'demo-quarry', name: 'Quarry Lane', shortName: 'QRL', color: '#E0C46A', strength: 0.88, providerId: 'demo-quarry' },
   { id: 'demo-lumen', name: 'Lumen Park', shortName: 'LMP', color: '#8FB4FF', strength: 1.22, providerId: 'demo-lumen' },
-]
+] as DemoTeam[]).map(team => ({
+  ...team,
+  logoUrl: team.logoUrl ?? fallbackLogoUrl(team),
+}))
 
 const COMPETITIONS: DemoCompetition[] = [
   {
@@ -65,7 +69,7 @@ const COMPETITIONS: DemoCompetition[] = [
 const SPORTS: Sport[] = [{ id: 'football', name: 'Football', slug: 'football' }]
 
 const PAST_ROUNDS = 7
-const FUTURE_ROUNDS = 3
+const FUTURE_ROUNDS = 9
 
 function hashString(value: string): number {
   let hash = 2166136261

@@ -12,6 +12,7 @@ import {
 import { DemoSportsProvider, getSportsProvider } from './demo'
 import { refreshFootballDataFixtures } from './sync'
 import { prisma } from '@/lib/prisma'
+import { fallbackLogoUrl } from './provider'
 import type {
   Competition,
   Fixture,
@@ -24,8 +25,17 @@ import type {
 const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
 const DAY_MS = 24 * HOUR_MS
+const MIN_STORED_FIXTURES = 20
 
 let liveFixtureRefresh: { at: number; promise: Promise<Map<string, Fixture>> } | null = null
+
+function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
+  const merged = new Map(current.map(item => [item.id, item]))
+  for (const item of incoming) {
+    if (!merged.has(item.id)) merged.set(item.id, item)
+  }
+  return [...merged.values()]
+}
 
 async function refreshLiveFixtureScores(
   fixtures: Fixture[],
@@ -233,7 +243,7 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
     (latestFinishedKickoff === null || at.getTime() - latestFinishedKickoff >= 21 * DAY_MS)
 
   let usedDemoData = false
-  if (fixtures.length === 0 || storedDataStale) {
+  if (fixtures.length < MIN_STORED_FIXTURES || storedDataStale) {
     try {
       const from = new Date(at.getTime() - 120 * DAY_MS)
       const to = new Date(at.getTime() + 30 * DAY_MS)
@@ -271,7 +281,7 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
   }
 
   if (
-    fixtures.length === 0 &&
+    fixtures.length < MIN_STORED_FIXTURES &&
     health.mode !== 'demo' &&
     process.env.DISABLE_DEMO_FALLBACK !== 'true'
   ) {
@@ -288,24 +298,35 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
           demoProvider.getFixtures(from, to),
         ])
         if (demoFixtures.length > 0) {
-          sports = demoSports.map(item => ({ id: item.id, name: item.name, slug: item.slug }))
-          competitions = demoCompetitions.map(item => ({
-            id: item.id,
-            name: item.name,
-            country: item.country ?? null,
-            season: item.season ?? null,
-            sportId: item.sportId,
-            providerId: item.providerId ?? null,
-          }))
-          teams = demoTeams.map(item => ({
-            id: item.id,
-            name: item.name,
-            shortName: item.shortName,
-            color: item.color,
-            logoUrl: item.logoUrl ?? null,
-            providerId: item.providerId ?? null,
-          }))
-          fixtures = demoFixtures
+          sports = mergeById(
+            sports,
+            demoSports.map(item => ({ id: item.id, name: item.name, slug: item.slug })),
+          )
+          competitions = mergeById(
+            competitions,
+            demoCompetitions.map(item => ({
+              id: item.id,
+              name: item.name,
+              country: item.country ?? null,
+              season: item.season ?? null,
+              sportId: item.sportId,
+              providerId: item.providerId ?? null,
+            })),
+          )
+          teams = mergeById(
+            teams,
+            demoTeams.map(item => ({
+              id: item.id,
+              name: item.name,
+              shortName: item.shortName,
+              color: item.color,
+              logoUrl: item.logoUrl ?? null,
+              providerId: item.providerId ?? null,
+            })),
+          )
+          fixtures = mergeById(fixtures, demoFixtures).sort(
+            (left, right) => left.kickoffUtc.getTime() - right.kickoffUtc.getTime(),
+          )
           usedDemoData = true
           health = {
             ...demoHealth,
@@ -327,6 +348,11 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
       message: `${fixtures.length} fixtures loaded from the stored dataset.`,
     }
   }
+
+  teams = teams.map(team => ({
+    ...team,
+    logoUrl: team.logoUrl || fallbackLogoUrl(team),
+  }))
 
   return {
     sportList: sports,
