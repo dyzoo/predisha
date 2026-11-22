@@ -35,6 +35,7 @@ import type {
   TicketSelection,
   TicketSimulationMeta,
 } from '@/lib/bet/types'
+import { MAX_STAKE_MINOR, slipStakeOptions } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { BrandLogo } from '@/components/brand-logo'
 import { BrandLoading } from '@/components/ui/brand-loading'
@@ -279,6 +280,7 @@ export function ShareLoader({ code }: { code: string }) {
   const [liveGames, setLiveGames] = useState<BetEvent[]>([])
   const [upcomingGames, setUpcomingGames] = useState<BetEvent[]>([])
   const [minStakeMinor, setMinStakeMinor] = useState(configuredMinStakeMinor)
+  const quickStakeOptions = useMemo(() => slipStakeOptions(minStakeMinor), [minStakeMinor])
   const [phone, setPhone] = useState('')
   const [paying, setPaying] = useState(false)
   const [entry, setEntry] = useState<SlipEntry | null>(null)
@@ -919,6 +921,7 @@ export function ShareLoader({ code }: { code: string }) {
           potentialReturnMinor={receiptGrossMinor}
           vatMinor={receiptVat.vatMinor}
           netPayoutMinor={receiptVat.netPayoutMinor}
+          won={placedTicket?.status === 'WON'}
           copied={copied}
           onCopy={() => void copyLink()}
         >
@@ -966,6 +969,7 @@ export function ShareLoader({ code }: { code: string }) {
                       <input
                         type="number"
                         min={minStakeMinor}
+                        max={MAX_STAKE_MINOR}
                         step={100}
                         value={stakeMinor}
                         onChange={event => setStakeMinor(Number(event.target.value))}
@@ -980,6 +984,30 @@ export function ShareLoader({ code }: { code: string }) {
                         {receiptSelections.length} selections
                       </p>
                     </div>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-text">
+                      Quick stake
+                    </p>
+                    <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {quickStakeOptions.map(amount => (
+                        <button
+                          key={amount}
+                          type="button"
+                          onClick={() => setStakeMinor(amount)}
+                          className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+                            stakeMinor === amount
+                              ? 'border-accent bg-accent/15 text-accent'
+                              : 'border-border bg-background/40 text-main-text hover:border-accent/40'
+                          }`}
+                        >
+                          {formatTzs(amount)}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[10px] text-muted-text">
+                      Choose a quick stake or enter any amount above the minimum.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -1176,6 +1204,11 @@ export function ShareLoader({ code }: { code: string }) {
         potentialReturnMinor={receiptGrossMinor}
         vatMinor={receiptVat.vatMinor}
         netPayoutMinor={receiptVat.netPayoutMinor}
+        won={
+          ticket?.status === 'WON' ||
+          (slip.selections.length > 0 &&
+            slip.selections.every(selection => selection.result === 'WON'))
+        }
         copied={copied}
         onCopy={() => void copyLink()}
       >

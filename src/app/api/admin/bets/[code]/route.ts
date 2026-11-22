@@ -77,7 +77,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
     }
 
     if (input.action === 'finish-match') {
-      const updated = await finishAdminBetSlip({ id: slip.id, actorId, now: new Date() })
+      const updated = await finishAdminBetSlip({
+        id: slip.id,
+        actorId,
+        now: new Date(),
+        results: input.results,
+      })
       return json({ slip: updated })
     }
 

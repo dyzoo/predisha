@@ -31,5 +31,5 @@ export function normalizeTzPhone(input: string): NormalizedPhone {
 export function maskTzPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '')
   if (digits.length < 6) return phone
-  return `${digits.slice(0, 5)}â€¢â€¢â€¢${digits.slice(-2)}`
+  return `${digits.slice(0, 5)}•••${digits.slice(-2)}`
 }

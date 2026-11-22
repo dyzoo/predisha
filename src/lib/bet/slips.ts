@@ -46,6 +46,7 @@ export interface AdminSlipSelectionInput {
   marketName?: string
   selectionLabel?: string
   probability?: number
+  finalScore?: { home: number; away: number } | null
 }
 
 export interface AdminSlipMatchView {
@@ -444,7 +445,7 @@ export async function createAdminBetSlip(input: {
         odds: Math.round(selection.odds * 100) / 100,
         probability: selection.probability ?? 0.5,
         result: 'PENDING',
-        finalScore: null,
+        finalScore: selection.finalScore ?? null,
         demoResult: false,
         kickoffLabel: formatKickoffLabel(customKickoff),
       } as TicketSelection
@@ -487,7 +488,7 @@ export async function createAdminBetSlip(input: {
       odds: Math.round(selection.odds * 100) / 100,
       probability: option.probability,
       result: 'PENDING',
-      finalScore: null,
+      finalScore: selection.finalScore ?? null,
       demoResult: false,
       kickoffLabel: formatKickoffLabel(effectiveKickoff),
     } as TicketSelection
@@ -776,8 +777,12 @@ export async function finishAdminBetSlip(input: {
   id: string
   actorId: string
   now?: Date
+  results?: Array<{ fixtureId: string; homeScore: number; awayScore: number }>
 }): Promise<AdminBetSlipView> {
   const now = input.now ?? new Date()
+  const resultByFixture = new Map(
+    (input.results ?? []).map(result => [result.fixtureId, result]),
+  )
   const slip = await prisma.adminBetSlip.findUnique({
     where: { id: input.id },
     include: { entries: { where: { ticketId: { not: null } }, select: { ticketId: true } } },
@@ -798,8 +803,13 @@ export async function finishAdminBetSlip(input: {
   }
   const finishedSelections = selections.map(selection => {
     const sourceClock = selection.simulation ?? simulationClockForSelection(selection, baseClock)
+    const result = resultByFixture.get(selection.fixtureId)
     return {
       ...selection,
+      result: result ? ('WON' as const) : selection.result,
+      finalScore: result
+        ? { home: result.homeScore, away: result.awayScore }
+        : selection.finalScore,
       simulation: {
         ...sourceClock,
         liveStartedAt: new Date(
@@ -827,8 +837,13 @@ export async function finishAdminBetSlip(input: {
       if (!ticket || ticket.status !== 'OPEN') continue
       const ticketSelections = attachSimulationClock(parseSelections(ticket.selections), baseClock).map(selection => {
         const sourceClock = selection.simulation ?? simulationClockForSelection(selection, baseClock)
+        const result = resultByFixture.get(selection.fixtureId)
         return {
           ...selection,
+          result: result ? ('WON' as const) : selection.result,
+          finalScore: result
+            ? { home: result.homeScore, away: result.awayScore }
+            : selection.finalScore,
           simulation: {
             ...sourceClock,
             liveStartedAt: new Date(
@@ -847,12 +862,15 @@ export async function finishAdminBetSlip(input: {
         actorId: input.actorId,
         action: 'admin.slip.finish-match',
         target: slip.code,
-        metadata: { finishedAt: now.toISOString() },
+        metadata: {
+          finishedAt: now.toISOString(),
+          resultsProvided: input.results?.length ?? 0,
+        },
       },
     })
     return next
   })
-    await settleAllOpenTickets(now).catch(() => undefined)
+  await settleAllOpenTickets(now).catch(() => undefined)
   return toAdminSlipView(updated, now)
 }
 

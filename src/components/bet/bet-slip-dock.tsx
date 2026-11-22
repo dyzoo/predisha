@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Check,
   ChevronDown,
@@ -14,11 +14,10 @@ import {
 } from 'lucide-react'
 import { formatOdds, formatTzs } from '@/lib/bet/format'
 import type { BetTicketView } from '@/lib/bet/types'
+import { MAX_STAKE_MINOR, slipStakeOptions } from '@/lib/bet/types'
 import { BrandLogo } from '@/components/brand-logo'
 import { useBetSlip } from './bet-slip-provider'
 import { useBetMode } from './bet-mode-context'
-
-const QUICK_STAKES = [1_000, 5_000, 10_000, 50_000]
 
 export function BetSlipDock() {
   const router = useRouter()
@@ -39,6 +38,7 @@ export function BetSlipDock() {
     closeSlip,
   } = useBetSlip()
   const { minStakeMinor } = useBetMode()
+  const quickStakeOptions = useMemo(() => slipStakeOptions(minStakeMinor), [minStakeMinor])
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<BetTicketView | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
@@ -275,19 +275,24 @@ export function BetSlipDock() {
                     id="bet-stake"
                     type="number"
                     min={minStakeMinor}
+                    max={MAX_STAKE_MINOR}
                     step={500}
                     value={stakeMinor}
                     onChange={event => setStakeMinor(Number(event.target.value))}
                     className="w-full bg-transparent py-2.5 text-sm font-semibold tabular-nums text-main-text outline-none"
                   />
                 </div>
-                <div className="mt-2 grid grid-cols-4 gap-2">
-                  {QUICK_STAKES.map(amount => (
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {quickStakeOptions.map(amount => (
                     <button
                       key={amount}
                       type="button"
                       onClick={() => setStakeMinor(amount)}
-                      className="rounded-lg border border-border bg-white/30 px-2 py-1.5 text-[11px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:text-accent"
+                      className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+                        stakeMinor === amount
+                          ? 'border-accent bg-accent/15 text-accent'
+                          : 'border-border bg-white/30 text-muted-text hover:border-accent/40 hover:text-accent'
+                      }`}
                     >
                       {formatTzs(amount)}
                     </button>
@@ -380,7 +385,7 @@ export function BetSlipDock() {
                   {success ? 'Bet accepted' : items.length === 0 ? 'Add selections' : 'Good luck'}
                 </p>
                 <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-text">
-                  SpotibetBet · EAT
+                  SpotibetBet betting slip
                 </p>
               </div>
             </div>

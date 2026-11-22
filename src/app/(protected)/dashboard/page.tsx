@@ -530,7 +530,7 @@ export default async function DashboardPage() {
         {subscription ? (
           <div className="mt-3 space-y-2 text-xs">
             <p className="text-main-text">
-              {subscription.plan.name} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {subscription.plan.interval.toLowerCase()} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {price}
+              {subscription.plan.name} · {subscription.plan.interval.toLowerCase()} · {price}
             </p>
             <p>
               Status: <span className="font-semibold text-main-text">{subscription.status}</span>

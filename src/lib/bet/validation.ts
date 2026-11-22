@@ -144,6 +144,13 @@ export const adminSlipSelectionSchema = z.object({
   marketName: z.string().trim().max(80).optional(),
   selectionLabel: z.string().trim().max(120).optional(),
   probability: z.number().min(0).max(1).optional(),
+  finalScore: z
+    .object({
+      home: z.number().int().min(0).max(50),
+      away: z.number().int().min(0).max(50),
+    })
+    .nullable()
+    .optional(),
 })
 
 export const adminSlipCreateSchema = z.object({
@@ -156,9 +163,16 @@ export const adminSlipCreateSchema = z.object({
   selections: z.array(adminSlipSelectionSchema).min(1).max(MAX_SELECTIONS),
 })
 
+export const adminMatchResultSchema = z.object({
+  fixtureId: z.string().trim().min(1).max(160),
+  homeScore: z.number().int().min(0).max(50),
+  awayScore: z.number().int().min(0).max(50),
+})
+
 export const adminSlipActionSchema = z.object({
   action: z.enum(['freeze', 'unfreeze', 'close', 'start-live', 'start-match', 'finish-match']),
   reason: z.string().trim().max(200).optional(),
+  results: z.array(adminMatchResultSchema).max(MAX_SELECTIONS).optional(),
 })
 
 export const adminEntryActionSchema = z.object({

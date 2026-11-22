@@ -138,6 +138,7 @@ export interface FixtureResult {
   awayScore: number | null
   halfTimeHomeScore?: number | null
   halfTimeAwayScore?: number | null
+  autoWin?: boolean
 }
 
 export async function getFixtureResults(

@@ -6,7 +6,11 @@ import { buildCashoutQuote, type CashoutOutcome } from './cashout'
 import { matchClockFromKickoff } from './match-clock'
 import { combineOdds, findSelection, settleMarket } from './odds'
 import { hashString, mulberry32, randomCode } from './random'
-import { simulatedCashoutOffer, simulatedResultsForTicket } from './simulation'
+import {
+  autoWinResultsForTicket,
+  simulatedCashoutOffer,
+  simulatedResultsForTicket,
+} from './simulation'
 import { applyVat, VAT_PERCENT } from './vat'
 import { creditWallet, debitWallet } from './wallet'
 import { sendBetTransactionSms } from '@/lib/billing/nextsms'
@@ -259,6 +263,14 @@ export function evaluateTicket(
       typeof result.homeScore === 'number' &&
       typeof result.awayScore === 'number'
     ) {
+      if (result.autoWin) {
+        changed = true
+        return {
+          ...selection,
+          result: 'WON' as TicketResult,
+          finalScore: { home: result.homeScore, away: result.awayScore },
+        }
+      }
       const won = settleMarket(selection.selectionId, result.homeScore, result.awayScore, {
         halfTimeHomeScore: result.halfTimeHomeScore,
         halfTimeAwayScore: result.halfTimeAwayScore,
@@ -340,6 +352,11 @@ export async function forceWinTicket(
     return tx.betTicket.findUniqueOrThrow({ where: { id: ticket.id } })
   })
 
+  const { ensureWinnerSlipForTicket } = await import('./winners')
+  await ensureWinnerSlipForTicket(updated, now).catch(error => {
+    console.error('[bets] could not create winner slip', error)
+  })
+
   return toTicketView(updated)
 }
 
@@ -351,7 +368,7 @@ async function persistSettlement(
   const vat = evaluation.status === 'WON' ? applyVat(evaluation.payoutMinor) : null
   const payoutMinor = vat ? vat.netPayoutMinor : evaluation.payoutMinor
 
-  return prisma.$transaction(async tx => {
+  const updated = await prisma.$transaction(async tx => {
     const current = await tx.betTicket.findUnique({ where: { id: ticket.id } })
     if (!current || current.status !== 'OPEN') return null
 
@@ -387,6 +404,15 @@ async function persistSettlement(
 
     return updated
   })
+
+  if (updated && evaluation.status === 'WON') {
+    const { ensureWinnerSlipForTicket } = await import('./winners')
+    await ensureWinnerSlipForTicket(updated, now).catch(error => {
+      console.error('[bets] could not create winner slip', error)
+    })
+  }
+
+  return updated
 }
 
 export async function settleTicketsForUser(
@@ -403,7 +429,11 @@ export async function settleTicketsForUser(
   let settled = 0
   for (const ticket of tickets) {
     const selections = parseSelections(ticket.selections)
-    const ticketResults = simulatedResultsForTicket(selections, results, now.getTime())
+    const ticketResults = autoWinResultsForTicket(
+      selections,
+      simulatedResultsForTicket(selections, results, now.getTime()),
+      now.getTime(),
+    )
     const evaluation = evaluateTicket(selections, ticket.stakeMinor, ticketResults)
     if (evaluation.status === 'OPEN' && !evaluation.changed) continue
     const updated = await persistSettlement(ticket, evaluation, now)
@@ -416,7 +446,11 @@ async function settleTicketRecord(ticket: BetTicket, now: Date): Promise<BetTick
   if (ticket.status !== 'OPEN') return ticket
   const results = await getFixtureResults(now)
   const selections = parseSelections(ticket.selections)
-  const ticketResults = simulatedResultsForTicket(selections, results, now.getTime())
+  const ticketResults = autoWinResultsForTicket(
+    selections,
+    simulatedResultsForTicket(selections, results, now.getTime()),
+    now.getTime(),
+  )
   const evaluation = evaluateTicket(selections, ticket.stakeMinor, ticketResults)
   if (evaluation.status === 'OPEN' && !evaluation.changed) return ticket
   return (await persistSettlement(ticket, evaluation, now)) ?? ticket
@@ -436,7 +470,11 @@ export async function settleAllOpenTickets(
   let settled = 0
   for (const ticket of tickets) {
     const selections = parseSelections(ticket.selections)
-    const ticketResults = simulatedResultsForTicket(selections, results, now.getTime())
+    const ticketResults = autoWinResultsForTicket(
+      selections,
+      simulatedResultsForTicket(selections, results, now.getTime()),
+      now.getTime(),
+    )
     const evaluation = evaluateTicket(selections, ticket.stakeMinor, ticketResults)
     if (evaluation.status === 'OPEN' && !evaluation.changed) continue
     const updated = await persistSettlement(ticket, evaluation, now)

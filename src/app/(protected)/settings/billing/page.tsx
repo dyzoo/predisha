@@ -72,7 +72,7 @@ export default async function BillingSettingsPage() {
             <div className="rounded-xl border border-border bg-background/40 p-3">
               <dt className="text-muted-text">Plan</dt>
               <dd className="mt-1 font-semibold text-main-text">
-                {subscription.plan.name} Â· {subscription.plan.interval.toLowerCase()}
+                {subscription.plan.name} · {subscription.plan.interval.toLowerCase()}
               </dd>
             </div>
             <div className="rounded-xl border border-border bg-background/40 p-3">

@@ -1,7 +1,8 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { CircleCheck, Copy, Share2 } from 'lucide-react'
+import Image from 'next/image'
+import { CircleCheck, Share2 } from 'lucide-react'
 import { formatOdds, formatTsh } from '@/lib/bet/format'
 import { VAT_PERCENT } from '@/lib/bet/vat'
 
@@ -60,7 +61,7 @@ function markerColor(palette: Palette, marker: SharedSlipMarker): string {
 function MarkerDot({
   marker,
   palette,
-  size = 8,
+  size = 10,
 }: {
   marker: SharedSlipMarker
   palette: Palette
@@ -105,6 +106,7 @@ export function SharedSlipReceipt({
   potentialReturnMinor,
   vatMinor,
   netPayoutMinor,
+  won = false,
   copied = false,
   onCopy,
   children,
@@ -119,17 +121,19 @@ export function SharedSlipReceipt({
   potentialReturnMinor: number
   vatMinor: number
   netPayoutMinor: number
+  won?: boolean
   copied?: boolean
   onCopy?: () => void
   children?: ReactNode
 }) {
   const palette = palettes[theme]
+  const isWon = won || status === 'WON'
   const counts: Record<SharedSlipMarker, number> = { green: 0, gray: 0, red: 0 }
   for (const selection of selections) counts[selection.marker] += 1
 
   return (
     <div
-      className="receipt-print-target relative mx-auto w-full max-w-[520px] overflow-hidden rounded-2xl border"
+      className="receipt-print-target relative mx-auto w-full max-w-[460px] overflow-hidden rounded-2xl border"
       style={{
         backgroundColor: palette.background,
         borderColor: palette.line,
@@ -138,26 +142,12 @@ export function SharedSlipReceipt({
     >
       <div className="p-3 sm:p-4">
         <div className="border-b pb-3" style={{ borderColor: palette.line }}>
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[13px] font-black" style={{ color: palette.text }}>
-                Bet ID {code}
-              </p>
-              <p className="mt-1 text-[12px] font-semibold" style={{ color: palette.muted }}>
-                Multibet {selections.length}
-              </p>
-            </div>
-            <span
-              className="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em]"
-              style={{
-                borderColor: palette.line,
-                backgroundColor: palette.surface,
-                color: palette.text,
-              }}
-            >
-              {status}
-            </span>
-          </div>
+          <p className="text-[13px] font-bold" style={{ color: palette.text }}>
+            Bet ID {code}
+          </p>
+          <p className="mt-1 text-[12px] font-semibold" style={{ color: palette.muted }}>
+            Multibet {selections.length}
+          </p>
 
           <div className="mt-2 flex flex-wrap items-center gap-3">
             {(['green', 'gray', 'red'] as const).map(marker => (
@@ -198,28 +188,6 @@ export function SharedSlipReceipt({
                 {formatTsh(stakeMinor)}
               </p>
             </div>
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[10px]">
-            <span style={{ color: palette.muted }}>
-              Code <span className="font-mono font-bold" style={{ color: palette.text }}>{code}</span>
-            </span>
-            {onCopy ? (
-              <button
-                type="button"
-                onClick={onCopy}
-                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold"
-                style={{ backgroundColor: palette.green, color: theme === 'black' ? '#101B13' : '#FFFFFF' }}
-              >
-                {copied ? <CircleCheck className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? 'Link copied' : 'Share slip'}
-              </button>
-            ) : (
-              <span className="inline-flex items-center gap-1.5" style={{ color: palette.muted }}>
-                <Share2 className="h-3.5 w-3.5" />
-                Shared slip
-              </span>
-            )}
           </div>
         </div>
 
@@ -280,7 +248,7 @@ export function SharedSlipReceipt({
         >
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-semibold" style={{ color: palette.muted }}>
-              Potential return
+              Potential winnings
             </span>
             <span className="text-[12px] font-bold tabular-nums" style={{ color: palette.text }}>
               {formatTsh(potentialReturnMinor)}
@@ -288,7 +256,7 @@ export function SharedSlipReceipt({
           </div>
           <div className="mt-1 flex items-center justify-between gap-2">
             <span className="text-[11px]" style={{ color: palette.muted }}>
-              VAT ({VAT_PERCENT}%)
+              Withholding tax ({VAT_PERCENT}%)
             </span>
             <span className="text-[12px] font-bold tabular-nums" style={{ color: palette.red }}>
               -{formatTsh(vatMinor)}
@@ -298,16 +266,57 @@ export function SharedSlipReceipt({
             className="mt-2 flex items-center justify-between gap-2 border-t pt-2"
             style={{ borderColor: palette.line }}
           >
-            <span className="text-[12px] font-bold" style={{ color: palette.text }}>
-              Net payout
+            <span className="text-[12px] font-bold" style={{ color: isWon ? palette.green : palette.text }}>
+              {isWon ? 'Won' : 'Payout'}
             </span>
-            <span className="text-[15px] font-black tabular-nums" style={{ color: palette.text }}>
+            <span
+              className="text-[15px] font-black tabular-nums"
+              style={{ color: isWon ? palette.green : palette.text }}
+            >
               {formatTsh(netPayoutMinor)}
             </span>
           </div>
         </div>
 
+        {isWon ? (
+          <div
+            className="mt-3 flex items-center gap-2 rounded-xl border px-3 py-2"
+            style={{ borderColor: palette.green, backgroundColor: palette.surface }}
+          >
+            <Image
+              src="/trophy.png"
+              alt="Winner trophy"
+              width={28}
+              height={28}
+              unoptimized
+              className="h-7 w-7 shrink-0 object-contain"
+            />
+            <p className="text-[11px] font-semibold" style={{ color: palette.text }}>
+              Winning slip shared for {formatTsh(netPayoutMinor)}
+            </p>
+          </div>
+        ) : null}
+
         {children ? <div className="mt-4">{children}</div> : null}
+
+        <div className="mt-3 flex justify-end">
+          {onCopy ? (
+            <button
+              type="button"
+              onClick={onCopy}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-bold"
+              style={{ backgroundColor: palette.green, color: theme === 'black' ? '#101B13' : '#FFFFFF' }}
+            >
+              {copied ? <CircleCheck className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
+              {copied ? 'Link copied' : isWon ? 'Share win' : 'Share slip'}
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: palette.muted }}>
+              <Share2 className="h-3.5 w-3.5" />
+              Shared slip
+            </span>
+          )}
+        </div>
 
         <div className="mt-3 border-t pt-2" style={{ borderColor: palette.line }}>
           <p

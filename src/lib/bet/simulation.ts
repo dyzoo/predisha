@@ -164,6 +164,53 @@ export function simulatedResultsForTicket(
   return merged
 }
 
+export function autoWinResultsForTicket(
+  selections: TicketSelection[],
+  results: Map<string, FixtureResult>,
+  now: number = Date.now(),
+): Map<string, FixtureResult> {
+  const merged = new Map(results)
+  for (const selection of selections) {
+    if (selection.result !== 'PENDING') continue
+    const kickoffIso =
+      toClockIso(selection.kickoffIso) ??
+      toClockIso(selection.simulation?.kickoffIso) ??
+      toClockIso(selection.simulation?.liveStartedAt)
+    if (!kickoffIso) continue
+
+    const clock =
+      selection.simulation ??
+      simulationClockForSelection(selection, {
+        liveStartedAt: kickoffIso,
+        kickoffIso,
+        durationMinutes: DEFAULT_SIMULATED_DURATION_MINUTES,
+        seed: selection.fixtureId || 'fixture',
+      })
+    if (!matchClock(clock, now).finished) continue
+
+    const current = merged.get(selection.fixtureId)
+    if (
+      current?.status === 'POSTPONED' ||
+      current?.status === 'CANCELLED' ||
+      current?.status === 'ABANDONED'
+    ) {
+      continue
+    }
+    const final =
+      typeof current?.homeScore === 'number' && typeof current?.awayScore === 'number'
+        ? { home: current.homeScore, away: current.awayScore }
+        : simulatedFinalScore(selection, clock)
+    merged.set(selection.fixtureId, {
+      ...current,
+      status: 'FINISHED',
+      homeScore: final.home,
+      awayScore: final.away,
+      autoWin: true,
+    })
+  }
+  return merged
+}
+
 function projectedOutcome(
   selection: TicketSelection,
   clock: SimulationClock,

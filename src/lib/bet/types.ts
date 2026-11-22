@@ -10,6 +10,14 @@ export const MAX_DEPOSIT_MINOR = 1_000_000
 export const MIN_WITHDRAW_MINOR = 1_000
 export const MAX_SELECTIONS = 20
 export const SHARE_CODE_HOURS = 24
+export const SLIP_QUICK_STAKES = [60_000, 100_000, 200_000]
+
+export function slipStakeOptions(minimum: number): number[] {
+  const floor = Number.isFinite(minimum) ? Math.max(MIN_STAKE_MINOR, Math.round(minimum)) : MIN_STAKE_MINOR
+  return [...new Set([floor, ...SLIP_QUICK_STAKES])]
+    .filter(amount => amount >= floor && amount <= MAX_STAKE_MINOR)
+    .sort((left, right) => left - right)
+}
 
 export type BetMarketId =
   | '1x2'

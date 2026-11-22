@@ -1,4 +1,4 @@
-import { Prisma, type BetWinnerSlip } from '@prisma/client'
+import { Prisma, type BetTicket, type BetWinnerSlip } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { generateTicketCode } from './bets'
 import { BetError } from './errors'
@@ -359,6 +359,83 @@ export async function createWinnerSlip(input: {
         throw new BetError('Could not generate a unique winner slip. Please try again.', 409, 'DUPLICATE_CODE')
       }
     }
+    throw error
+  }
+}
+
+type AutoWinnerTicket = Pick<
+  BetTicket,
+  | 'id'
+  | 'code'
+  | 'userId'
+  | 'stakeMinor'
+  | 'totalOdds'
+  | 'potentialReturnMinor'
+  | 'payoutMinor'
+  | 'selections'
+  | 'settledAt'
+>
+
+export async function ensureWinnerSlipForTicket(
+  ticket: AutoWinnerTicket,
+  now: Date = new Date(),
+): Promise<void> {
+  if (!ticket.payoutMinor || ticket.payoutMinor <= 0) return
+
+  const existing = await prisma.betWinnerSlip.findUnique({
+    where: { ticketId: ticket.id },
+    select: { id: true },
+  })
+  if (existing) return
+
+  const selections = parseSelections(ticket.selections).map(selection => ({
+    ...selection,
+    result: 'WON' as const,
+  }))
+  if (selections.length === 0) return
+
+  const vat = applyVat(ticket.potentialReturnMinor)
+  const code = await generateWinnerCode()
+
+  try {
+    await prisma.$transaction(async tx => {
+      const created = await tx.betWinnerSlip.create({
+        data: {
+          code,
+          userId: ticket.userId,
+          title: 'Auto-winning bet slip',
+          selections: selections as unknown as Prisma.InputJsonValue,
+          stakeMinor: ticket.stakeMinor,
+          totalOdds: ticket.totalOdds,
+          grossPayoutMinor: vat.grossMinor,
+          vatMinor: vat.vatMinor,
+          netPayoutMinor: ticket.payoutMinor as number,
+          ticketId: ticket.id,
+          createdBy: null,
+          creditedAt: ticket.settledAt ?? now,
+        },
+      })
+
+      await tx.adminAuditLog.create({
+        data: {
+          actorId: null,
+          action: 'system.winner.create',
+          target: created.code,
+          metadata: {
+            ticketId: ticket.id,
+            ticketCode: ticket.code,
+            stakeMinor: ticket.stakeMinor,
+            totalOdds: ticket.totalOdds,
+            grossPayoutMinor: vat.grossMinor,
+            vatMinor: vat.vatMinor,
+            netPayoutMinor: ticket.payoutMinor,
+            creditedAt: (ticket.settledAt ?? now).toISOString(),
+          },
+        },
+      })
+    })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return
     throw error
   }
 }

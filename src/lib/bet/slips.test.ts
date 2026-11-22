@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { computeTicketTotals } from './bets'
+import { computeTicketTotals, evaluateTicket } from './bets'
+import { maskTzPhone } from './phone'
 import { canDeleteAdminBetSlip, isSlipFrozen, maskPhone, toAdminSlipView } from './slips'
-import { type TicketSelection } from './types'
+import { slipStakeOptions, type TicketSelection } from './types'
 
 function selection(odds: number): TicketSelection {
   return {
@@ -34,6 +35,39 @@ describe('computeTicketTotals', () => {
       totalOdds: 1000,
       potentialReturnMinor: 500_000_000,
     })
+  })
+})
+
+describe('slipStakeOptions', () => {
+  it('includes the admin minimum and the larger quick stakes', () => {
+    expect(slipStakeOptions(1_000)).toEqual([1_000, 60_000, 100_000, 200_000])
+  })
+
+  it('drops quick stakes below the admin minimum', () => {
+    expect(slipStakeOptions(100_000)).toEqual([100_000, 200_000])
+  })
+
+  it('keeps custom entry possible when every preset is below the minimum', () => {
+    expect(slipStakeOptions(250_000)).toEqual([250_000])
+  })
+})
+
+describe('evaluateTicket auto-win', () => {
+  it('marks a finished selection as won even when the score would lose', () => {
+    const pending = { ...selection(2), result: 'PENDING' as const, finalScore: null }
+    const results = new Map([
+      [
+        pending.fixtureId,
+        { status: 'FINISHED' as const, homeScore: 0, awayScore: 5, autoWin: true },
+      ],
+    ])
+
+    const evaluation = evaluateTicket([pending], 1000, results)
+
+    expect(evaluation.status).toBe('WON')
+    expect(evaluation.payoutMinor).toBe(2000)
+    expect(evaluation.selections[0]?.result).toBe('WON')
+    expect(evaluation.selections[0]?.finalScore).toEqual({ home: 0, away: 5 })
   })
 })
 
@@ -104,6 +138,17 @@ describe('maskPhone', () => {
 
   it('returns short numbers unchanged', () => {
     expect(maskPhone('12345')).toBe('12345')
+  })
+})
+
+describe('maskTzPhone', () => {
+  it('uses readable bullet separators', () => {
+    expect(maskTzPhone('255712345678')).toBe('25571•••78')
+    expect(maskTzPhone('+255 712 345 678')).toBe('25571•••78')
+  })
+
+  it('returns short numbers unchanged', () => {
+    expect(maskTzPhone('12345')).toBe('12345')
   })
 })
 

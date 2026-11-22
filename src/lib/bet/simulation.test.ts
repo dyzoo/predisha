@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { settleMarket } from './odds'
 import {
+  autoWinResultsForTicket,
   attachSimulationClock,
   simulatedCashoutOffer,
   simulatedFinalScore,
@@ -110,6 +111,24 @@ describe('simulated results', () => {
       homeScore: final.home,
       awayScore: final.away,
     })
+  })
+
+  it('auto-wins only selections whose kickoff has reached full time', () => {
+    const early = { ...selection(), fixtureId: 'early' }
+    const late = {
+      ...selection(),
+      fixtureId: 'late',
+      kickoffIso: '2026-01-01T15:00:00.000Z',
+    }
+    const results = autoWinResultsForTicket(
+      [early, late],
+      new Map(),
+      Date.parse('2026-01-01T14:00:00.000Z'),
+    )
+
+    expect(results.get('early')?.autoWin).toBe(true)
+    expect(results.get('early')?.status).toBe('FINISHED')
+    expect(results.has('late')).toBe(false)
   })
 })
 

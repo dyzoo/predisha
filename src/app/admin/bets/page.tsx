@@ -87,12 +87,14 @@ export default async function AdminBetsPage() {
       createdAt: entry.createdAt,
     })),
     selections: slip.selections.map(selection => ({
+      fixtureId: selection.fixtureId,
       fixtureLabel: selection.fixtureLabel,
       marketName: selection.marketName,
       selectionLabel: selection.selectionLabel,
       odds: selection.odds,
       kickoffIso: selection.kickoffIso,
       kickoffLabel: selection.kickoffLabel ?? null,
+      finalScore: selection.finalScore ?? null,
     })),
   }))
 

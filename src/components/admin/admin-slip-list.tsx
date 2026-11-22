@@ -21,13 +21,17 @@ import {
 import { formatOdds, formatTzs } from '@/lib/bet/format'
 
 export interface AdminSlipSelectionView {
+  fixtureId: string
   fixtureLabel: string
+
   marketName: string
   selectionLabel: string
   odds: number
   kickoffIso?: string | null
   kickoffLabel?: string | null
+  finalScore?: { home: number; away: number } | null
 }
+
 
 export interface AdminSlipEntryView {
   id: string
@@ -71,7 +75,10 @@ export interface AdminSlipListItemView {
   selections: AdminSlipSelectionView[]
 }
 
+type ScoreDraft = { home: string; away: string }
+
 function statusClass(status: AdminSlipListItemView['status']): string {
+
   if (status === 'OPEN') return 'border-accent/30 bg-accent/10 text-accent'
   if (status === 'FROZEN') return 'border-amber-400/30 bg-amber-400/10 text-amber-200'
   return 'border-red-400/30 bg-red-400/10 text-red-200'
@@ -101,11 +108,11 @@ function timeLabel(slip: AdminSlipListItemView): string {
       : slip.timeMode === 'MANUAL'
         ? 'Manual time'
         : 'Original time'
-  if (slip.liveStartedAt) return `${prefix} â€¢ started ${freezeLabel(slip.liveStartedAt)}`
+  if (slip.liveStartedAt) return `${prefix} • started ${freezeLabel(slip.liveStartedAt)}`
   const next = nextKickoffIso(slip)
-  if (next) return `${prefix} â€¢ starts ${freezeLabel(next)}`
+  if (next) return `${prefix} • starts ${freezeLabel(next)}`
   const iso = slip.manualKickoffAt ?? slip.autoFreezeAt
-  return `${prefix} â€¢ ${freezeLabel(iso)}`
+  return `${prefix} • ${freezeLabel(iso)}`
 }
 
 export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
@@ -120,7 +127,10 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
   const [success, setSuccess] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [scoreDrafts, setScoreDrafts] = useState<Record<string, Record<string, ScoreDraft>>>({})
+  const [resultsOpenCode, setResultsOpenCode] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'ALL' | AdminSlipListItemView['status']>('ALL')
+
   const [modeFilter, setModeFilter] = useState<'ALL' | AdminSlipListItemView['mode']>('ALL')
 
   const filteredSlips = useMemo(() => {
@@ -141,7 +151,12 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
     })
   }, [slips, query, statusFilter, modeFilter])
 
-  async function act(code: string, action: 'freeze' | 'unfreeze' | 'close' | 'start-live' | 'start-match' | 'finish-match') {
+  async function act(
+    code: string,
+    action: 'freeze' | 'unfreeze' | 'close' | 'start-live' | 'start-match' | 'finish-match',
+    results?: Array<{ fixtureId: string; homeScore: number; awayScore: number }>,
+  ) {
+
     if (pendingCode) return
     setPendingCode(code)
     setError(null)
@@ -151,9 +166,10 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, ...(results ? { results } : {}) }),
       })
       const payload = (await response.json().catch(() => ({}))) as { error?: string }
+
       if (!response.ok) {
         setError(payload.error ?? 'Could not update this slip.')
         return
@@ -166,8 +182,9 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
             ? `Slip ${code} is open again.`
             : action === 'start-live' || action === 'start-match'
               ? `Slip ${code} is live.`
-              : action === 'finish-match'
-                ? `Slip ${code} is marked as full time.`
+                : action === 'finish-match'
+                  ? `Slip ${code} is marked as full time.${results?.length ? ` ${results.length} result(s) applied.` : ''}`
+
                 : `Slip ${code} is closed permanently.`,
       )
       router.refresh()
@@ -178,7 +195,58 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
     }
   }
 
+  function updateScoreDraft(code: string, fixtureId: string, side: keyof ScoreDraft, value: string) {
+    setScoreDrafts(current => {
+      const slipDrafts = current[code] ?? {}
+      const draft = slipDrafts[fixtureId] ?? { home: '', away: '' }
+      return {
+        ...current,
+        [code]: {
+          ...slipDrafts,
+          [fixtureId]: { ...draft, [side]: value },
+        },
+      }
+    })
+  }
+
+  async function finishWithResults(slip: AdminSlipListItemView) {
+    const drafts = scoreDrafts[slip.code] ?? {}
+    const scored = slip.selections.map(selection => {
+      const draft = drafts[selection.fixtureId]
+      const home = draft?.home ?? (selection.finalScore ? String(selection.finalScore.home) : '')
+      const away = draft?.away ?? (selection.finalScore ? String(selection.finalScore.away) : '')
+      return { selection, home, away }
+    })
+    const filled = scored.filter(score => score.home !== '' || score.away !== '')
+    const invalid = filled.some(score => {
+      const home = Number(score.home)
+      const away = Number(score.away)
+      return (
+        score.home === '' ||
+        score.away === '' ||
+        !Number.isInteger(home) ||
+        !Number.isInteger(away) ||
+        home < 0 ||
+        home > 50 ||
+        away < 0 ||
+        away > 50
+      )
+    })
+    if (invalid) {
+      setError('Scores must be whole numbers between 0 and 50.')
+      return
+    }
+    const results = filled.map(score => ({
+      fixtureId: score.selection.fixtureId,
+      homeScore: Number(score.home),
+      awayScore: Number(score.away),
+    }))
+    await act(slip.code, 'finish-match', results)
+    setResultsOpenCode(null)
+  }
+
   async function deleteSlip(code: string) {
+
     if (pendingCode) return
     setPendingCode(code)
     setError(null)
@@ -220,6 +288,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action }),
         },
+
       )
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string
@@ -403,7 +472,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                   ) : null}
                 </p>
                 <p className="mt-1 truncate text-xs text-muted-text">
-                  {slip.title ?? 'Untitled slip'} Â· {timeLabel(slip)}
+                  {slip.title ?? 'Untitled slip'} · {timeLabel(slip)}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -429,7 +498,21 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                 {slip.status !== 'CLOSED' ? (
                   <button
                     type="button"
+                    onClick={() =>
+                      setResultsOpenCode(current => (current === slip.code ? null : slip.code))
+                    }
+                    disabled={busy}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-200 transition-colors hover:border-emerald-400/50 disabled:opacity-60"
+                  >
+                    <Trophy className="h-3.5 w-3.5" />
+                    Set scores
+                  </button>
+                ) : null}
+                {slip.status !== 'CLOSED' ? (
+                  <button
+                    type="button"
                     onClick={() => act(slip.code, 'finish-match')}
+
                     disabled={busy}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-main-text transition-colors hover:border-accent/40 disabled:opacity-60"
                   >
@@ -539,7 +622,81 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
               </p>
             ) : null}
 
+            {resultsOpenCode === slip.code && slip.status !== 'CLOSED' ? (
+              <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
+                <p className="text-[11px] font-semibold text-main-text">Enter final scores</p>
+                <p className="mt-0.5 text-[10px] text-muted-text">
+                  Leave a match blank to auto-win it at full time.
+                </p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {slip.selections.map((selection, index) => {
+                    const draft = scoreDrafts[slip.code]?.[selection.fixtureId]
+                    return (
+                      <label
+                        key={`${slip.id}:score:${index}`}
+                        className="rounded-lg border border-border bg-background/40 p-2"
+                      >
+                        <span className="block truncate text-[10px] text-main-text">
+                          {index + 1}. {selection.fixtureLabel}
+                        </span>
+                        <span className="mt-1 flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={50}
+                            value={
+                              draft?.home ??
+                              (selection.finalScore ? String(selection.finalScore.home) : '')
+                            }
+                            onChange={event =>
+                              updateScoreDraft(slip.code, selection.fixtureId, 'home', event.target.value)
+                            }
+                            aria-label={`${selection.fixtureLabel} home score`}
+                            className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-semibold tabular-nums text-main-text outline-none focus:border-emerald-400/60"
+                          />
+                          <span className="text-[10px] text-muted-text">-</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={50}
+                            value={
+                              draft?.away ??
+                              (selection.finalScore ? String(selection.finalScore.away) : '')
+                            }
+                            onChange={event =>
+                              updateScoreDraft(slip.code, selection.fixtureId, 'away', event.target.value)
+                            }
+                            aria-label={`${selection.fixtureLabel} away score`}
+                            className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-semibold tabular-nums text-main-text outline-none focus:border-emerald-400/60"
+                          />
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void finishWithResults(slip)}
+                    disabled={busy}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-bold text-emerald-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trophy className="h-3.5 w-3.5" />}
+                    Finish with scores
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResultsOpenCode(null)}
+                    className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-semibold text-muted-text hover:text-main-text"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             <ul className="mt-3 space-y-1.5">
+
               {slip.selections.map((selection, index) => (
                 <li
                   key={`${slip.id}:${index}`}
@@ -547,7 +704,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                 >
                   <span className="min-w-0 text-[11px] text-main-text">
                     <span className="block truncate">
-                      {selection.fixtureLabel} Â· {selection.marketName} Â· {selection.selectionLabel}
+                      {selection.fixtureLabel} · {selection.marketName} · {selection.selectionLabel}
                     </span>
                     {selection.kickoffLabel || selection.kickoffIso ? (
                       <span className="block truncate text-[10px] text-muted-text">
