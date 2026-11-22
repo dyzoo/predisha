@@ -39,15 +39,15 @@ describe('computeTicketTotals', () => {
 })
 
 describe('slipStakeOptions', () => {
-  it('includes the admin minimum and the larger quick stakes', () => {
-    expect(slipStakeOptions(1_000)).toEqual([1_000, 60_000, 100_000, 200_000])
+  it('starts quick stakes at 30,000 instead of the default minimum', () => {
+    expect(slipStakeOptions(500)).toEqual([30_000, 60_000, 100_000, 200_000])
   })
 
   it('drops quick stakes below the admin minimum', () => {
     expect(slipStakeOptions(100_000)).toEqual([100_000, 200_000])
   })
 
-  it('keeps custom entry possible when every preset is below the minimum', () => {
+  it('falls back to the admin minimum when every preset is below it', () => {
     expect(slipStakeOptions(250_000)).toEqual([250_000])
   })
 })

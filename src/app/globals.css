@@ -733,16 +733,15 @@ button, a { cursor: pointer; }
 .receipt-barcode {
   height: 34px;
   border-radius: 2px;
-  opacity: 0.8;
   background-image: repeating-linear-gradient(
     90deg,
-    #2a2118 0 2px,
+    #ffffff 0 2px,
     transparent 2px 4px,
-    #2a2118 4px 5px,
+    #ffffff 4px 5px,
     transparent 5px 8px,
-    #2a2118 8px 11px,
+    #ffffff 8px 11px,
     transparent 11px 13px,
-    #2a2118 13px 14px,
+    #ffffff 13px 14px,
     transparent 14px 18px
   );
 }
