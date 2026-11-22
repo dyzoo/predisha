@@ -37,7 +37,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } })
+    const existing = await prisma.user.findUnique({
+      where: { email: parsed.data.email },
+      select: { id: true },
+    })
     const trialRecord = await getTrialFromCookie()
     const guest =
       trialRecord?.userId && existing?.id !== trialRecord.userId

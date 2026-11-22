@@ -39,7 +39,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } })
+    const existing = await prisma.user.findUnique({
+      where: { email: parsed.data.email },
+      select: { id: true },
+    })
     if (existing) {
       const message = 'An account with that email already exists.'
       return apiError(message, 409, { fields: { email: message } })

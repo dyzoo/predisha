@@ -107,7 +107,7 @@ async function buildDataset(): Promise<TheSportsDBDataset> {
     .flat()
     .filter(event => Boolean(event.idEvent && event.idHomeTeam && event.idAwayTeam && event.strHomeTeam && event.strAwayTeam))
     .filter(event => parseKickoff(event) !== null)
-    .filter(event => statusFor(event) === 'SCHEDULED' || statusFor(event) === 'FINISHED')
+    .filter(event => ['SCHEDULED', 'LIVE', 'FINISHED'].includes(statusFor(event)))
 
   const teamMap = new Map<string, Team>()
   const competitionMap = new Map<string, Competition>()
@@ -153,6 +153,7 @@ async function buildDataset(): Promise<TheSportsDBDataset> {
     })
 
     const status = statusFor(event)
+    const elapsedMinutes = Math.max(1, Math.floor((Date.now() - kickoffUtc.getTime()) / 60_000))
     fixtures.push({
       id: `tsdb-event-${event.idEvent}`,
       providerId: event.idEvent ?? null,
@@ -164,6 +165,9 @@ async function buildDataset(): Promise<TheSportsDBDataset> {
       status,
       homeScore: status === 'FINISHED' ? score(event.intHomeScore) : null,
       awayScore: status === 'FINISHED' ? score(event.intAwayScore) : null,
+      liveMinute: status === 'LIVE' ? Math.min(120, elapsedMinutes) : null,
+      liveHomeScore: status === 'LIVE' ? score(event.intHomeScore) : null,
+      liveAwayScore: status === 'LIVE' ? score(event.intAwayScore) : null,
       venue: event.strVenue?.trim() || null,
       lastSyncedAt: new Date(),
     })

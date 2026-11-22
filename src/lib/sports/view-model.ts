@@ -112,6 +112,9 @@ export function toMatchView(analysis: MatchAnalysis, timeZone = 'UTC', now?: Dat
       : fixture.status
   const minute = effectiveStatus === 'LIVE' ? deriveLiveMinute(fixture, at) : null
   const halfTimeScore = scorePair(fixture.halfTimeHomeScore, fixture.halfTimeAwayScore)
+  const liveScore = scorePair(fixture.liveHomeScore, fixture.liveAwayScore)
+  const finalScore = scorePair(fixture.homeScore, fixture.awayScore)
+  const score = effectiveStatus === 'LIVE' ? (liveScore ?? finalScore) : finalScore
 
   return {
     id: fixture.id,
@@ -136,7 +139,7 @@ export function toMatchView(analysis: MatchAnalysis, timeZone = 'UTC', now?: Dat
     },
     kickoffIso: fixture.kickoffUtc.toISOString(),
     kickoffLabel: formatMatchTime(fixture.kickoffUtc, timeZone),
-    score: scorePair(fixture.homeScore, fixture.awayScore) ?? undefined,
+    score: score ?? undefined,
     minute,
     halfTimeScore,
     venue: fixture.venue ?? null,

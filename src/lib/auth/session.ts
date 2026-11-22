@@ -98,7 +98,7 @@ interface SessionUser {
   email: string
   name: string | null
   role: 'USER' | 'ADMIN' | 'SUPER_ADMIN'
-  isSpecial: boolean
+  isSpecial?: boolean
   subscription: { status: string } | null
 }
 
@@ -116,7 +116,7 @@ function toViewer(user: SessionUser): Viewer {
     email: user.email,
     name: user.name,
     role: user.role,
-    isSpecial: user.isSpecial,
+    isSpecial: user.isSpecial ?? false,
     entitlement: entitlementFor(user.role, status),
   }
 }
@@ -126,7 +126,13 @@ async function viewerFromFallbackToken(token: string): Promise<Viewer | null> {
   if (!userId) return null
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { subscription: { select: { status: true } } },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      subscription: { select: { status: true } },
+    },
   })
   return user ? toViewer(user) : null
 }
@@ -142,9 +148,18 @@ export async function getViewer(): Promise<Viewer> {
 
     const session = await prisma.session.findUnique({
       where: { sessionToken: token },
-      include: {
+      select: {
+        id: true,
+        sessionToken: true,
+        expires: true,
         user: {
-          include: { subscription: { select: { status: true } } },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            subscription: { select: { status: true } },
+          },
         },
       },
     })

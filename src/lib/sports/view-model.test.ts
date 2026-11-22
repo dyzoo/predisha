@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TeamFeatures } from '@/lib/predictions/engine'
 import { mapMatchToFixture, type ApiMatch } from './football-data'
-import type { Fixture, Team } from './provider'
+import { fallbackLogoUrl, type Fixture, type Team } from './provider'
 import type { MatchAnalysis } from './service'
 import { serializeMatchView } from './serialize'
 import { buildMatchStatsView, toMatchView } from './view-model'
@@ -106,6 +106,15 @@ describe('match view live state', () => {
     expect(view.minute).toBe(73)
   })
 
+  it('prefers live scores over final scores while live', () => {
+    const view = toMatchView(
+      analysisFor(fixtureWith({ homeScore: 1, awayScore: 0, liveHomeScore: 2, liveAwayScore: 1 })),
+      'UTC',
+      NOW,
+    )
+    expect(view.score).toEqual({ home: 2, away: 1 })
+  })
+
   it('clamps derived minutes to 1..120', () => {
     const old = toMatchView(
       analysisFor(fixtureWith({ kickoffUtc: new Date(NOW.getTime() - 200 * MINUTE), homeScore: null, awayScore: null })),
@@ -139,6 +148,16 @@ describe('match view live state', () => {
     const serialized = serializeMatchView(view, { includeExplanation: false })
     expect(serialized.effectiveStatus).toBe('LIVE')
     expect(serialized.minute).toBe(26)
+  })
+})
+
+describe('fallback crest', () => {
+  it('renders a shield without team abbreviations', () => {
+    const url = fallbackLogoUrl({ name: 'Manchester United', shortName: 'MUN', color: '#DA291C' })
+    const svg = decodeURIComponent(url.slice(url.indexOf(',') + 1))
+    expect(svg).not.toContain('MUN')
+    expect(svg).not.toContain('<text')
+    expect(svg).toContain('<path')
   })
 })
 
