@@ -18,10 +18,7 @@ export default async function SignInPage({
   const nextPath = safeNextPath(next)
   const viewer = await getViewer()
   if (viewer.userId) {
-    if (canViewAdmin(viewer)) {
-      redirect(nextPath?.startsWith('/admin') ? nextPath : '/admin')
-    }
-    redirect(nextPath ?? '/dashboard')
+    redirect(nextPath ?? (canViewAdmin(viewer) ? '/admin' : '/dashboard'))
   }
 
   return (

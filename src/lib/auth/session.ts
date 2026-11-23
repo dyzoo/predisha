@@ -102,6 +102,70 @@ interface SessionUser {
   subscription: { status: string } | null
 }
 
+const VIEWER_USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  isSpecial: true,
+  subscription: { select: { status: true } },
+}
+
+const LEGACY_VIEWER_USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  subscription: { select: { status: true } },
+}
+
+function missingIsSpecialColumn(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  if ('code' in error && error.code === 'P2022') return true
+  const message = 'message' in error && typeof error.message === 'string' ? error.message : ''
+  return message.includes('isSpecial') && message.includes('does not exist')
+}
+
+async function findUserForViewer(userId: string): Promise<SessionUser | null> {
+  try {
+    return await prisma.user.findUnique({
+      where: { id: userId },
+      select: VIEWER_USER_SELECT,
+    })
+  } catch (error) {
+    if (!missingIsSpecialColumn(error)) throw error
+    return await prisma.user.findUnique({
+      where: { id: userId },
+      select: LEGACY_VIEWER_USER_SELECT,
+    })
+  }
+}
+
+async function findSessionForViewer(token: string) {
+  try {
+    return await prisma.session.findUnique({
+      where: { sessionToken: token },
+      select: {
+        id: true,
+        sessionToken: true,
+        expires: true,
+        user: { select: VIEWER_USER_SELECT },
+      },
+    })
+  } catch (error) {
+    if (!missingIsSpecialColumn(error)) throw error
+    return await prisma.session.findUnique({
+      where: { sessionToken: token },
+      select: {
+        id: true,
+        sessionToken: true,
+        expires: true,
+        user: { select: LEGACY_VIEWER_USER_SELECT },
+      },
+    })
+  }
+}
+
 function toViewer(user: SessionUser): Viewer {
   const status = (user.subscription?.status ?? null) as
     | 'ACTIVE'
@@ -124,16 +188,7 @@ function toViewer(user: SessionUser): Viewer {
 async function viewerFromFallbackToken(token: string): Promise<Viewer | null> {
   const userId = readFallbackSessionToken(token)
   if (!userId) return null
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      subscription: { select: { status: true } },
-    },
-  })
+  const user = await findUserForViewer(userId)
   return user ? toViewer(user) : null
 }
 
@@ -146,23 +201,7 @@ export async function getViewer(): Promise<Viewer> {
     token = store.get(SESSION_COOKIE)?.value
     if (!token) return ANONYMOUS_VIEWER
 
-    const session = await prisma.session.findUnique({
-      where: { sessionToken: token },
-      select: {
-        id: true,
-        sessionToken: true,
-        expires: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            subscription: { select: { status: true } },
-          },
-        },
-      },
-    })
+    const session = await findSessionForViewer(token)
 
     if (!session || session.expires.getTime() < Date.now()) {
       if (session) {

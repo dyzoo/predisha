@@ -162,11 +162,7 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
       }
       await refreshViewer()
       const isAdmin = payload.data?.role === 'ADMIN' || payload.data?.role === 'SUPER_ADMIN'
-      const destination = isAdmin
-        ? safeNext?.startsWith('/admin')
-          ? safeNext
-          : '/admin'
-        : (safeNext ?? '/dashboard')
+      const destination = safeNext ?? (isAdmin ? '/admin' : '/dashboard')
       router.replace(destination)
       router.refresh()
     } catch {
