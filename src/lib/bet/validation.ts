@@ -235,7 +235,7 @@ export const slipPaymentSchema = z
     code: shareCodeSchema,
     phone: z.string().trim().max(20).optional(),
     source: z.enum(['wallet', 'phone']).optional(),
-    stakeMinor: stakeSchema.optional(),
+    stakeMinor: z.number().int().min(1).max(MAX_STAKE_MINOR).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.source !== 'wallet' && (!value.phone || value.phone.length < 7)) {

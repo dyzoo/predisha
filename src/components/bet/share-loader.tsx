@@ -788,8 +788,8 @@ export function ShareLoader({ code }: { code: string }) {
       setPayError(slip.frozenReason || 'Betting is closed for this slip.')
       return
     }
-    if (activePaymentStakeMinor < minStakeMinor) {
-      setPayError(`The minimum stake is now ${formatTzs(minStakeMinor)}.`)
+    if (activePaymentStakeMinor < effectiveMinStakeMinor) {
+      setPayError(`The minimum stake is ${formatTzs(effectiveMinStakeMinor)}.`)
       return
     }
     const cleaned = phone.trim()
@@ -836,8 +836,8 @@ export function ShareLoader({ code }: { code: string }) {
       setPlaceError('Sign in before placing this bet.')
       return
     }
-    if (stakeMinor < minStakeMinor) {
-      setPlaceError(`Enter at least ${formatTzs(minStakeMinor)} as your stake.`)
+    if (stakeMinor < effectiveMinStakeMinor) {
+      setPlaceError(`Enter at least ${formatTzs(effectiveMinStakeMinor)} as your stake.`)
       return
     }
     const result = await placeBet()
@@ -1103,7 +1103,7 @@ export function ShareLoader({ code }: { code: string }) {
                   Take this slip
                 </h2>
                 <span className="text-[10px] uppercase tracking-wide text-muted-text">
-                  Min {formatTzs(minStakeMinor)}
+                  Min {formatTzs(effectiveMinStakeMinor)}
                 </span>
               </div>
               <p className="mt-1 text-[11px] leading-relaxed text-muted-text">
@@ -1129,13 +1129,13 @@ export function ShareLoader({ code }: { code: string }) {
                   </div>
                   <StakePicker
                     stakeMinor={stakeMinor}
-                    minStakeMinor={minStakeMinor}
+                    minStakeMinor={effectiveMinStakeMinor}
                     onChange={setStakeMinor}
                   />
                   <button
                     type="button"
                     onClick={() => void placeSharedBet()}
-                    disabled={placing || stakeMinor < minStakeMinor}
+                    disabled={placing || stakeMinor < effectiveMinStakeMinor}
                     className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2.5 text-xs font-bold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : <WalletCards className="h-4 w-4" />}
@@ -1410,8 +1410,8 @@ export function ShareLoader({ code }: { code: string }) {
                     <span className="mb-1 block text-[10px] text-muted-text">Stake (TZS)</span>
                     <input
                       type="number"
-                      min={minStakeMinor}
-                      step={100}
+                      min={1}
+                      step={1}
                       value={editDraft.stakeMinor}
                       onChange={event =>
                         setEditDraft(current =>
@@ -1674,7 +1674,7 @@ export function ShareLoader({ code }: { code: string }) {
                 </p>
                 <StakePicker
                   stakeMinor={activePaymentStakeMinor}
-                  minStakeMinor={minStakeMinor}
+                  minStakeMinor={effectiveMinStakeMinor}
                   onChange={setPaymentStakeMinor}
                 />
                 <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1691,9 +1691,9 @@ export function ShareLoader({ code }: { code: string }) {
                     </p>
                   </div>
                 </div>
-                {activePaymentStakeMinor < minStakeMinor ? (
+                {activePaymentStakeMinor < effectiveMinStakeMinor ? (
                   <div className="mt-3 rounded-xl border border-amber-700/25 bg-amber-700/10 px-3 py-2 text-[11px] text-amber-200">
-                    The minimum stake is now {formatTzs(minStakeMinor)}. Choose a quick stake or enter
+                    The minimum stake is {formatTzs(effectiveMinStakeMinor)}. Choose a quick stake or enter
                     a custom amount above the minimum.
                   </div>
                 ) : null}
@@ -1715,7 +1715,7 @@ export function ShareLoader({ code }: { code: string }) {
                     !hasWalletFunds ||
                     walletLoading ||
                     !wallet ||
-                    activePaymentStakeMinor < minStakeMinor
+                    activePaymentStakeMinor < effectiveMinStakeMinor
                   }
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -1735,7 +1735,7 @@ export function ShareLoader({ code }: { code: string }) {
                 </p>
                 <StakePicker
                   stakeMinor={activePaymentStakeMinor}
-                  minStakeMinor={minStakeMinor}
+                  minStakeMinor={effectiveMinStakeMinor}
                   onChange={setPaymentStakeMinor}
                 />
                 <label className="mt-4 block">
@@ -1761,7 +1761,7 @@ export function ShareLoader({ code }: { code: string }) {
                 <button
                   type="button"
                   onClick={() => void startPayment('phone')}
-                  disabled={!canPay || paying || frozen || activePaymentStakeMinor < minStakeMinor}
+                  disabled={!canPay || paying || frozen || activePaymentStakeMinor < effectiveMinStakeMinor}
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
@@ -1825,3 +1825,6 @@ export function ShareLoader({ code }: { code: string }) {
 function readyStatusLabel(slip: AdminSlip): string {
   return slip.status === 'FROZEN' ? 'Betting paused' : 'Ready to play'
 }
+
+
+
