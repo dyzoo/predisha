@@ -156,7 +156,7 @@ export const adminSlipSelectionSchema = z.object({
 
 export const adminSlipCreateSchema = z.object({
   title: z.string().trim().max(120).optional(),
-  stakeMinor: z.number().int().min(MIN_STAKE_MINOR).max(MAX_STAKE_MINOR),
+  stakeMinor: z.number().int().min(1).max(MAX_STAKE_MINOR),
   timeMode: z.enum(['ORIGINAL', 'MANUAL', 'SIMULATED']).default('ORIGINAL'),
   selectionSource: z.enum(['CATALOG', 'RANDOM']).default('CATALOG'),
   manualKickoffAt: z.string().datetime().optional(),
@@ -212,7 +212,7 @@ export const adminWinnerCreateSchema = z.object({
   userId: z.string().trim().min(1, 'Choose a registered user.').max(80),
   title: z.string().trim().max(120).optional(),
   date: z.string().datetime().optional(),
-  stakeMinor: z.number().int().min(MIN_STAKE_MINOR).max(MAX_STAKE_MINOR),
+  stakeMinor: z.number().int().min(1).max(MAX_STAKE_MINOR),
   selections: z.array(adminWinnerSelectionSchema).min(1).max(MAX_SELECTIONS),
   note: z.string().trim().max(280).optional(),
   sourceSlipId: z.string().trim().max(80).optional(),

@@ -648,9 +648,9 @@ export function AdminSlipGenerator({
           <input
             type="number"
             inputMode="numeric"
-            min={500}
+            min={1}
             max={500000}
-            step={100}
+            step={1}
             value={stake}
             onChange={event => setStake(event.target.value)}
             className="w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-xs font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"

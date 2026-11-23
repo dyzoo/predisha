@@ -168,10 +168,9 @@ export async function assertBetStakeMinor(stakeMinor: number): Promise<void> {
   if (!Number.isInteger(stakeMinor)) {
     throw new BetError('Stake must be a whole amount.', 422, 'BAD_STAKE')
   }
-  const minimum = await getMinStakeMinor()
-  if (stakeMinor < minimum || stakeMinor > MAX_STAKE_MINOR) {
+  if (stakeMinor < 1 || stakeMinor > MAX_STAKE_MINOR) {
     throw new BetError(
-      `Stake must be between ${minimum} and ${MAX_STAKE_MINOR} TZS.`,
+      `Stake must be between 1 and ${MAX_STAKE_MINOR} TZS.`,
       422,
       'BAD_STAKE',
     )
