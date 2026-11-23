@@ -1,28 +1,94 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
   BadgeCheck,
   CalendarDays,
+  Check,
   CircleAlert,
   CircleCheck,
   Download,
   Loader2,
   Printer,
   ReceiptText,
+  Smartphone,
   Wallet,
+  X,
 } from 'lucide-react'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
+import { normalizeTzPhone } from '@/lib/bet/phone'
 import type { PublicWinnerSlipView } from '@/lib/bet/winners'
 import { VAT_PERCENT } from '@/lib/bet/vat'
 import { WinnerConfetti } from './winner-confetti'
 
-export function WinnerReceipt({ winner }: { winner: PublicWinnerSlipView }) {
+function buildSms(amountMinor: number): { text: string; balanceText: string } {
+  const code = `DKJ${Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 9).padEnd(9, '0')}`
+  const balance = amountMinor + 1_000_000 + Math.floor(Math.random() * 4_000_000)
+  const stamp = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date())
+  return {
+    text: `${code} Imethibitishwa. Umepokea Tsh ${amountMinor.toLocaleString('en-US')} kutoka SPOTIONEBET. ${stamp}. Salio lako jipya ni Tsh ${balance.toLocaleString('en-US')}`,
+    balanceText: `Tsh ${balance.toLocaleString('en-US')}`,
+  }
+}
+
+function playMessageTone() {
+  try {
+    const Ctx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Ctx) return
+    const ctx = new Ctx()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(880, ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08)
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.36)
+    osc.onended = () => void ctx.close()
+  } catch {
+    // Ignore audio failures; the visual message still appears.
+  }
+}
+
+export function WinnerReceipt({
+  winner,
+  canWithdraw = false,
+}: {
+  winner: PublicWinnerSlipView
+  canWithdraw?: boolean
+}) {
   const receiptRef = useRef<HTMLDivElement>(null)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [withdrawOpen, setWithdrawOpen] = useState(false)
+  const [amount, setAmount] = useState(String(winner.netPayoutMinor))
+  const [phone, setPhone] = useState('')
+  const [withdrawError, setWithdrawError] = useState<string | null>(null)
+  const [phase, setPhase] = useState<'idle' | 'loading' | 'success'>('idle')
+  const [successPhone, setSuccessPhone] = useState('')
+  const [sms, setSms] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (phase !== 'success') return
+    const timer = window.setTimeout(() => {
+      setSms(buildSms(Number(amount) || winner.netPayoutMinor).text)
+      playMessageTone()
+    }, 1200)
+    return () => window.clearTimeout(timer)
+  }, [phase, amount, winner.netPayoutMinor])
 
   async function downloadSlip() {
     if (!receiptRef.current || downloading) return
@@ -46,6 +112,37 @@ export function WinnerReceipt({ winner }: { winner: PublicWinnerSlipView }) {
     } finally {
       setDownloading(false)
     }
+  }
+
+  function openWithdraw() {
+    setAmount(String(winner.netPayoutMinor))
+    setPhone('')
+    setWithdrawError(null)
+    setPhase('idle')
+    setSms(null)
+    setWithdrawOpen(true)
+  }
+
+  function submitWithdraw(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const value = Math.floor(Number(amount))
+    if (!Number.isFinite(value) || value < 1) {
+      setWithdrawError('Enter a valid amount.')
+      return
+    }
+    if (value > winner.netPayoutMinor) {
+      setWithdrawError(`Amount cannot exceed ${formatTzs(winner.netPayoutMinor)}.`)
+      return
+    }
+    const normalized = normalizeTzPhone(phone)
+    if (!normalized.ok) {
+      setWithdrawError(normalized.error ?? 'Enter a valid phone number.')
+      return
+    }
+    setWithdrawError(null)
+    setSuccessPhone(normalized.phone)
+    setPhase('loading')
+    window.setTimeout(() => setPhase('success'), 2200)
   }
 
   return (
@@ -225,22 +322,32 @@ export function WinnerReceipt({ winner }: { winner: PublicWinnerSlipView }) {
                   <p className="text-sm font-semibold text-main-text">Already in the wallet</p>
                   <p className="mt-0.5 text-[11px] leading-relaxed text-muted-text">
                     {formatTzs(winner.netPayoutMinor)} was credited after the {VAT_PERCENT}% VAT
-                    deduction. Withdraw it to mobile money from the wallet page.
+                    deduction. {canWithdraw ? 'Withdraw it directly from this slip.' : 'Withdraw it to mobile money from the wallet page.'}
                   </p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                {canWithdraw ? (
+                  <button
+                    type="button"
+                    onClick={openWithdraw}
+                    className="rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-background transition-opacity hover:opacity-90"
+                  >
+                    Withdraw
+                  </button>
+                ) : (
+                  <Link
+                    href="/bet/account"
+                    className="rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-background transition-opacity hover:opacity-90"
+                  >
+                    Open wallet
+                  </Link>
+                )}
                 <Link
-                  href="/bet/account"
-                  className="rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-background transition-opacity hover:opacity-90"
-                >
-                  Open wallet
-                </Link>
-                <Link
-                  href="/bet/withdraw"
+                  href={canWithdraw ? '/bet/account' : '/bet/withdraw'}
                   className="rounded-xl border border-border bg-background/40 px-4 py-2.5 text-xs font-semibold text-main-text transition-colors hover:border-accent/40"
                 >
-                  Withdraw
+                  {canWithdraw ? 'Open wallet' : 'Withdraw'}
                 </Link>
               </div>
             </div>
@@ -254,6 +361,103 @@ export function WinnerReceipt({ winner }: { winner: PublicWinnerSlipView }) {
           </div>
         </div>
       </div>
+
+      {canWithdraw && withdrawOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-accent/25 bg-[#141A21] p-5 shadow-2xl sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Special withdrawal</p>
+                <h3 className="mt-1 font-display text-xl font-bold text-main-text">Withdraw winnings</h3>
+              </div>
+              {phase !== 'loading' ? (
+                <button type="button" onClick={() => setWithdrawOpen(false)} className="rounded-lg p-1 text-muted-text hover:bg-white/5 hover:text-main-text" aria-label="Close">
+                  <X className="h-5 w-5" />
+                </button>
+              ) : null}
+            </div>
+
+            {phase === 'idle' ? (
+              <form onSubmit={submitWithdraw} className="mt-5 space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium text-muted-text">Amount (TZS)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={winner.netPayoutMinor}
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background/60 px-3 py-3 text-sm font-semibold tabular-nums text-main-text outline-none focus:border-accent/60"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium text-muted-text">Phone number</span>
+                  <div className="flex items-center gap-2 rounded-xl border border-border bg-background/60 px-3 focus-within:border-accent/60">
+                    <Smartphone className="h-4 w-4 text-muted-text" />
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="0712 345 678"
+                      className="w-full bg-transparent py-3 text-sm font-semibold text-main-text outline-none"
+                    />
+                  </div>
+                </label>
+                {withdrawError ? <p className="text-xs text-red-300">{withdrawError}</p> : null}
+                <button type="submit" className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-bold text-background hover:opacity-90">
+                  Submit withdrawal
+                </button>
+              </form>
+            ) : null}
+
+            {phase === 'loading' ? (
+              <div className="py-8 text-center">
+                <div className="relative mx-auto flex h-36 w-36 items-center justify-center">
+                  <div className="absolute inset-0 rounded-full border-4 border-accent/20 border-t-accent animate-spin" />
+                  <div className="px-4">
+                    <p className="font-display text-lg font-black tabular-nums text-accent">{formatTzs(Number(amount) || 0)}</p>
+                  </div>
+                </div>
+                <p className="mt-5 text-sm font-semibold text-main-text">Withdrawing..</p>
+                <p className="mt-1 text-xs font-mono text-accent">{successPhone}</p>
+                <p className="mt-2 text-xs text-muted-text">Sending to your number...</p>
+              </div>
+            ) : null}
+
+            {phase === 'success' ? (
+              <div className="py-8 text-center">
+                <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-4 border-emerald-400/40 bg-emerald-500/15 text-emerald-300">
+                  <Check className="h-12 w-12" strokeWidth={3} />
+                </div>
+                <p className="mt-5 text-lg font-bold text-main-text">withdraw succeeded</p>
+                <p className="mt-1 text-sm text-muted-text">Sent to {successPhone}</p>
+                <button
+                  type="button"
+                  onClick={() => { setWithdrawOpen(false); setPhase('idle'); setSms(null) }}
+                  className="mt-6 rounded-xl bg-accent px-8 py-2.5 text-sm font-bold text-background hover:opacity-90"
+                >
+                  Done
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {sms ? (
+        <div className="fixed left-1/2 top-4 z-[60] w-[min(92vw,420px)] -translate-x-1/2" style={{ animation: 'pop-in .28s ease-out' }}>
+          <div className="rounded-2xl border border-white/15 bg-[#1f2937]/95 p-3 shadow-2xl backdrop-blur">
+            <div className="flex gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-white">M</div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-white">Mobile Money</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-gray-200">{sms}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { WinnerReceipt } from '@/components/bet/winner-receipt'
+import { canUseSpecialBetTools } from '@/lib/auth/entitlements'
+import { getViewer } from '@/lib/auth/session'
 import { BetError } from '@/lib/bet/errors'
 import {
   getWinnerSlipByCode,
@@ -28,7 +30,11 @@ export default async function WinnerSlipPage({ params }: { params: Params }) {
     throw error
   }
 
-  return <WinnerReceipt winner={toPublicWinnerView(winner)} />
+  const viewer = await getViewer()
+  const canWithdraw =
+    viewer.userId === winner.userId && canUseSpecialBetTools(viewer)
+
+  return <WinnerReceipt winner={toPublicWinnerView(winner)} canWithdraw={canWithdraw} />
 }
 
 export const instant = false
