@@ -449,8 +449,12 @@ export function TicketsList({ tickets }: { tickets: BetTicketView[] }) {
     }
 
     void loadEvents()
-    const timer = setInterval(loadEvents, 30_000)
-    const refreshTimer = setInterval(() => router.refresh(), 15_000)
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') void loadEvents()
+    }, 60_000)
+    const refreshTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') router.refresh()
+    }, 120_000)
     return () => {
       active = false
       clearInterval(timer)

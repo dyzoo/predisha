@@ -7,13 +7,15 @@ import type { MatchView } from '@/lib/sports/view-model'
 import { MatchCard } from '@/components/matches/match-card'
 
 const PAGE_SIZE = 6
-const REFRESH_INTERVAL_MS = 30_000
+const REFRESH_INTERVAL_MS = 120_000
 
 export function MatchAutoRefresh({ intervalMs = REFRESH_INTERVAL_MS }: { intervalMs?: number }) {
   const router = useRouter()
 
   useEffect(() => {
-    const timer = window.setInterval(() => router.refresh(), intervalMs)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') router.refresh()
+    }, intervalMs)
     return () => window.clearInterval(timer)
   }, [router, intervalMs])
 

@@ -564,6 +564,7 @@ export function ShareLoader({ code }: { code: string }) {
     if (state !== 'ready') return
     let cancelled = false
     const timer = setInterval(async () => {
+      if (document.visibilityState !== 'visible') return
       try {
         const response = await fetch(`/api/bet/share/${encodeURIComponent(code)}`, {
           cache: 'no-store',
@@ -579,7 +580,7 @@ export function ShareLoader({ code }: { code: string }) {
       } catch {
         return
       }
-    }, awaitingSimulatedStart ? 5_000 : 30_000)
+    }, awaitingSimulatedStart ? 15_000 : 60_000)
 
     return () => {
       cancelled = true
@@ -591,6 +592,7 @@ export function ShareLoader({ code }: { code: string }) {
     if (!entry || entry.status !== 'PENDING') return
     let cancelled = false
     const timer = setInterval(async () => {
+      if (document.visibilityState !== 'visible') return
       try {
         const response = await fetch(`/api/bet/share/entries/${encodeURIComponent(entry.id)}`, {
           cache: 'no-store',
@@ -600,7 +602,7 @@ export function ShareLoader({ code }: { code: string }) {
       } catch {
         return
       }
-    }, 3000)
+    }, 10_000)
     return () => {
       cancelled = true
       clearInterval(timer)
@@ -666,7 +668,9 @@ export function ShareLoader({ code }: { code: string }) {
       }
     }
     void loadTicket()
-    const timer = setInterval(() => void loadTicket(), ticket?.status === 'OPEN' ? 10_000 : 30_000)
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') void loadTicket()
+    }, ticket?.status === 'OPEN' ? 30_000 : 60_000)
     return () => {
       cancelled = true
       clearInterval(timer)
