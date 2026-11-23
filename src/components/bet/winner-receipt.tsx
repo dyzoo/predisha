@@ -83,12 +83,18 @@ export function WinnerReceipt({
 
   useEffect(() => {
     if (phase !== 'success') return
-    const timer = window.setTimeout(() => {
+    const showTimer = window.setTimeout(() => {
       setSms(buildSms(Number(amount) || winner.netPayoutMinor).text)
       playMessageTone()
     }, 1200)
-    return () => window.clearTimeout(timer)
+    return () => window.clearTimeout(showTimer)
   }, [phase, amount, winner.netPayoutMinor])
+
+  useEffect(() => {
+    if (!sms) return
+    const hideTimer = window.setTimeout(() => setSms(null), 3500)
+    return () => window.clearTimeout(hideTimer)
+  }, [sms])
 
   async function downloadSlip() {
     if (!receiptRef.current || downloading) return
@@ -446,13 +452,13 @@ export function WinnerReceipt({
       ) : null}
 
       {sms ? (
-        <div className="fixed left-1/2 top-4 z-[60] w-[min(92vw,420px)] -translate-x-1/2" style={{ animation: 'pop-in .28s ease-out' }}>
-          <div className="rounded-2xl border border-white/15 bg-[#1f2937]/95 p-3 shadow-2xl backdrop-blur">
+        <div className="fixed left-1/2 top-2 z-[60] w-[min(92vw,420px)] -translate-x-1/2" style={{ animation: 'pop-in .28s ease-out' }}>
+          <div className="rounded-2xl border border-white/15 bg-[#1f2937]/70 p-3 shadow-2xl backdrop-blur">
             <div className="flex gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-white">M</div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white">Mobile Money</p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-gray-200">{sms}</p>
+                <p className="text-xs font-semibold text-white">M-PESA</p>
+                <p className="mt-0.5 truncate text-[11px] leading-relaxed text-gray-200">{sms}</p>
               </div>
             </div>
           </div>
