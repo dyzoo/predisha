@@ -45,19 +45,23 @@ function playMessageTone() {
     const Ctx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (!Ctx) return
     const ctx = new Ctx()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(880, ctx.currentTime)
-    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08)
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35)
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.36)
-    osc.onended = () => void ctx.close()
+    const now = ctx.currentTime
+    const notes = [1174.66, 1396.91, 1760] // D6, F6, A6 - tri-tone notification
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      const start = now + i * 0.1
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(0.1, start + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(start)
+      osc.stop(start + 0.3)
+    })
+    window.setTimeout(() => { void ctx.close() }, 1200)
   } catch {
     // Ignore audio failures; the visual message still appears.
   }
@@ -452,13 +456,13 @@ export function WinnerReceipt({
       ) : null}
 
       {sms ? (
-        <div className="fixed left-1/2 top-2 z-[60] w-[min(92vw,420px)] -translate-x-1/2" style={{ animation: 'pop-in .28s ease-out' }}>
-          <div className="rounded-2xl border border-white/15 bg-[#1f2937]/70 p-3 shadow-2xl backdrop-blur">
+        <div className="fixed left-1/2 top-2 z-[60] w-[min(94vw,460px)] -translate-x-1/2" style={{ animation: 'pop-in .28s ease-out' }}>
+          <div className="rounded-2xl border border-black/10 bg-white/90 p-3 shadow-2xl backdrop-blur">
             <div className="flex gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold text-white">M</div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-white">M-PESA</p>
-                <p className="mt-0.5 truncate text-[11px] leading-relaxed text-gray-200">{sms}</p>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700 ring-1 ring-black/5">M</div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-gray-900">M-PESA</p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-600">{sms}</p>
               </div>
             </div>
           </div>
