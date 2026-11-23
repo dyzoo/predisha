@@ -1,4 +1,4 @@
-import { Bomb, CircleDot, Dices, Plane, Sparkles } from 'lucide-react'
+import { Bomb, CircleDot, Dices, Plane } from 'lucide-react'
 import type { GameCardDefinition } from './game-card'
 
 export const BET_GAMES: GameCardDefinition[] = [
@@ -34,7 +34,7 @@ export const BET_GAMES: GameCardDefinition[] = [
     href: '/bet/games/slots',
     title: 'Slots',
     description: 'A three-reel arcade with weighted symbols and clear payouts.',
-    icon: Sparkles,
+    icon: Dices,
     tag: 'Arcade',
   },
 ]

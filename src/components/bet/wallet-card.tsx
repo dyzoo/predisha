@@ -23,6 +23,9 @@ export function WalletCard({
         <p className="mt-3 text-4xl font-bold tracking-tight tabular-nums">
           {formatTzs(wallet.balanceMinor)}
         </p>
+        <p className="mt-1 text-xs text-muted-text">
+          Total staked: <span className="font-semibold tabular-nums">{formatTzs(wallet.totalStakedMinor)}</span>
+        </p>
         <p className="mt-1 text-xs text-muted-text">{copy.walletHint}</p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Reveal } from '@/components/ui/reveal'
 
 export function CallToAction() {
@@ -14,7 +14,7 @@ export function CallToAction() {
             />
             <div className="relative">
               <span className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
-                <Sparkles className="h-3.5 w-3.5" />
+                <ArrowRight className="h-3.5 w-3.5" />
                 Matchday ready
               </span>
               <h2 className="mx-auto mt-5 max-w-2xl font-display text-3xl font-bold tracking-tight sm:text-4xl">

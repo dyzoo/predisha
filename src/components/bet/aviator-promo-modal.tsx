@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Gift, Plane, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Gift, Plane, X } from 'lucide-react'
 import { formatMultiplier, formatTzs } from '@/lib/bet/format'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
 
@@ -37,7 +37,7 @@ export function AviatorPromoModal({
             </span>
             <div>
               <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-                <Sparkles className="h-3.5 w-3.5" />
+                <Gift className="h-3.5 w-3.5" />
                 Aviator bonus unlocked
               </p>
               <h2 id="aviator-promo-title" className="mt-1 font-display text-2xl font-semibold">

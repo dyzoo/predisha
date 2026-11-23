@@ -12,7 +12,6 @@ import {
   Loader2,
   Printer,
   ReceiptText,
-  Sparkles,
   Wallet,
 } from 'lucide-react'
 import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
@@ -98,7 +97,7 @@ export function WinnerReceipt({ winner }: { winner: PublicWinnerSlipView }) {
               </span>
               <div>
                 <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.24em] text-emerald-400">
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <ReceiptText className="h-3.5 w-3.5" />
                   Winner slip
                 </p>
                 <h1 className="mt-1 font-display text-2xl font-black leading-tight text-main-text sm:text-3xl">

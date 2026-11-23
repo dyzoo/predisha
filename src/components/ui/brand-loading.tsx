@@ -14,12 +14,10 @@ export function BrandLoading({
       className={`flex items-center justify-center px-4 py-10 ${className}`}
     >
       <div className="flex w-full max-w-sm flex-col items-center">
-        <div className="rounded-3xl bg-white px-6 py-4 shadow-2xl shadow-black/20">
-          <BrandLogo surface="light" className="h-12 w-auto sm:h-14" priority />
-        </div>
+        <BrandLogo surface="dark" className="h-12 w-auto sm:h-14" priority />
         <div className="mt-6 w-full">
           <div
-            className="h-1.5 w-full overflow-hidden rounded-full bg-black"
+            className="h-1.5 w-full overflow-hidden rounded-full bg-white/15"
             aria-hidden="true"
           >
             <div className="brand-loading-bar__fill h-full rounded-full bg-accent" />

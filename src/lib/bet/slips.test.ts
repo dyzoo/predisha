@@ -279,6 +279,51 @@ describe('toAdminSlipView', () => {
     expect(view.quote.totalOdds).toBeLessThan(2)
   })
 
+  it('restores original odds after the match is finished', () => {
+    const finishedSelection = {
+      ...selection(0.9),
+      baseOdds: 2,
+      simulation: {
+        liveStartedAt: '2026-01-01T08:00:00.000Z',
+        durationMinutes: 45,
+        seed: 'finished',
+        kickoffIso: '2026-01-01T08:00:00.000Z',
+      },
+    }
+    const view = toAdminSlipView(
+      {
+        id: 'slip-5',
+        code: 'FIN123',
+        title: null,
+        mode: 'LIVE',
+        selections: [finishedSelection] as never,
+        totalOdds: 0.9,
+        stakeMinor: 1000,
+        potentialReturnMinor: 900,
+        status: 'FROZEN',
+        timeMode: 'SIMULATED',
+        selectionSource: 'RANDOM',
+        manualKickoffAt: null,
+        simulatedDurationMinutes: 45,
+        liveStartedAt: new Date('2026-01-01T08:00:00.000Z'),
+        freezeReason: 'Full time. Betting is closed for this slip.',
+        autoFreezeAt: new Date('2027-01-01T12:00:00.000Z'),
+        frozenAt: now,
+        frozenBy: 'admin-1',
+        createdBy: 'admin-1',
+        createdAt: now,
+        updatedAt: now,
+      },
+      now,
+    )
+
+    expect(view.matchClock?.label).toBe('FT')
+    expect(view.inPlay).toBe(false)
+    expect(view.quote.factor).toBe(1)
+    expect(view.quote.totalOdds).toBe(2)
+    expect(view.selections[0]?.odds).toBe(2)
+  })
+
   it('does not attach a simulated clock to real catalog fixtures', () => {
     const realSelection = { ...selection(2), fixtureId: '12345' }
     const view = toAdminSlipView(

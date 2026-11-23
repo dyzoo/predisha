@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import type { Prisma, SubscriptionStatus } from '@prisma/client'
-import { CircleCheck, Filter, Search, ShieldCheck, Sparkles, Users } from 'lucide-react'
+import { CircleCheck, Filter, Search, ShieldCheck, Users } from 'lucide-react'
 import { AdminShell } from '@/components/admin/admin-shell'
 import { AdminAccessState } from '@/components/admin/admin-access-state'
 import { AdminCreateAdmin } from '@/components/admin/admin-create-admin'
@@ -256,7 +256,7 @@ export default async function AdminUsersPage({
                         </span>
                         {user.isSpecial ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
-                            <Sparkles className="h-3 w-3" />
+                            <CircleCheck className="h-3 w-3" />
                             Special
                           </span>
                         ) : null}

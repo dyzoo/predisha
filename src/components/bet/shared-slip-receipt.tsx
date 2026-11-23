@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import Image from 'next/image'
-import { CircleCheck, Share2 } from 'lucide-react'
+import { CircleCheck, Share2, Trash2 } from 'lucide-react'
 import { formatOdds, formatTsh } from '@/lib/bet/format'
 import { VAT_PERCENT } from '@/lib/bet/vat'
 
@@ -110,6 +110,7 @@ export function SharedSlipReceipt({
   won = false,
   copied = false,
   onCopy,
+  onRemove,
   children,
 }: {
   code: string
@@ -125,6 +126,7 @@ export function SharedSlipReceipt({
   won?: boolean
   copied?: boolean
   onCopy?: () => void
+  onRemove?: (key: string) => void
   children?: ReactNode
 }) {
   const palette = palettes[theme]
@@ -264,6 +266,17 @@ export function SharedSlipReceipt({
                   <span className="text-[12px] font-black tabular-nums" style={{ color: palette.text }}>
                     {formatOdds(selection.odds)}
                   </span>
+                  {onRemove ? (
+                    <button
+                      type="button"
+                      onClick={() => onRemove(selection.key)}
+                      aria-label={`Remove ${selection.selectionLabel}`}
+                      className="rounded-md p-1 transition-colors hover:bg-black/10"
+                      style={{ color: palette.muted }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))

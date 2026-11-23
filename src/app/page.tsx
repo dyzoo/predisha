@@ -12,7 +12,6 @@ import { LiveTicker } from '@/components/landing/live-ticker'
 import { getMatchAnalyses } from '@/lib/sports/service'
 import { toMatchView } from '@/lib/sports/view-model'
 import { getViewer } from '@/lib/auth/session'
-import { withMinimumLoading } from '@/lib/loading'
 
 const trustItems = [
   { icon: Activity, label: 'Multi-market probabilities' },
@@ -23,9 +22,10 @@ const trustItems = [
 
 export default async function Home() {
   await connection()
-  const [{ analyses, dataset }, viewer] = await withMinimumLoading(
-    Promise.all([getMatchAnalyses(), getViewer()]),
-  )
+  const [{ analyses, dataset }, viewer] = await Promise.all([
+    getMatchAnalyses(),
+    getViewer(),
+  ])
   const signedIn = Boolean(viewer.userId)
   const health = dataset.health
   const isDemo = dataset.isDemo

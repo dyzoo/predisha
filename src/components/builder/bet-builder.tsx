@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Link from 'next/link'
-import { ArrowRight, BarChart3, Brain, Check, ChevronDown, ChevronUp, CircleAlert, Database, Download, Layers, ListChecks, Loader2, LogIn, Lock, Share2, ShieldCheck, Sparkles, Target, TrendingUp, UserPlus } from 'lucide-react'
+import { ArrowRight, BarChart3, Brain, Check, ChevronDown, ChevronUp, CircleAlert, Database, Download, Layers, ListChecks, Loader2, LogIn, Lock, Share2, ShieldCheck, Target, TrendingUp, UserPlus } from 'lucide-react'
 import { useViewer } from '@/components/ui/viewer-provider'
 import { TeamBadge } from '@/components/teams/team-badge'
 import {
@@ -67,7 +67,7 @@ const ANALYSIS_STAGES = [
     detail: 'Checking 1X2, double chance, totals and both-teams-to-score.',
   },
   {
-    icon: Sparkles,
+    icon: Layers,
     title: 'Preparing your prediction',
     detail: 'Ranking the strongest options for your risk profile.',
   },
@@ -221,7 +221,7 @@ export function BetBuilder({
           className="h-fit rounded-2xl border border-border bg-surface/60 p-5 sm:p-6"
         >
           <h2 className="flex items-center gap-2 font-display text-base font-bold">
-            <Sparkles className="h-4 w-4 text-accent" />
+            <Layers className="h-4 w-4 text-accent" />
             Prediction inputs
           </h2>
 
@@ -411,7 +411,7 @@ export function BetBuilder({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <Layers className="h-3.5 w-3.5" />
                     Your AI prediction slip
                   </p>
                   <p className="mt-1 text-xs text-muted-text">
@@ -675,7 +675,7 @@ export function BetBuilder({
           ) : (
             <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 p-8 text-center">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
-                <Sparkles className="h-6 w-6" />
+                <Layers className="h-6 w-6" />
               </span>
               <p className="mt-4 text-base font-semibold">Your slip will appear here</p>
               <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-text">

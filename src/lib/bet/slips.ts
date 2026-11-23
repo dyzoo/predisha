@@ -290,7 +290,21 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
         )
       : []
   const inPlay = clockSources.some(candidate => matchClock(candidate, now.getTime()).live)
-  const quote = inPlayQuote(slip.stakeMinor, displaySelections, clock, now.getTime())
+  const livePricing = Boolean(
+    clock && match && match.live && !match.finished && slip.status !== 'CLOSED',
+  )
+  const pricedSelections = livePricing
+    ? displaySelections
+    : displaySelections.map(selection => ({
+        ...selection,
+        odds: selection.baseOdds ?? selection.odds,
+      }))
+  const quote = inPlayQuote(
+    slip.stakeMinor,
+    pricedSelections,
+    livePricing ? clock : null,
+    now.getTime(),
+  )
   return {
     id: slip.id,
     code: slip.code,

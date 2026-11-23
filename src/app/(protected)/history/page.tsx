@@ -10,7 +10,6 @@ import {
   Clock3,
   History,
   Lock,
-  Sparkles,
   XCircle,
 } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
@@ -92,7 +91,7 @@ export default async function HistoryPage() {
           href="/builder"
           className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
         >
-          <Sparkles className="h-4 w-4" />
+          <CheckCircle2 className="h-4 w-4" />
           Build a prediction
         </Link>
       </div>

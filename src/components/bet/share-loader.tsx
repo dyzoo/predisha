@@ -19,7 +19,6 @@ import {
   Radio,
   Share2,
   Smartphone,
-  Sparkles,
   Trophy,
   UserPlus,
   WalletCards,
@@ -47,7 +46,6 @@ import {
 import { TeamBadge } from '@/components/teams/team-badge'
 import { BrandLogo } from '@/components/brand-logo'
 import { BrandLoading } from '@/components/ui/brand-loading'
-import { waitForMinimum } from '@/lib/loading'
 import { AviatorPromoBanner } from './aviator-promo-banner'
 import { AviatorPromoModal } from './aviator-promo-modal'
 import { useBetSlip } from './bet-slip-provider'
@@ -519,7 +517,6 @@ export function ShareLoader({ code }: { code: string }) {
     setPlacedTicket(null)
 
     async function load() {
-      const startedAt = Date.now()
       try {
         const response = await fetch(`/api/bet/share/${encodeURIComponent(code)}`, {
           cache: 'no-store',
@@ -531,8 +528,6 @@ export function ShareLoader({ code }: { code: string }) {
           setMessage(payload.error ?? 'That share link could not be loaded.')
           return
         }
-        await waitForMinimum(startedAt)
-        if (cancelled) return
         if (payload.slip) {
           setSlip(payload.slip)
           setPaymentStakeMinor(payload.slip.stakeMinor)
@@ -869,7 +864,7 @@ export function ShareLoader({ code }: { code: string }) {
         marketName: selection.marketName,
         selectionId: selection.selectionId,
         selectionLabel: selection.selectionLabel,
-        odds: String(selection.odds),
+        odds: String(selection.baseOdds ?? selection.odds),
         marker: selection.marker ?? 'gray',
         kickoffIso: toDateTimeInput(selection.kickoffIso),
       })),
@@ -1372,7 +1367,7 @@ export function ShareLoader({ code }: { code: string }) {
           <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/5 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-200">
-                <Sparkles className="h-3.5 w-3.5" />
+                <Pencil className="h-3.5 w-3.5" />
                 Special slip controls
               </p>
               <button
@@ -1512,7 +1507,7 @@ export function ShareLoader({ code }: { code: string }) {
                     disabled={editBusy}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-300 px-3 py-2 text-[11px] font-bold text-amber-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {editBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    {editBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pencil className="h-3.5 w-3.5" />}
                     {editBusy ? 'Saving edits…' : 'Save slip edits'}
                   </button>
                   <button
@@ -1600,6 +1595,12 @@ export function ShareLoader({ code }: { code: string }) {
             </div>
             <h2 className="mt-3 font-display text-xl font-semibold">Bet confirmed</h2>
             <p className="mt-1 text-sm text-muted-text">{entry?.message}</p>
+            {!signedIn ? (
+              <p className="mt-2 text-[11px] text-muted-text">
+                Your stake of {formatTzs(activePaymentStakeMinor)} is on this receipt. Sign in to see
+                your wallet history.
+              </p>
+            ) : null}
             {entry?.ticketCode ? (
               <div className="mx-auto mt-4 max-w-xs rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-main-text">
                 <p className="text-[10px] uppercase tracking-wide text-muted-text">Ticket code</p>

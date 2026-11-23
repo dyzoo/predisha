@@ -8,7 +8,6 @@ import {
   Loader2,
   Plane,
   ShieldCheck,
-  Sparkles,
   Trophy,
   Wallet,
 } from 'lucide-react'
@@ -101,7 +100,7 @@ export function AviatorTrialGame({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-            <Sparkles className="h-3.5 w-3.5" />
+            <Plane className="h-3.5 w-3.5" />
             Guest Aviator trial
           </p>
           <h1 className="mt-1 font-display text-3xl font-semibold">One flight. One big prize.</h1>

@@ -1,5 +1,5 @@
 ﻿import Link from 'next/link'
-import { ArrowRight, Check, Sparkles } from 'lucide-react'
+import { ArrowRight, Check } from 'lucide-react'
 import { formatPlanAmount, getPublicPlans } from '@/lib/billing/plans'
 import { getViewer } from '@/lib/auth/session'
 import { Reveal } from '@/components/ui/reveal'
@@ -86,7 +86,7 @@ export async function PricingPreview() {
                   </div>
                 ) : null}
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-accent" />
+                  <Check className="h-4 w-4 text-accent" />
                   <h3 className="font-display text-xl font-bold">{plan.name}</h3>
                 </div>
                 <p className="mt-2 text-sm text-muted-text">{billingLabel(plan.interval)}</p>

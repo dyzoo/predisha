@@ -11,7 +11,6 @@ import {
   Plus,
   RefreshCw,
   Shuffle,
-  Sparkles,
   Trash2,
   Wand2,
   X,
@@ -433,7 +432,7 @@ export function AdminSlipGenerator({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 font-display text-base font-bold text-main-text">
-            <Sparkles className="h-4 w-4 text-accent" />
+            <CircleCheck className="h-4 w-4 text-accent" />
             Bet slip builder
           </h2>
           <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-text">

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Gamepad2, Sparkles, Wallet, X } from 'lucide-react'
+import { ArrowRight, Gamepad2, Wallet, X } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
 
 export function BetDepositPromoModal({
@@ -42,7 +42,7 @@ export function BetDepositPromoModal({
             </span>
             <div>
               <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
-                <Sparkles className="h-3.5 w-3.5" />
+                <Gamepad2 className="h-3.5 w-3.5" />
                 Games are ready
               </p>
               <h2 id="bet-deposit-promo-title" className="mt-1 font-display text-2xl font-semibold">

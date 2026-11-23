@@ -25,9 +25,6 @@ import {
   ShieldCheck,
 
   SlidersHorizontal,
-
-  Sparkles,
-
   UserRound,
 
 } from 'lucide-react'
@@ -191,7 +188,7 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-accent">
-                <Sparkles className="h-3.5 w-3.5" />
+                <ShieldCheck className="h-3.5 w-3.5" />
                 Winnings received
               </p>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-main-text">
@@ -209,7 +206,7 @@ export default async function DashboardPage() {
 
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-accent">
 
-              <Sparkles className="h-3.5 w-3.5" />
+              <ShieldCheck className="h-3.5 w-3.5" />
 
               AI Bet Builder
 
@@ -266,7 +263,7 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rounded-2xl border border-border bg-surface/60 p-5">
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-text">
-            <Sparkles className="h-3.5 w-3.5 text-accent" />
+            <ShieldCheck className="h-3.5 w-3.5 text-accent" />
             Access
           </p>
           <p className="mt-3 text-lg font-semibold text-main-text">

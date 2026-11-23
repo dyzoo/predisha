@@ -16,7 +16,6 @@ import {
   Radio,
   ShieldAlert,
   SlidersHorizontal,
-  Sparkles,
   Ticket,
   Trophy,
   UserRound,
@@ -54,7 +53,7 @@ const DEPOSIT_PROMO_DISMISS_KEY = 'spotibet.bet.depositPromo.dismissed'
 
 const ACCOUNT_MENU = [
   { href: '/dashboard', label: 'Dashboard', description: 'Account overview', icon: LayoutDashboard },
-  { href: '/builder', label: 'Build prediction', description: 'Create a new slip', icon: Sparkles },
+  { href: '/builder', label: 'Build prediction', description: 'Create a new slip', icon: Gift },
   { href: '/bet/bets', label: 'My bets', description: 'Open and settled tickets', icon: History },
   { href: '/bet/account', label: 'Wallet', description: 'Balance and transactions', icon: Wallet },
   { href: '/bet/deposit', label: 'Deposit', description: 'Add funds to your wallet', icon: CreditCard },

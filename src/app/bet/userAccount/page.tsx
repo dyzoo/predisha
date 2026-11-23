@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { connection } from 'next/server'
-import { Plane, Sparkles } from 'lucide-react'
+import { Plane } from 'lucide-react'
 import { AuthRequired } from '@/components/bet/auth-required'
 import { SectionHeading } from '@/components/bet/section-heading'
 import { TrialWithdrawalPanel } from '@/components/bet/trial-withdrawal-panel'
@@ -65,7 +65,7 @@ export default async function UserAccountPage() {
               href="/bet/sports"
               className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-background"
             >
-              <Sparkles className="h-4 w-4" />
+              <Plane className="h-4 w-4" />
               Browse shared slips
             </Link>
           </section>

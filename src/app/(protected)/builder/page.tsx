@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
-import { ArrowRight, Lock, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowRight, Lock, ShieldCheck } from 'lucide-react'
 import { BetBuilder } from '@/components/builder/bet-builder'
 import { SiteFooter } from '@/components/site-footer'
 import { SiteHeader } from '@/components/site-header'
@@ -72,7 +72,7 @@ export default async function BuilderPage() {
       <main className="flex-1">
         <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-            <Sparkles className="h-3.5 w-3.5" />
+            <ShieldCheck className="h-3.5 w-3.5" />
             AI Bet Builder
           </p>
           <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">

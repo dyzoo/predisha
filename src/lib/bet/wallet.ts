@@ -31,14 +31,21 @@ function toTransactionView(transaction: {
 }
 
 export async function getWalletView(userId: string): Promise<BetWalletView> {
-  const wallet = await ensureWallet(userId)
-  const transactions = await prisma.betTransaction.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-  })
+  const [wallet, transactions, staked] = await Promise.all([
+    ensureWallet(userId),
+    prisma.betTransaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    }),
+    prisma.betTicket.aggregate({
+      where: { userId },
+      _sum: { stakeMinor: true },
+    }),
+  ])
   return {
     balanceMinor: wallet.balanceMinor,
+    totalStakedMinor: staked._sum.stakeMinor ?? 0,
     currency: 'TZS',
     mode: await getBetMode(),
     transactions: transactions.map(toTransactionView),

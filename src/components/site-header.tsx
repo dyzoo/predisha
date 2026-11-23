@@ -14,7 +14,6 @@ import {
   Menu,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
   UserRound,
   X,
 } from 'lucide-react'
@@ -32,7 +31,7 @@ const links = [
 
 const accountLinks = [
   { href: '/dashboard', label: 'Dashboard', description: 'Account overview', icon: LayoutDashboard },
-  { href: '/builder', label: 'Build prediction', description: 'Create a new slip', icon: Sparkles },
+  { href: '/builder', label: 'Build prediction', description: 'Create a new slip', icon: LayoutDashboard },
   { href: '/saved', label: 'Saved matches', description: 'Your bookmarked fixtures', icon: Bookmark },
   { href: '/history', label: 'Prediction history', description: 'Stored slips and results', icon: History },
   { href: '/settings/profile', label: 'Profile', description: 'Name and account details', icon: UserRound },

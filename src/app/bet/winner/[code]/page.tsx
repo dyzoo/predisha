@@ -8,7 +8,6 @@ import {
   toPublicWinnerView,
   type WinnerSlipView,
 } from '@/lib/bet/winners'
-import { withMinimumLoading } from '@/lib/loading'
 
 type Params = Promise<{ code: string }>
 
@@ -23,7 +22,7 @@ export default async function WinnerSlipPage({ params }: { params: Params }) {
 
   let winner: WinnerSlipView
   try {
-    winner = await withMinimumLoading(getWinnerSlipByCode(code))
+    winner = await getWinnerSlipByCode(code)
   } catch (error) {
     if (error instanceof BetError && error.status === 404) notFound()
     throw error

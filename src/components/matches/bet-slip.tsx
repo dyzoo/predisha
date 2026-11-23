@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CircleAlert, Download, Lock, Sparkles } from 'lucide-react'
+import { CircleAlert, Download, Lock, ReceiptText } from 'lucide-react'
 import type { MatchView } from '@/lib/sports/view-model'
 import { useLanguage, type Language } from '@/components/ui/language-provider'
 import { BRAND_LOGO_ASPECT, loadBrandLogo } from '@/lib/brand/logo-image'
@@ -259,7 +259,7 @@ export function BetSlip({ match, premium }: BetSlipProps) {
   return (
     <section className="rounded-2xl border border-border bg-surface/60 p-5">
       <h2 className="flex items-center gap-2 font-display text-base font-bold">
-        <Sparkles className="h-4 w-4 text-accent" />
+        <ReceiptText className="h-4 w-4 text-accent" />
         {t.heading}
       </h2>
       <p className="mt-2 text-xs leading-relaxed text-muted-text">{t.subtitle}</p>

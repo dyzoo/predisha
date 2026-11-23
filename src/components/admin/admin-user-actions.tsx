@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { CircleAlert, CircleCheck, Loader2, Save, Sparkles, WalletCards } from 'lucide-react'
+import { CircleAlert, CircleCheck, Loader2, Save, WalletCards } from 'lucide-react'
 import { formatTzs } from '@/lib/bet/format'
 import { MAX_DEPOSIT_MINOR } from '@/lib/bet/types'
 
@@ -215,7 +215,7 @@ export function AdminUserActions({
         />
         <span className="min-w-0">
           <span className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-200">
-            <Sparkles className="h-3.5 w-3.5" />
+            <CircleCheck className="h-3.5 w-3.5" />
             Special user
           </span>
           <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-text">

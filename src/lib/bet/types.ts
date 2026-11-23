@@ -257,6 +257,7 @@ export interface BetTransactionView {
 
 export interface BetWalletView {
   balanceMinor: number
+  totalStakedMinor: number
   currency: typeof BET_CURRENCY
   mode: BetMode
   transactions: BetTransactionView[]
