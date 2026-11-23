@@ -388,6 +388,8 @@ export function ShareLoader({ code }: { code: string }) {
   const loadedCode = useRef<string | null>(null)
   const promoStarted = useRef(false)
   const activePaymentStakeMinor = paymentStakeMinor || slip?.stakeMinor || 0
+  const isAdminSlip = Boolean(slip)
+  const effectiveMinStakeMinor = isAdminSlip ? 1 : minStakeMinor
 
   const activeClock = slip?.clock ?? null
   const activeMatch = activeClock ? matchClock(activeClock, now) : null
@@ -399,7 +401,6 @@ export function ShareLoader({ code }: { code: string }) {
   const canForceCashout = Boolean(
     slipViewer?.role === 'ADMIN' || slipViewer?.role === 'SUPER_ADMIN',
   )
-  const isAdminSlip = Boolean(slip)
   const paid = entry?.status === 'PAID'
   const pending = entry?.status === 'PENDING'
   const failed = entry?.status === 'FAILED' || entry?.status === 'CANCELLED'
@@ -1825,6 +1826,8 @@ export function ShareLoader({ code }: { code: string }) {
 function readyStatusLabel(slip: AdminSlip): string {
   return slip.status === 'FROZEN' ? 'Betting paused' : 'Ready to play'
 }
+
+
 
 
 
