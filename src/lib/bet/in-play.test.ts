@@ -1,5 +1,10 @@
 ﻿import { describe, expect, it } from 'vitest'
-import { applyInPlayOdds, inPlayOddsFactor, inPlayQuote } from './in-play'
+import {
+  applyInPlayOdds,
+  inPlayOddsFactor,
+  inPlayQuote,
+  liveMatchesForSelections,
+} from './in-play'
 import type { TicketSelection, TicketSimulationMeta } from './types'
 
 const clock: TicketSimulationMeta = {
@@ -83,6 +88,42 @@ describe('in-play odds', () => {
     expect(live.netPayoutMinor).toBeLessThan(pre.netPayoutMinor)
     const baseTotal = live.selections.reduce((acc, item) => acc * (item.baseOdds ?? item.odds), 1)
     expect(live.factor).toBeCloseTo(live.totalOdds / baseTotal, 3)
+  })
+})
+
+describe('live matches', () => {
+  const now = new Date('2026-01-01T12:30:00.000Z')
+
+  it('goes live only for the selection whose assigned kickoff has reached', () => {
+    const early = { ...selection(), fixtureId: 'early' }
+    const late = {
+      ...selection(),
+      fixtureId: 'late',
+      kickoffIso: '2026-01-01T15:00:00.000Z',
+    }
+
+    const matches = liveMatchesForSelections([early, late], clock, [], now)
+
+    expect(matches.map(match => match.fixtureId)).toEqual(['early'])
+    expect(matches[0]?.label).toBe("31'")
+  })
+
+  it('merges an admin live score into the same live row', () => {
+    const scored = {
+      ...selection(),
+      liveScore: { home: 2, away: 1 },
+      liveMinute: 37,
+    }
+
+    const matches = liveMatchesForSelections([scored], clock, [], now)
+
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toMatchObject({
+      fixtureId: 'fixture-1',
+      minute: 37,
+      label: "37'",
+      score: { home: 2, away: 1 },
+    })
   })
 })
 

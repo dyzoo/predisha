@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { computeTicketTotals, evaluateTicket } from './bets'
+import { matchClock } from './match-clock'
 import { maskTzPhone } from './phone'
 import { canDeleteAdminBetSlip, isSlipFrozen, maskPhone, toAdminSlipView } from './slips'
 import { formatLiveMinute, slipStakeOptions, type TicketSelection } from './types'
@@ -355,5 +356,50 @@ describe('toAdminSlipView', () => {
 
     expect(view.inPlay).toBe(false)
     expect(view.selections[0]?.simulation).toBeUndefined()
+  })
+
+  it('counts each simulated selection from its own kickoff', () => {
+    const started = {
+      ...selection(2),
+      fixtureId: 'early',
+      kickoffIso: '2026-01-01T12:00:00.000Z',
+    }
+    const upcoming = {
+      ...selection(3),
+      fixtureId: 'late',
+      kickoffIso: '2026-01-01T12:15:00.000Z',
+    }
+    const view = toAdminSlipView(
+      {
+        id: 'slip-6',
+        code: 'LIVE12',
+        title: null,
+        mode: 'LIVE',
+        selections: [started, upcoming] as never,
+        totalOdds: 6,
+        stakeMinor: 1000,
+        potentialReturnMinor: 6000,
+        status: 'OPEN',
+        timeMode: 'SIMULATED',
+        selectionSource: 'RANDOM',
+        manualKickoffAt: null,
+        simulatedDurationMinutes: 90,
+        liveStartedAt: null,
+        freezeReason: null,
+        autoFreezeAt: new Date('2027-01-01T12:00:00.000Z'),
+        frozenAt: null,
+        frozenBy: null,
+        createdBy: 'admin-1',
+        createdAt: new Date('2026-01-01T10:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+      },
+      new Date('2026-01-01T12:05:00.000Z'),
+    )
+
+    expect(view.clock).not.toBeNull()
+    expect(view.inPlay).toBe(true)
+    const clocks = view.selections.map(item => item.simulation!)
+    expect(matchClock(clocks[0]!, Date.parse('2026-01-01T12:05:00.000Z')).live).toBe(true)
+    expect(matchClock(clocks[1]!, Date.parse('2026-01-01T12:05:00.000Z')).started).toBe(false)
   })
 })

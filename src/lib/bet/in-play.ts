@@ -1,9 +1,27 @@
 import { matchClock, matchClockFromKickoff } from './match-clock'
 import { combineOdds } from './odds'
+import { DEFAULT_SIMULATED_DURATION_MINUTES, simulatedScore, simulationClockForSelection } from './simulation'
+import {
+  formatLiveMinute,
+  isProviderFixtureId,
+  type BetEvent,
+  type TicketSelection,
+  type TicketSimulationMeta,
+} from './types'
 import { applyVat } from './vat'
-import type { TicketSelection, TicketSimulationMeta } from './types'
 
 export const MIN_IN_PLAY_ODDS_FACTOR = 0.45
+
+export interface LiveMatchRow {
+  fixtureId: string
+  competition: string
+  kickoffIso: string
+  minute: number | null
+  label?: string
+  score: { home: number; away: number } | null
+  home: { name: string; short: string; color: string; logoUrl?: string | null }
+  away: { name: string; short: string; color: string; logoUrl?: string | null }
+}
 
 function roundOdds(value: number): number {
   return Math.round(value * 100) / 100
@@ -33,6 +51,84 @@ export function clockFromKickoff(
     seed,
     kickoffIso,
   }
+}
+
+export function selectionHasLiveOverride(selection: TicketSelection): boolean {
+  return (
+    selection.result === 'PENDING' &&
+    !selection.finalScore &&
+    (selection.liveScore != null || selection.liveMinute != null)
+  )
+}
+
+function liveMatchTeams(selection: TicketSelection): Pick<LiveMatchRow, 'home' | 'away'> {
+  const [homeName = 'Home', awayName = 'Away'] = selection.fixtureLabel.split(/\s+vs\.?\s+/i)
+  return {
+    home: { name: homeName, short: homeName.slice(0, 3).toUpperCase(), color: '#10b981' },
+    away: { name: awayName, short: awayName.slice(0, 3).toUpperCase(), color: '#ef4444' },
+  }
+}
+
+export function liveMatchesForSelections(
+  selections: TicketSelection[],
+  fallbackClock: TicketSimulationMeta | null,
+  events: BetEvent[],
+  now: Date = new Date(),
+): LiveMatchRow[] {
+  const eventById = new Map(events.map(event => [event.id, event]))
+  const rows: LiveMatchRow[] = []
+  const seen = new Set<string>()
+
+  for (const selection of selections) {
+    if (seen.has(selection.fixtureId)) continue
+    seen.add(selection.fixtureId)
+
+    const event = eventById.get(selection.fixtureId)
+    const override = selectionHasLiveOverride(selection)
+    const baseClock: TicketSimulationMeta = fallbackClock ?? {
+      liveStartedAt: selection.kickoffIso,
+      durationMinutes: DEFAULT_SIMULATED_DURATION_MINUTES,
+      seed: selection.fixtureId,
+      kickoffIso: selection.kickoffIso,
+    }
+    const clock = selection.simulation ?? simulationClockForSelection(selection, baseClock)
+    const clockState = matchClock(clock, now.getTime())
+    if (!event?.live && !override && !clockState.live) continue
+
+    const teams = liveMatchTeams(selection)
+    const simulated = isProviderFixtureId(selection.fixtureId)
+      ? null
+      : simulatedScore(selection, clock, clockState.minute)
+    const score =
+      override && selection.liveScore
+        ? selection.liveScore
+        : (event?.score ?? simulated)
+    const minute =
+      override && selection.liveMinute != null
+        ? selection.liveMinute
+        : (event?.minute ?? clockState.minute)
+    const label =
+      override && selection.liveMinute != null
+        ? formatLiveMinute(selection.liveMinute)
+        : event?.minute != null
+          ? formatLiveMinute(event.minute)
+          : clockState.live
+            ? clockState.label
+            : null
+
+    rows.push({
+      fixtureId: selection.fixtureId,
+      competition: selection.competition || event?.competition || '',
+      kickoffIso: event?.kickoffIso ?? selection.kickoffIso,
+      minute,
+      label: label ?? undefined,
+      score,
+      home: event?.home ?? teams.home,
+      away: event?.away ?? teams.away,
+    })
+  }
+
+  return rows
 }
 
 export function applyInPlayOdds(

@@ -497,7 +497,7 @@ export async function getTicket(
   return ticketWithCashoutQuote(settled, now)
 }
 
-function cashoutOffer(
+export function cashoutOffer(
   ticket: Pick<BetTicket, 'stakeMinor' | 'potentialReturnMinor' | 'code'>,
   selections: TicketSelection[],
   results: Map<string, FixtureResult>,
@@ -531,12 +531,20 @@ function cashoutOffer(
         ? result
         : null
     const event = eventById.get(selection.fixtureId)
+    const liveOverride =
+      selection.result === 'PENDING' &&
+      !selection.finalScore &&
+      (selection.liveScore != null || selection.liveMinute != null)
     const durationMinutes = selection.simulation?.durationMinutes ?? 90
     const clock = matchClockFromKickoff(selection.kickoffIso, durationMinutes, now.getTime())
-    const selectionStarted = finishedResult !== null || Boolean(event?.live) || clock.started
+    const selectionStarted =
+      finishedResult !== null || Boolean(event?.live) || clock.started || liveOverride
     if (selectionStarted) {
       started += 1
       if (clock.started) progress = Math.max(progress, clock.progress)
+      else if (selection.liveMinute != null) {
+        progress = Math.max(progress, Math.min(1, selection.liveMinute / durationMinutes))
+      }
     }
 
     if (
@@ -559,7 +567,15 @@ function cashoutOffer(
       continue
     }
 
-    if (event?.live && event.score) {
+    if (liveOverride && selection.liveScore) {
+      const won = settleMarket(
+        selection.selectionId,
+        selection.liveScore.home,
+        selection.liveScore.away,
+      )
+      if (won === true) wins += 1
+      else if (won === false) losses += 1
+    } else if (event?.live && event.score) {
       const won = settleMarket(selection.selectionId, event.score.home, event.score.away)
       if (won === true) wins += 1
       else if (won === false) losses += 1

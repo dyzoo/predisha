@@ -16,7 +16,11 @@ import { settleMarket } from './odds'
 import { randomCode } from './random'
 import { getBetMode, type BetMode } from './mode'
 import { getMinStakeMinor } from './stake-settings'
-import { clockFromKickoff, inPlayQuote } from './in-play'
+import {
+  clockFromKickoff,
+  inPlayQuote,
+  selectionHasLiveOverride,
+} from './in-play'
 import { matchClock, type MatchClockState } from './match-clock'
 import {
   attachSimulationClock,
@@ -221,7 +225,10 @@ export function resolveMatchClock(
   let kickoffIso: string | null = null
   if (slip.timeMode === 'MANUAL') {
     kickoffIso = toIso(slip.manualKickoffAt)
-  } else if (slip.timeMode === 'ORIGINAL' && slip.selections) {
+  } else if (
+    (slip.timeMode === 'ORIGINAL' || slip.timeMode === 'SIMULATED') &&
+    slip.selections
+  ) {
     const kickoffs = parseSelections(slip.selections)
       .map(selection => toIso(selection.kickoffIso))
       .filter((value): value is string => Boolean(value))
@@ -288,7 +295,9 @@ export function toAdminSlipView(slip: AdminBetSlip, now = new Date()): AdminBetS
           selection.simulation ?? simulationClockForSelection(selection, clock),
         )
       : []
-  const inPlay = clockSources.some(candidate => matchClock(candidate, now.getTime()).live)
+  const inPlay =
+    clockSources.some(candidate => matchClock(candidate, now.getTime()).live) ||
+    displaySelections.some(selection => selectionHasLiveOverride(selection))
   const livePricing = Boolean(
     clock && match && match.live && !match.finished && slip.status !== 'CLOSED',
   )

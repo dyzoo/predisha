@@ -27,8 +27,7 @@ import { formatDateTimeLabel, formatTzs } from '@/lib/bet/format'
 import { settleMarket } from '@/lib/bet/odds'
 import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
-import { matchClock, type MatchClockState } from '@/lib/bet/match-clock'
-import { simulatedScore } from '@/lib/bet/simulation'
+import type { MatchClockState } from '@/lib/bet/match-clock'
 import type {
   BetEvent,
   BetSlipItem,
@@ -37,12 +36,7 @@ import type {
   TicketSelection,
   TicketSimulationMeta,
 } from '@/lib/bet/types'
-import {
-  formatLiveMinute,
-  isProviderFixtureId,
-  MAX_STAKE_MINOR,
-  slipStakeOptions,
-} from '@/lib/bet/types'
+import { formatLiveMinute, MAX_STAKE_MINOR, slipStakeOptions } from '@/lib/bet/types'
 import { TeamBadge } from '@/components/teams/team-badge'
 import { BrandLogo } from '@/components/brand-logo'
 import { BrandLoading } from '@/components/ui/brand-loading'
@@ -171,7 +165,6 @@ interface ShareResponse {
   slip?: AdminSlip
   results?: Record<string, SharedResult>
   live?: SharedLiveMatch[]
-  liveGames?: BetEvent[]
   upcomingGames?: BetEvent[]
   minStakeMinor?: number
   error?: string
@@ -190,24 +183,6 @@ const RESULT_MARKER_OPTIONS: Array<{ value: SlipResultMarker; label: string; col
   { value: 'gray', label: 'Pending', color: '#A7B0BA' },
   { value: 'red', label: 'Lost', color: '#E24B4B' },
 ]
-
-function teamsFromFixtureLabel(label: string, fixtureId: string): { home: SharedTeam; away: SharedTeam } {
-  const [home = 'Home', away = 'Away'] = label.split(/\s+vs\.?\s+/i)
-  return {
-    home: {
-      id: `${fixtureId}-home`,
-      name: home,
-      short: home.slice(0, 3).toUpperCase(),
-      color: '#2563eb',
-    },
-    away: {
-      id: `${fixtureId}-away`,
-      name: away,
-      short: away.slice(0, 3).toUpperCase(),
-      color: '#dc2626',
-    },
-  }
-}
 
 function toSlipItem(selection: TicketSelection): BetSlipItem {
   return {
@@ -358,7 +333,7 @@ export function ShareLoader({ code }: { code: string }) {
   const [slip, setSlip] = useState<AdminSlip | null>(null)
   const [results, setResults] = useState<Record<string, SharedResult>>({})
   const [live, setLive] = useState<SharedLiveMatch[]>([])
-  const [liveGames, setLiveGames] = useState<BetEvent[]>([])
+
   const [upcomingGames, setUpcomingGames] = useState<BetEvent[]>([])
   const [minStakeMinor, setMinStakeMinor] = useState(configuredMinStakeMinor)
   const [paymentStakeMinor, setPaymentStakeMinor] = useState(0)
@@ -391,8 +366,6 @@ export function ShareLoader({ code }: { code: string }) {
   const isAdminSlip = Boolean(slip)
   const effectiveMinStakeMinor = isAdminSlip ? 1 : minStakeMinor
 
-  const activeClock = slip?.clock ?? null
-  const activeMatch = activeClock ? matchClock(activeClock, now) : null
   const signedIn = Boolean(slipViewer?.userId)
   const canUseSpecial = Boolean(
     slipViewer?.userId &&
@@ -409,38 +382,9 @@ export function ShareLoader({ code }: { code: string }) {
   const walletBalanceMinor = wallet?.balanceMinor ?? 0
   const hasWalletFunds = walletBalanceMinor >= activePaymentStakeMinor
 
-  const simulatedLiveMatches = useMemo<SharedLiveMatch[]>(() => {
-    if (!slip || !activeClock || slip.timeMode !== 'SIMULATED') return []
-    return slip.selections.flatMap(selection => {
-      if (isProviderFixtureId(selection.fixtureId)) return []
-      const clock = selection.simulation ?? activeClock
-      const clockState = matchClock(clock, now)
-      if (!clockState.live) return []
-      const teams = teamsFromFixtureLabel(selection.fixtureLabel, selection.fixtureId)
-      return [
-        {
-          fixtureId: selection.fixtureId,
-          competition: selection.competition,
-          kickoffIso: clock.kickoffIso ?? selection.kickoffIso,
-          minute: clockState.minute,
-          label: clockState.label,
-          score: simulatedScore(selection, clock, clockState.minute),
-          ...teams,
-        },
-      ]
-    })
-  }, [slip, activeClock, now])
-
-  const simulatedLive = simulatedLiveMatches.length > 0
-  const hasOngoingGames = Boolean(
-    slip?.inPlay || activeMatch?.live || simulatedLive || live.length > 0,
-  )
+  const hasOngoingGames = Boolean(slip?.inPlay || live.length > 0)
   const liveMinute = live.find(match => match.minute != null)?.minute ?? null
-  const liveBadgeLabel =
-    formatLiveMinute(liveMinute) ??
-    simulatedLiveMatches[0]?.label ??
-    activeMatch?.label ??
-    null
+  const liveBadgeLabel = live[0]?.label ?? formatLiveMinute(liveMinute) ?? null
   const awaitingSimulatedStart =
     slip?.timeMode === 'SIMULATED' && !slip.liveStartedAt && slip.status !== 'CLOSED'
 
@@ -541,7 +485,6 @@ export function ShareLoader({ code }: { code: string }) {
         }
         setResults(payload.results ?? {})
         setLive(payload.live ?? [])
-        setLiveGames(payload.liveGames ?? [])
         setUpcomingGames(payload.upcomingGames ?? [])
         setMinStakeMinor(payload.minStakeMinor ?? configuredMinStakeMinor)
         setState('ready')
@@ -574,7 +517,6 @@ export function ShareLoader({ code }: { code: string }) {
         if (cancelled || !response.ok) return
         if (payload.results) setResults(payload.results)
         if (payload.live) setLive(payload.live)
-        if (payload.liveGames) setLiveGames(payload.liveGames)
         if (payload.upcomingGames) setUpcomingGames(payload.upcomingGames)
         if (payload.minStakeMinor) setMinStakeMinor(payload.minStakeMinor)
         if (payload.slip) setSlip(payload.slip)
@@ -588,6 +530,29 @@ export function ShareLoader({ code }: { code: string }) {
       clearInterval(timer)
     }
   }, [awaitingSimulatedStart, code, state])
+
+  useEffect(() => {
+    if (state !== 'ready' || !isAdminSlip || !signedIn || entry) return
+    let cancelled = false
+
+    async function loadEntry() {
+      try {
+        const response = await fetch(`/api/bet/share/${encodeURIComponent(code)}/entry`, {
+          cache: 'no-store',
+          credentials: 'include',
+        })
+        const payload = (await response.json().catch(() => ({}))) as { entry?: SlipEntry }
+        if (!cancelled && response.ok && payload.entry) setEntry(payload.entry)
+      } catch {
+        return
+      }
+    }
+
+    void loadEntry()
+    return () => {
+      cancelled = true
+    }
+  }, [code, entry, isAdminSlip, signedIn, state])
 
   useEffect(() => {
     if (!entry || entry.status !== 'PENDING') return
@@ -644,10 +609,10 @@ export function ShareLoader({ code }: { code: string }) {
   }, [entry])
 
   useEffect(() => {
-    if (!simulatedLive && !slip?.inPlay) return
+    if (!hasOngoingGames && !nextKickoffIso) return
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
-  }, [simulatedLive, slip?.inPlay])
+  }, [hasOngoingGames, nextKickoffIso])
 
   useEffect(() => {
     const ticketId = entry?.ticketId ?? ''
@@ -1187,19 +1152,6 @@ export function ShareLoader({ code }: { code: string }) {
           ) : null}
         </SharedSlipReceipt>
 
-        {liveGames.length > 0 ? (
-          <section>
-            <SectionHeading
-              eyebrow="In play"
-              title="Live games"
-              description="Scores refresh automatically while these matches are in play."
-              action="All live"
-              actionHref="/bet/live"
-            />
-            <EventGrid events={liveGames.slice(0, 6)} />
-          </section>
-        ) : null}
-
         {promoOpen && promo ? <AviatorPromoModal trial={promo} onClose={closePromo} /> : null}
       </div>
     )
@@ -1209,14 +1161,14 @@ export function ShareLoader({ code }: { code: string }) {
     <div className="mx-auto max-w-6xl space-y-6">
       <AviatorPromoBanner />
 
-      {slip.inPlay ? (
+      {hasOngoingGames ? (
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-300">
           <span className="inline-flex items-center gap-2 font-semibold">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-600 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
             </span>
-            Match has started{liveBadgeLabel ? ` · ${liveBadgeLabel}` : ''}. New stakes use live odds.
+            {live.length === 1 ? 'Match' : 'Matches'} started{liveBadgeLabel ? ` · ${liveBadgeLabel}` : ''}. New stakes use live odds.
           </span>
           <Link
             href={`/bet/live?slip=${encodeURIComponent(slip.code)}`}
@@ -1343,8 +1295,8 @@ export function ShareLoader({ code }: { code: string }) {
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5 text-accent" />
-            {simulatedLive || live.length > 0 || activeMatch?.live
-              ? `Match clock ${liveBadgeLabel ?? activeMatch?.label ?? ''}`
+            {hasOngoingGames
+              ? `Match clock ${liveBadgeLabel ?? ''}`
               : nextKickoffIso
                 ? `Starts ${formatDateTimeLabel(nextKickoffIso)}`
                 : `Closes ${formatDateTimeLabel(slip.autoFreezeAt)}`}
@@ -1355,7 +1307,7 @@ export function ShareLoader({ code }: { code: string }) {
           </span>
         </div>
 
-        {slip.inPlay ? (
+        {hasOngoingGames ? (
           <p className="mt-2 text-center text-[10px] font-semibold text-emerald-300">
             Live prices are reduced as the match progresses. A stake placed now settles at these odds.
           </p>
@@ -1590,8 +1542,7 @@ export function ShareLoader({ code }: { code: string }) {
           </div>
         ) : null}
 
-        {liveMatchPanel('Live matches', simulatedLiveMatches)}
-        {liveMatchPanel('Live now', live)}
+        {liveMatchPanel('Live matches', live)}
 
         {paid ? (
           <div className="receipt-rule mt-5 pt-5 text-center">
@@ -1804,19 +1755,6 @@ export function ShareLoader({ code }: { code: string }) {
           </p>
         </div>
       </SharedSlipReceipt>
-
-      {liveGames.length > 0 ? (
-        <section>
-          <SectionHeading
-            eyebrow="In play"
-            title="Live games"
-            description="Scores refresh automatically while these matches are in play."
-            action="All live"
-            actionHref="/bet/live"
-          />
-          <EventGrid events={liveGames.slice(0, 6)} />
-        </section>
-      ) : null}
 
       {promoOpen && promo ? <AviatorPromoModal trial={promo} onClose={closePromo} /> : null}
     </div>
