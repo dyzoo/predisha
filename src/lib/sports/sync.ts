@@ -133,15 +133,21 @@ export class SportsDataSyncer {
 
   private async syncFixtures(): Promise<number> {
     const now = new Date()
-    // Keep enough finished history for the model's minimum sample gate. The
-    // provider only accepts 10-day windows, so this becomes 6 chunked calls.
     const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     const to = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const historyFrom = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
 
-    const providerFixtures = await this.provider.getFixtures(from, to)
+    const [providerFixtures, historyFixtures] = await Promise.all([
+      this.provider.getFixtures(from, to),
+      this.provider.getHistoricalFixtures(historyFrom, from),
+    ])
     let count = 0
     for (const fx of providerFixtures) {
       await this.upsertFixture(fx)
+      count += 1
+    }
+    for (const fx of historyFixtures) {
+      await this.upsertFixture(fx, false)
       count += 1
     }
     return count
@@ -166,7 +172,7 @@ export class SportsDataSyncer {
     }
   }
 
-  private async upsertFixture(fixture: Fixture): Promise<void> {
+  private async upsertFixture(fixture: Fixture, active = true): Promise<void> {
     await this.db.$transaction([
       this.db.team.upsert({
         where: { id: fixture.homeTeamId },
@@ -186,7 +192,7 @@ export class SportsDataSyncer {
           providerId: fixture.competitionId,
           name: `Competition ${fixture.competitionId}`,
           sportId: 'football',
-          active: true,
+          active,
         },
       }),
       this.db.sport.upsert({

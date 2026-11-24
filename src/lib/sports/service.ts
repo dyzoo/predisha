@@ -20,6 +20,7 @@ import type {
   FixtureStatus,
   ProviderHealth,
   Sport,
+  SportsDataProvider,
   Team,
 } from './provider'
 
@@ -27,6 +28,7 @@ const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
 const DAY_MS = 24 * HOUR_MS
 const MIN_STORED_FIXTURES = 20
+const MODEL_HISTORY_DAYS = 60
 const DATASET_CACHE_MS = 90 * 1000
 
 let liveFixtureRefresh: { at: number; promise: Promise<Map<string, Fixture>> } | null = null
@@ -38,6 +40,23 @@ function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
     if (!merged.has(item.id)) merged.set(item.id, item)
   }
   return [...merged.values()]
+}
+
+function isUsableHistoryFixture(fixture: Fixture): boolean {
+  return (
+    fixture.status === 'FINISHED' &&
+    typeof fixture.homeScore === 'number' &&
+    typeof fixture.awayScore === 'number'
+  )
+}
+
+function addFixtureTeams(fixtures: Fixture[], teams: Team[]): Team[] {
+  const collected = [...teams]
+  for (const fixture of fixtures) {
+    if (fixture.homeTeam) collected.push(fixture.homeTeam)
+    if (fixture.awayTeam) collected.push(fixture.awayTeam)
+  }
+  return collected
 }
 
 async function refreshLiveFixtureScores(
@@ -88,6 +107,8 @@ export interface SportsDataset {
   competitions: Competition[]
   teams: Team[]
   fixtures: Fixture[]
+  modelFixtures?: Fixture[]
+  modelTeams?: Team[]
   health: ProviderHealth
   isDemo: boolean
 }
@@ -157,6 +178,8 @@ export async function getSportsDataset(
     providerId: string | null
   }> = []
   let fixtures: Fixture[] = []
+  let modelFixtures: Fixture[] = []
+  let modelTeams: Team[] = []
 
   try {
     const [dbSports, dbCompetitions, dbTeams, dbFixtures] = await Promise.all([
@@ -166,7 +189,7 @@ export async function getSportsDataset(
       prisma.fixture.findMany({
         where: {
           kickoffUtc: {
-            gte: new Date(at.getTime() - 30 * DAY_MS),
+            gte: new Date(at.getTime() - MODEL_HISTORY_DAYS * DAY_MS),
             lte: new Date(at.getTime() + 30 * DAY_MS),
           },
         },
@@ -200,7 +223,7 @@ export async function getSportsDataset(
       logoUrl: t.logoUrl ?? null,
       providerId: t.providerId ?? null,
     }))
-    fixtures = dbFixtures.map(f => {
+    const storedFixtures = dbFixtures.map(f => {
       const competition = competitionsById.get(f.competitionId)
       return {
         id: f.id,
@@ -223,6 +246,11 @@ export async function getSportsDataset(
         lastSyncedAt: f.lastSyncedAt ?? null,
       }
     })
+    const displayFrom = at.getTime() - 30 * DAY_MS
+    fixtures = storedFixtures.filter(
+      fixture => fixture.kickoffUtc.getTime() >= displayFrom && fixture.kickoffUtc.getTime() <= at.getTime() + 30 * DAY_MS,
+    )
+    modelFixtures = storedFixtures.filter(fixture => fixture.kickoffUtc.getTime() < displayFrom)
   } catch {
     // Database not configured or unreachable. Return empty dataset;
     // the health check will report the provider status separately.
@@ -252,7 +280,8 @@ export async function getSportsDataset(
     fixtures.length > 0 &&
     (latestFinishedKickoff === null || at.getTime() - latestFinishedKickoff >= 21 * DAY_MS)
 
-  const needsFreshData = fixtures.length < MIN_STORED_FIXTURES || storedDataStale
+  const needsFreshData =
+    fixtures.length < MIN_STORED_FIXTURES || storedDataStale || modelFixtures.length === 0
   let usedDemoData = false
   let hasRealFixtures = fixtures.length > 0 && health.mode !== 'demo'
 
@@ -260,14 +289,25 @@ export async function getSportsDataset(
     try {
       const from = new Date(at.getTime() - 30 * DAY_MS)
       const to = new Date(at.getTime() + 30 * DAY_MS)
-      const [providerSports, providerCompetitions, providerTeams, providerFixtures] =
+      const historyFrom = new Date(at.getTime() - MODEL_HISTORY_DAYS * DAY_MS)
+      const historyTo = new Date(at.getTime() - 30 * DAY_MS)
+      const historyProvider = provider as SportsDataProvider & {
+        getHistoricalFixtures?: (start: Date, end: Date) => Promise<Fixture[]>
+      }
+      const [providerSports, providerCompetitions, providerTeams, providerFixtures, providerHistory] =
         await Promise.all([
           provider.getSports(),
           provider.getCompetitions(),
           provider.getTeams(),
           provider.getFixtures(from, to),
+          historyProvider.getHistoricalFixtures
+            ? historyProvider.getHistoricalFixtures(historyFrom, historyTo)
+            : provider.getFixtures(historyFrom, historyTo),
         ])
       if (providerFixtures.length > 0) {
+        const usableHistory = providerHistory.filter(isUsableHistoryFixture)
+        modelFixtures = mergeById(modelFixtures, usableHistory)
+        modelTeams = mergeById(modelTeams, addFixtureTeams(usableHistory, []))
         sports = providerSports.map(item => ({ id: item.id, name: item.name, slug: item.slug }))
         competitions = providerCompetitions.map(item => ({
           id: item.id,
@@ -285,7 +325,11 @@ export async function getSportsDataset(
           logoUrl: item.logoUrl ?? null,
           providerId: item.providerId ?? null,
         }))
-        fixtures = providerFixtures
+        fixtures = providerFixtures.filter(
+          fixture =>
+            fixture.kickoffUtc.getTime() >= at.getTime() - 30 * DAY_MS &&
+            fixture.kickoffUtc.getTime() <= at.getTime() + 30 * DAY_MS,
+        )
         usedDemoData = health.mode === 'demo'
         hasRealFixtures = !usedDemoData
       }
@@ -295,21 +339,28 @@ export async function getSportsDataset(
   }
 
   if (
-    (needsFreshData || teams.some(team => !team.logoUrl)) &&
+    (needsFreshData ||
+      teams.some(team => !team.logoUrl) ||
+      (!usedDemoData && fixtures.some(fixture => fixture.id.startsWith('tsdb-event-')))) &&
     process.env.DISABLE_REAL_FIXTURE_FALLBACK !== 'true'
   ) {
     try {
       const realProvider = new TheSportsDBProvider()
-      const [realSports, realCompetitions, realTeams, realFixtures, realHealth] = await Promise.all([
-        realProvider.getSports(),
-        realProvider.getCompetitions(),
-        realProvider.getTeams(),
+      const [realSports, realCompetitions, realTeams, realFixtures, realHistory, realHealth] =
+        await Promise.all([
+          realProvider.getSports(),
+          realProvider.getCompetitions(),
+          realProvider.getTeams(),
           realProvider.getFixtures(
             new Date(at.getTime() - 30 * DAY_MS),
             new Date(at.getTime() + 30 * DAY_MS),
           ),
-        realProvider.getHealth(),
-      ])
+          realProvider.getFixtures(
+            new Date(at.getTime() - MODEL_HISTORY_DAYS * DAY_MS),
+            new Date(at.getTime() - 30 * DAY_MS),
+          ),
+          realProvider.getHealth(),
+        ])
       if (realFixtures.length > 0) {
         hasRealFixtures = true
         usedDemoData = false
@@ -341,6 +392,22 @@ export async function getSportsDataset(
         )
         fixtures = mergeById(fixtures, realFixtures).sort(
           (left, right) => left.kickoffUtc.getTime() - right.kickoffUtc.getTime(),
+        )
+        const usableHistory = realHistory.filter(isUsableHistoryFixture)
+        modelFixtures = mergeById(
+          modelFixtures,
+          usableHistory.filter(fixture => fixture.kickoffUtc.getTime() < at.getTime() - 30 * DAY_MS),
+        )
+        modelTeams = mergeById(
+          modelTeams,
+          addFixtureTeams(usableHistory, realTeams).map(item => ({
+            id: item.id,
+            name: item.name,
+            shortName: item.shortName,
+            color: item.color,
+            logoUrl: item.logoUrl ?? null,
+            providerId: item.providerId ?? null,
+          })),
         )
         health = {
           ...realHealth,
@@ -435,6 +502,8 @@ export async function getSportsDataset(
     competitions,
     teams,
     fixtures,
+    modelFixtures,
+    modelTeams,
     health,
     isDemo: usedDemoData,
   }
@@ -447,7 +516,9 @@ export async function getSportsDataset(
 }
 
 export function buildMatchAnalyses(dataset: SportsDataset, now: Date = new Date()): MatchAnalysis[] {
-  const teamsById = new Map(dataset.teams.map(team => [team.id, team]))
+  const modelFixtures = mergeById(dataset.fixtures, dataset.modelFixtures ?? [])
+  const modelTeams = mergeById(dataset.teams, dataset.modelTeams ?? [])
+  const teamsById = new Map(modelTeams.map(team => [team.id, team]))
   const competitionsById = new Map(dataset.competitions.map(item => [item.id, item]))
   const sportsById = new Map(dataset.sportList.map(item => [item.id, item]))
   const providerName = dataset.isDemo ? 'demo' : 'provider'
@@ -463,8 +534,8 @@ export function buildMatchAnalyses(dataset: SportsDataset, now: Date = new Date(
       const asOf = fixtureAsOf(fixture, now)
       const features = buildMatchFeatures(
         fixture,
-        dataset.fixtures,
-        dataset.teams,
+        modelFixtures,
+        modelTeams,
         asOf,
         providerName,
       )

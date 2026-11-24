@@ -179,7 +179,7 @@ async function request<T>(path: string, attempt = 0): Promise<T> {
   return (await res.json()) as T
 }
 
-async function fetchMatches(from: Date, to: Date): Promise<ApiMatch[]> {
+async function fetchMatches(from: Date, to: Date, allowedOnly = true): Promise<ApiMatch[]> {
   const matches: ApiMatch[] = []
   for (const chunk of chunkDateRange(from, to)) {
     const dateFrom = chunk.from.toISOString().slice(0, 10)
@@ -191,7 +191,7 @@ async function fetchMatches(from: Date, to: Date): Promise<ApiMatch[]> {
       ...chunkMatches.filter(
         match =>
           match.competition &&
-          ALLOWED_COMPETITION_CODES.has(match.competition.code.toUpperCase()),
+          (!allowedOnly || ALLOWED_COMPETITION_CODES.has(match.competition.code.toUpperCase())),
       ),
     )
   }
@@ -311,6 +311,20 @@ export class FootballDataProvider implements SportsDataProvider {
 
   async getFixtures(from: Date, to: Date): Promise<Fixture[]> {
     return this.getUpcomingFixtures(from, to)
+  }
+
+  async getHistoricalFixtures(from: Date, to: Date): Promise<Fixture[]> {
+    const matches = await fetchMatches(from, to, false)
+    return matches
+      .map(match => mapMatchToFixture(match))
+      .filter(
+        (item): item is Fixture =>
+          item !== null &&
+          item.status === 'FINISHED' &&
+          typeof item.homeScore === 'number' &&
+          typeof item.awayScore === 'number',
+      )
+      .sort((a, b) => a.kickoffUtc.getTime() - b.kickoffUtc.getTime())
   }
 
   async getFixture(fixtureId: string): Promise<Fixture | null> {
