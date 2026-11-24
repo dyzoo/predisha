@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/prisma'
-import type { SettloWebhookEvent } from '@/lib/billing/settlo'
+import type { NoripesaWebhookEvent } from '@/lib/billing/noripesa'
 import { planDurationMs } from './duration'
 
-const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed', 'chargeback_won'])
-const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired', 'blocked', 'chargeback_lost'])
+const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed'])
+const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired'])
 
 export async function applyBillingWebhookEvent(
-  event: SettloWebhookEvent,
+  event: NoripesaWebhookEvent,
 ): Promise<{ handled: boolean }> {
   if (!event.orderId) return { handled: false }
   const status = (event.status ?? '').toLowerCase()

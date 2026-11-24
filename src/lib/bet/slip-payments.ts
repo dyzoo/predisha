@@ -1,12 +1,12 @@
 ﻿import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
-  SETTLO_PROVIDER_NAME,
-  createSettloPayment,
-  getSettloPayment,
-  settloApiKeyConfigured,
-  type SettloWebhookEvent,
-} from '@/lib/billing/settlo'
+  NORIPESA_PROVIDER_NAME,
+  createNoripesaOrder,
+  getNoripesaOrderStatus,
+  noripesaApiKeyConfigured,
+  type NoripesaWebhookEvent,
+} from '@/lib/billing/noripesa'
 import { BetError } from './errors'
 import { normalizeTzPhone } from './phone'
 import { creditWallet } from './wallet'
@@ -20,8 +20,8 @@ import {
   type AdminBetSlipView,
 } from './slips'
 
-const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed', 'chargeback_won'])
-const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired', 'blocked', 'chargeback_lost'])
+const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed'])
+const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired'])
 
 export interface SlipPaymentEntryView {
   id: string
@@ -234,7 +234,7 @@ export async function startSlipPayment(input: {
     return { entry: await loadEntryView(entry.id), slip, mode: slip.mode }
   }
 
-  if (!settloApiKeyConfigured()) {
+  if (!noripesaApiKeyConfigured()) {
     throw new BetError(
       'Mobile-money payments are not configured on this server yet. Add funds to your wallet or try again later.',
       503,
@@ -242,15 +242,14 @@ export async function startSlipPayment(input: {
     )
   }
 
-  const order = await createSettloPayment({
+  const order = await createNoripesaOrder({
     phone: normalized.phone,
     amountMinor: stakeMinor,
     currency: 'TZS',
     description: `SpotibetBet slip ${record.code}`,
+    webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
     customerName: input.customerName,
     customerEmail: input.customerEmail,
-    returnUrl: `${appUrl()}/bet`,
-    cancelUrl: `${appUrl()}/bet`,
   })
 
   if (!order.success || !order.orderId) {
@@ -267,7 +266,7 @@ export async function startSlipPayment(input: {
       selections: slip.selections as unknown as Prisma.InputJsonValue,
       totalOdds: slip.totalOdds,
       status: 'PENDING',
-      provider: SETTLO_PROVIDER_NAME,
+      provider: NORIPESA_PROVIDER_NAME,
       providerOrderId: order.orderId,
     },
   })
@@ -281,8 +280,8 @@ export async function refreshSlipPaymentEntry(entryId: string): Promise<SlipPaym
     throw new BetError('That payment could not be found.', 404, 'ENTRY_NOT_FOUND')
   }
 
-  if (entry.status === 'PENDING' && entry.providerOrderId && entry.provider === SETTLO_PROVIDER_NAME) {
-    const result = await getSettloPayment(entry.providerOrderId)
+  if (entry.status === 'PENDING' && entry.providerOrderId && entry.provider === NORIPESA_PROVIDER_NAME) {
+    const result = await getNoripesaOrderStatus(entry.providerOrderId)
     const status = (result.status ?? '').toLowerCase()
     if (SUCCESS_STATUSES.has(status)) {
       const updated = await markEntryPaid(entry.id)
@@ -307,7 +306,7 @@ export async function refreshSlipPaymentEntry(entryId: string): Promise<SlipPaym
 }
 
 export async function applySlipPaymentEvent(
-  event: SettloWebhookEvent,
+  event: NoripesaWebhookEvent,
 ): Promise<{ handled: boolean }> {
   if (!event.orderId) return { handled: false }
 
@@ -315,8 +314,6 @@ export async function applySlipPaymentEvent(
     where: { providerOrderId: event.orderId },
   })
   if (!entry) return { handled: false }
-  if (event.amountMinor !== null && event.amountMinor !== entry.stakeMinor) return { handled: false }
-  if (event.currency && event.currency !== 'TZS') return { handled: false }
 
   const status = (event.status ?? '').toLowerCase()
   if (SUCCESS_STATUSES.has(status)) {
@@ -354,10 +351,10 @@ export async function retrySlipEntry(entryId: string): Promise<SlipPaymentEntryV
     await placeEntryBet(entry.id)
   } else if (entry.status === 'FAILED') {
     if (entry.provider !== 'sandbox' && entry.provider !== 'wallet') {
-      if (entry.provider !== SETTLO_PROVIDER_NAME || !entry.providerOrderId) {
+      if (entry.provider !== NORIPESA_PROVIDER_NAME || !entry.providerOrderId) {
         throw new BetError('This payment cannot be retried.', 409, 'NOT_RETRYABLE')
       }
-      const result = await getSettloPayment(entry.providerOrderId)
+      const result = await getNoripesaOrderStatus(entry.providerOrderId)
       const status = (result.status ?? '').toLowerCase()
       if (!SUCCESS_STATUSES.has(status)) {
         throw new BetError(

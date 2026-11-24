@@ -725,7 +725,7 @@ enum AdminSlipDesignStatus {
 }
 
 // A customer's attempt to take an admin-authored slip. Payment is collected
-// with SettloPay before the entry is marked PAID.
+// with Noripesa before the entry is marked PAID.
 model AdminBetEntry {
   id              String              @id @default(cuid())
   slipId          String
@@ -782,7 +782,7 @@ model BetWinnerSlip {
   @@index([createdAt])
 }
 
-// SettloPay collection orders for wallet deposits. The webhook resolves the
+// Noripesa collection orders for wallet deposits. The webhook resolves the
 // order to a user, then credits the betting wallet idempotently.
 model BetPaymentOrder {
   id          String    @id @default(cuid())

@@ -7,7 +7,7 @@ import { CircleAlert, CircleCheck, Loader2, Power } from 'lucide-react'
 type BetMode = 'LIVE' | 'SANDBOX'
 
 const OPTIONS: { value: BetMode; label: string; hint: string }[] = [
-  { value: 'LIVE', label: 'Live', hint: 'Real payments through SettloPay' },
+  { value: 'LIVE', label: 'Live', hint: 'Real payments through Noripesa' },
   { value: 'SANDBOX', label: 'Sandbox', hint: 'Play money for testing' },
 ]
 
@@ -55,7 +55,7 @@ export function AdminBetModeToggle({ mode }: { mode: BetMode }) {
         Betting mode
       </h2>
       <p className="mt-2 text-xs leading-relaxed">
-        Live mode collects real payments through SettloPay before a bet is placed. Sandbox mode
+        Live mode collects real payments through Noripesa before a bet is placed. Sandbox mode
         keeps everything on play money so you can test the full flow without charging customers.
         Every page adapts its wording to the active mode.
       </p>

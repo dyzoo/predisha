@@ -1,15 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
-import { normalizeTzPhone } from '@/lib/bet/phone'
 import { planDurationMs } from './duration'
 import {
-  SETTLO_PROVIDER_NAME,
-  confirmSettloPayment,
-  createSettloPayment,
-  settloApiKeyConfigured,
-  verifySettloWebhook,
-  type SettloWebhookEvent,
-} from '@/lib/billing/settlo'
+  NORIPESA_PROVIDER_NAME,
+  confirmNoripesaOrder,
+  createNoripesaOrder,
+  noripesaApiKeyConfigured,
+  verifyNoripesaWebhook,
+  type NoripesaWebhookEvent,
+} from '@/lib/billing/noripesa'
 
 const MANUAL_PROVIDER_NAME = 'manual'
 
@@ -39,12 +38,8 @@ export interface BillingProvider {
     options?: { phone?: string | null; customerName?: string | null; customerEmail?: string | null },
   ): Promise<BillingCheckout | null>
   createPortalSession(userId: string): Promise<{ url: string } | null>
-  verifyWebhook(
-    rawBody: string,
-    signature: string | null,
-    eventId?: string | null,
-  ): Promise<SettloWebhookEvent | null>
-  confirmCheckout(orderId: string): Promise<SettloWebhookEvent | null>
+  verifyWebhook(rawBody: string, signature: string | null): Promise<NoripesaWebhookEvent | null>
+  confirmCheckout(orderId: string): Promise<NoripesaWebhookEvent | null>
 }
 
 export class DisabledBillingProvider implements BillingProvider {
@@ -58,28 +53,26 @@ export class DisabledBillingProvider implements BillingProvider {
     return null
   }
 
-  async verifyWebhook(): Promise<SettloWebhookEvent | null> {
+  async verifyWebhook(): Promise<NoripesaWebhookEvent | null> {
     return null
   }
 
-  async confirmCheckout(): Promise<SettloWebhookEvent | null> {
+  async confirmCheckout(): Promise<NoripesaWebhookEvent | null> {
     return null
   }
 }
 
-export class SettloBillingProvider implements BillingProvider {
-  name = SETTLO_PROVIDER_NAME
+export class NoripesaBillingProvider implements BillingProvider {
+  name = NORIPESA_PROVIDER_NAME
 
   async createCheckoutSession(
     userId: string,
     planId: string,
     options?: { phone?: string | null; customerName?: string | null; customerEmail?: string | null },
   ): Promise<BillingCheckout | null> {
-    if (!settloApiKeyConfigured()) return null
+    if (!noripesaApiKeyConfigured()) return null
 
-    const normalized = normalizeTzPhone(options?.phone?.trim() ?? '')
-    if (!normalized.ok) return null
-
+    const phone = options?.phone?.trim() ?? ''
     const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } })
     if (!plan || !plan.active || plan.amountMinor === null) return null
 
@@ -88,15 +81,14 @@ export class SettloBillingProvider implements BillingProvider {
       select: { name: true, email: true },
     })
     const appUrl = (process.env.APP_URL ?? process.env.AUTH_URL ?? 'http://localhost:3000').trim().replace(/\/+$/, '')
-    const order = await createSettloPayment({
-      phone: normalized.phone,
+    const order = await createNoripesaOrder({
+      phone,
       amountMinor: plan.amountMinor,
       currency: plan.currency,
       description: `Spotibet ${plan.interval.toLowerCase()} premium subscription`,
+      webhookUrl: `${appUrl}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
       customerName: options?.customerName ?? user?.name ?? null,
       customerEmail: options?.customerEmail ?? user?.email ?? null,
-      returnUrl: `${appUrl}/settings/billing`,
-      cancelUrl: `${appUrl}/settings/billing`,
     })
     if (!order.success || !order.orderId) return null
 
@@ -112,7 +104,6 @@ export class SettloBillingProvider implements BillingProvider {
             planId,
             amountMinor: plan.amountMinor,
             currency: plan.currency,
-            merchantReference: order.merchantReference,
             status: 'pending',
           },
         },
@@ -120,13 +111,13 @@ export class SettloBillingProvider implements BillingProvider {
       .catch(() => undefined)
 
     return {
-      provider: SETTLO_PROVIDER_NAME,
+      provider: NORIPESA_PROVIDER_NAME,
       orderId: order.orderId,
       status: order.status,
       amountMinor: plan.amountMinor,
       currency: plan.currency,
       url: null,
-      message: 'Mobile-money payment started',
+      message: 'USSD push sent',
     }
   }
 
@@ -134,28 +125,21 @@ export class SettloBillingProvider implements BillingProvider {
     return null
   }
 
-  async verifyWebhook(
-    rawBody: string,
-    signature: string | null,
-    eventId?: string | null,
-  ): Promise<SettloWebhookEvent | null> {
-    return verifySettloWebhook(rawBody, signature, eventId)
+  async verifyWebhook(rawBody: string, signature: string | null): Promise<NoripesaWebhookEvent | null> {
+    return verifyNoripesaWebhook(rawBody, signature)
   }
 
-  async confirmCheckout(orderId: string): Promise<SettloWebhookEvent | null> {
-    const result = await confirmSettloPayment(orderId)
-    if (!result.success || !result.orderId) return null
+  async confirmCheckout(orderId: string): Promise<NoripesaWebhookEvent | null> {
+    const result = await confirmNoripesaOrder(orderId)
+    if (!result) return null
     return {
-      provider: SETTLO_PROVIDER_NAME,
-      eventId: null,
-      providerEventId: result.orderId,
-      orderId: result.orderId,
+      provider: NORIPESA_PROVIDER_NAME,
+      providerEventId: result.orderId ?? orderId,
+      orderId: result.orderId ?? orderId,
       type: 'order.status',
       status: result.status,
-      amountMinor: result.amountMinor,
-      currency: result.currency ?? 'TZS',
-      merchantReference: result.merchantReference,
-      failureCode: result.failureCode,
+      amountMinor: result.amount,
+      currency: 'TZS',
       verified: true,
     }
   }
@@ -218,11 +202,11 @@ export class ManualBillingProvider implements BillingProvider {
     return null
   }
 
-  async verifyWebhook(): Promise<SettloWebhookEvent | null> {
+  async verifyWebhook(): Promise<NoripesaWebhookEvent | null> {
     return null
   }
 
-  async confirmCheckout(): Promise<SettloWebhookEvent | null> {
+  async confirmCheckout(): Promise<NoripesaWebhookEvent | null> {
     return null
   }
 }
@@ -230,7 +214,7 @@ export class ManualBillingProvider implements BillingProvider {
 export function isBillingEnabled(): boolean {
   const providerName = (process.env.BILLING_PROVIDER ?? 'disabled').trim().toLowerCase()
   if (process.env.BILLING_LIVE_ENABLED !== 'true' || providerName === 'disabled') return false
-  if (providerName === SETTLO_PROVIDER_NAME && !settloApiKeyConfigured()) return false
+  if (providerName === NORIPESA_PROVIDER_NAME && !noripesaApiKeyConfigured()) return false
   return true
 }
 
@@ -243,8 +227,8 @@ export function getBillingProvider(): BillingProvider {
     return new DisabledBillingProvider()
   }
   const providerName = (process.env.BILLING_PROVIDER ?? '').trim().toLowerCase()
-  if (providerName === SETTLO_PROVIDER_NAME) {
-    return new SettloBillingProvider()
+  if (providerName === NORIPESA_PROVIDER_NAME) {
+    return new NoripesaBillingProvider()
   }
   if (providerName === MANUAL_PROVIDER_NAME && isManualBillingAllowed()) {
     return new ManualBillingProvider()

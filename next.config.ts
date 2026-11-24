@@ -59,12 +59,6 @@ const nextConfig: NextConfig = {
       { source: '/api/bet/:path*', headers: betApiHeaders },
     ]
   },
-  async rewrites() {
-    return [
-      { source: '/webhooks/settlo', destination: '/api/webhooks/settlopay' },
-      { source: '/webhooks/settlopay', destination: '/api/webhooks/settlopay' },
-    ]
-  },
 }
 
 export default nextConfig
