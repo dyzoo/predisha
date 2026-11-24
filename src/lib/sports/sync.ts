@@ -62,14 +62,15 @@ export class SportsDataSyncer {
   }
 
   async refreshFixtures(fixtureIds: string[]): Promise<Fixture[]> {
-    const refreshed: Fixture[] = []
-    for (const fixtureId of fixtureIds) {
-      const fixture = await this.provider.getFixture(fixtureId)
-      if (!fixture) continue
-      await this.upsertFixture(fixture)
-      refreshed.push(fixture)
-    }
-    return refreshed
+    const results = await Promise.all(
+      fixtureIds.map(async fixtureId => {
+        const fixture = await this.provider.getFixture(fixtureId)
+        if (!fixture) return null
+        await this.upsertFixture(fixture)
+        return fixture
+      }),
+    )
+    return results.filter((fixture): fixture is Fixture => fixture !== null)
   }
 
   private async syncCompetitions(): Promise<number> {

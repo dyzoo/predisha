@@ -4,6 +4,7 @@ export const NORIPESA_PROVIDER_NAME = 'noripesa'
 const DEFAULT_BASE_URL = 'https://noripesa.com/api/v1'
 const MIN_TZS_AMOUNT = 100
 const MAX_TZS_AMOUNT = 50_000_000
+const REQUEST_TIMEOUT_MS = 8_000
 
 export interface NoripesaOrderInput {
   phone: string
@@ -183,6 +184,7 @@ export async function createNoripesaOrder(input: NoripesaOrderInput): Promise<No
         description: input.description,
       }),
       cache: 'no-store',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
     const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null
     const data = payload && typeof payload === 'object' && typeof (payload as { data?: unknown }).data === 'object'
@@ -247,6 +249,7 @@ export async function getNoripesaOrderStatus(orderId: string): Promise<NoripesaO
       },
       body: JSON.stringify({ reference: orderId }),
       cache: 'no-store',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
     const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null
     const data = payload && typeof payload === 'object' && typeof (payload as { data?: unknown }).data === 'object'

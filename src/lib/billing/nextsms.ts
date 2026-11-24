@@ -4,6 +4,7 @@ import { maskTzPhone, normalizeTzPhone } from '@/lib/bet/phone'
 
 const DEFAULT_BASE_URL = 'https://messaging-service.co.tz'
 const DEFAULT_SENDER_ID = 'NEXTSMS'
+const REQUEST_TIMEOUT_MS = 8_000
 
 export type BetTransactionSmsSource = 'deposit' | 'shared_slip' | 'aviator'
 
@@ -86,6 +87,7 @@ export async function sendNextSms(input: NextSmsSendInput): Promise<NextSmsSendR
         ...(input.reference ? { reference: input.reference } : {}),
       }),
       cache: 'no-store',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
     const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null
     const messages = Array.isArray(payload?.messages) ? (payload.messages as Array<Record<string, unknown>>) : []

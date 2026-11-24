@@ -11,6 +11,7 @@ import type {
 const BASE_URL = process.env.FOOTBALL_DATA_BASE_URL ?? 'https://api.football-data.org/v4'
 const API_TOKEN = process.env.FOOTBALL_DATA_API_TOKEN ?? ''
 const PROVIDER_NAME = 'football-data'
+const REQUEST_TIMEOUT_MS = 6_000
 
 const DEFAULT_TEAM_COLOR = '#9CA3AF'
 
@@ -136,20 +137,14 @@ function teamFromApi(team: ApiMatch['homeTeam']): Team {
   }
 }
 
-function retryDelayMs(response: Response, detail: string): number {
-  const header = response.headers.get('retry-after')
-  const match = detail.match(/wait\s+(\d+)\s+seconds?/i)
-  const seconds = Number(header ?? match?.[1] ?? 0)
-  return Math.min(60_000, Math.max(1_000, Number.isFinite(seconds) ? seconds * 1000 + 1_000 : 1_000))
-}
-
-async function request<T>(path: string, attempt = 0): Promise<T> {
+async function request<T>(path: string): Promise<T> {
   if (!API_TOKEN) {
     throw new Error('FOOTBALL_DATA_API_TOKEN is not configured')
   }
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'X-Auth-Token': API_TOKEN },
     cache: 'no-store',
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
   if (!res.ok) {
     let detail = ''
@@ -164,10 +159,6 @@ async function request<T>(path: string, attempt = 0): Promise<T> {
           ? `football-data.org API access denied: ${detail}`
           : 'football-data.org API token is invalid or lacks access to this endpoint.',
       )
-    }
-    if (res.status === 429 && attempt < 3) {
-      await new Promise(resolve => setTimeout(resolve, retryDelayMs(res, detail)))
-      return request<T>(path, attempt + 1)
     }
     if (res.status === 429) {
       throw new Error(detail ? `football-data.org API rate limit exceeded: ${detail}` : 'football-data.org API rate limit exceeded. Try again later.')
