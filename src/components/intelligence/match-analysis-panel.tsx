@@ -41,7 +41,7 @@ export function MatchAnalysisPanel({
     return (
       <section className="intel-panel p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-bold">Predisha analysis</h2>
+          <h2 className="font-display text-lg font-bold">Spotibet analysis</h2>
           <StatusBadge kind="NO_SELECTION" />
         </div>
         <div className="intel-empty mt-5">
@@ -62,7 +62,7 @@ export function MatchAnalysisPanel({
         <div className="min-w-0">
           <p className="intel-eyebrow">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            Predisha analysis
+            Spotibet analysis
           </p>
           <h2 className="mt-2 font-display text-xl font-bold">Probability & fair price model</h2>
         </div>

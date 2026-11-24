@@ -5,7 +5,7 @@ import { TabPanel, Tabs } from '@/components/intelligence/tabs'
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
-  { id: 'analysis', label: 'Predisha analysis' },
+  { id: 'analysis', label: 'Spotibet analysis' },
   { id: 'statistics', label: 'Statistics' },
   { id: 'history', label: 'Form & history' },
   { id: 'context', label: 'League context' },

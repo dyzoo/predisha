@@ -203,7 +203,7 @@ export function SiteHeader() {
       }`}
     >
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:h-20 sm:px-6 lg:px-8">
-        <Link href="/" className="group flex min-w-0 items-center" aria-label="Predisha home">
+        <Link href="/" className="group flex min-w-0 items-center" aria-label="Spotibet home">
           <BrandLogo priority className="h-14 w-auto sm:h-16" />
         </Link>
 

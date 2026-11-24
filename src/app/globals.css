@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0B0F14;
-  --surface: #121820;
-  --elevated-surface: #1A222D;
-  --accent: #C8F94C;
-  --accent-soft: rgba(200, 249, 76, 0.12);
-  --accent-line: rgba(200, 249, 76, 0.28);
-  --main-text: #F4F7F2;
-  --muted-text: #98A4B1;
-  --border: rgba(255, 255, 255, 0.08);
+  --background: #101318;
+  --surface: #1D232C;
+  --elevated-surface: #252C36;
+  --accent: #E41827;
+  --accent-soft: rgba(228, 24, 39, 0.12);
+  --accent-line: rgba(228, 24, 39, 0.28);
+  --main-text: #F5F7FA;
+  --muted-text: #A5AFBD;
+  --border: rgba(255, 255, 255, 0.09);
   --gold-2: #F0D52E;
   --teal: #E41827;
   --gold: #F0D52E;
-  --card: #10161D;
-  --line: rgba(255, 255, 255, 0.08);
-  --panel: #121820;
+  --card: #141A21;
+  --line: rgba(255, 255, 255, 0.09);
+  --panel: #1D232C;
 }
 
 @theme inline {

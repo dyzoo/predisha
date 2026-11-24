@@ -40,17 +40,17 @@ interface AuthResponse {
 const copy = {
   'sign-in': {
     eyebrow: 'Welcome back',
-    title: 'Sign in to Predisha',
+    title: 'Sign in to Spotibet',
     intro: 'Pick up where you left off with saved matches and your matchday preferences.',
     submit: 'Sign in',
     pending: 'Signing in…',
-    switchText: 'New to Predisha?',
+    switchText: 'New to Spotibet?',
     switchLabel: 'Create an account',
     switchHref: '/sign-up',
   },
   'sign-up': {
     eyebrow: 'Create account',
-    title: 'Join Predisha',
+    title: 'Join Spotibet',
     intro: 'Save matches, set your timezone, and follow the model. Free to start.',
     submit: 'Create account',
     pending: 'Creating account…',
@@ -187,7 +187,7 @@ export function AuthShell({ mode, authConfigured, nextPath }: AuthShellProps) {
       </div>
 
       <div className="w-full max-w-md">
-        <Link href="/" className="mx-auto flex w-fit items-center" aria-label="Predisha home">
+        <Link href="/" className="mx-auto flex w-fit items-center" aria-label="Spotibet home">
           <BrandLogo priority className="h-14 w-auto sm:h-16" />
         </Link>
 

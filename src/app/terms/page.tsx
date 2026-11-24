@@ -24,7 +24,7 @@ export default function TermsPage() {
       <section>
         <h2 className="font-display text-lg font-semibold text-main-text">Product scope</h2>
         <p className="mt-2">
-          Predisha is intended to provide informational sports analysis. It must not be configured to
+          Spotibet is intended to provide informational sports analysis. It must not be configured to
           accept bets, hold wagering funds, or settle bets.
         </p>
       </section>

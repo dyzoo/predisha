@@ -55,7 +55,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
       'Enter the amount and mobile-money number. The transfer is recorded against your wallet and processed for payout.',
     banner: null,
     footer:
-      'Predisha Bet live sportsbook. Prices are confirmed server-side when you place a bet.',
+      'SpotibetBet live sportsbook. Prices are confirmed server-side when you place a bet.',
     gamesTitle: 'Games',
     gamesDescription: 'Every round is settled server-side against your betting wallet.',
     promosTitle: 'Bonuses',
@@ -63,11 +63,11 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     shareNote: 'Share codes expire after 24 hours.',
     paymentNote: 'Payments are collected securely through your mobile-money provider.',
     safetyNote:
-      'Never share your mobile-money PIN. Predisha Bet only sends a USSD approval prompt and never asks for your PIN.',
+      'Never share your mobile-money PIN. SpotibetBet only sends a USSD approval prompt and never asks for your PIN.',
     homeEyebrow: 'Live sportsbook',
     homeAccent: 'Betting stakes.',
     homeDescription:
-      'Predisha Bet brings live and upcoming fixtures together with a fast bet slip, server-side settlement and mobile-money funding.',
+      'SpotibetBet brings live and upcoming fixtures together with a fast bet slip, server-side settlement and mobile-money funding.',
     walletsTitle: 'Server-owned wallets',
     walletsBody:
       'Betting wallets hold stakes and payouts. Balances, debits and credits live in PostgreSQL behind authenticated, rate-limited endpoints.',
@@ -102,7 +102,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     withdrawDescription:
       'Move funds out of your wallet to a mobile-money number.',
     banner: 'Wallet mode is active: balances, bets and payouts update instantly.',
-    footer: 'Predisha Bet keeps a ledger entry for every balance change.',
+    footer: 'SpotibetBet keeps a ledger entry for every balance change.',
     gamesTitle: 'Games',
     gamesDescription: 'Fast rounds with server-side randomness and wallet stakes.',
     promosTitle: 'Bonuses',
@@ -113,7 +113,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     homeEyebrow: 'Sportsbook',
     homeAccent: 'Wallet stakes.',
     homeDescription:
-      'Predisha Bet brings fixtures, a fast bet slip and wallet settlement together in one place.',
+      'SpotibetBet brings fixtures, a fast bet slip and wallet settlement together in one place.',
     walletsTitle: 'Wallets',
     walletsBody: 'Every balance, stake, promo and payout is recorded in your wallet ledger.',
     oddsTitle: 'Fixed prices',

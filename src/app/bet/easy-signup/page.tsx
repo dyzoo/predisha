@@ -9,7 +9,7 @@ import { formatTzs } from '@/lib/bet/format'
 
 export const metadata: Metadata = {
   title: 'Claim Aviator prize',
-  description: 'Create a quick Predisha Bet account to withdraw your Aviator trial prize.',
+  description: 'Create a quick SpotibetBet account to withdraw your Aviator trial prize.',
 }
 
 export default async function EasySignupPage() {

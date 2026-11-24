@@ -80,7 +80,7 @@ export function EmptyState({
 
 export function ErrorState({
   title = 'This view could not be loaded',
-  description = 'The data service may be temporarily unavailable. Your other Predisha pages are unaffected.',
+  description = 'The data service may be temporarily unavailable. Your other Spotibet pages are unaffected.',
   retry,
   digest,
 }: {

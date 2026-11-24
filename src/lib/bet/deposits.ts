@@ -88,7 +88,7 @@ export async function startWalletDeposit(input: {
     phone: normalized.phone,
     amountMinor: input.amountMinor,
     currency: 'TZS',
-    description: 'Predisha Bet wallet deposit',
+    description: 'SpotibetBet wallet deposit',
     webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
     customerName: input.customerName,
     customerEmail: input.customerEmail,

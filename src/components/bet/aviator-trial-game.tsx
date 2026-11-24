@@ -224,7 +224,7 @@ export function AviatorTrialGame({
           href={won ? withdrawHref : '/bet'}
           className="inline-flex items-center gap-1.5 font-semibold text-accent hover:underline"
         >
-          {won ? 'Claim my prize' : 'Back to Predisha Bet'}
+          {won ? 'Claim my prize' : 'Back to SpotibetBet'}
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>

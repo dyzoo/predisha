@@ -278,7 +278,7 @@ export default async function DashboardPage() {
             </p>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-text">
               Rank upcoming fixtures into a transparent prediction slip you can download or share.
-              No money moves through Predisha.
+              No money moves through Spotibet.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

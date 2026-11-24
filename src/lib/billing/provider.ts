@@ -85,7 +85,7 @@ export class NoripesaBillingProvider implements BillingProvider {
       phone,
       amountMinor: plan.amountMinor,
       currency: plan.currency,
-      description: `Predisha ${plan.interval.toLowerCase()} premium subscription`,
+      description: `Spotibet ${plan.interval.toLowerCase()} premium subscription`,
       webhookUrl: `${appUrl}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
       customerName: options?.customerName ?? user?.name ?? null,
       customerEmail: options?.customerEmail ?? user?.email ?? null,
