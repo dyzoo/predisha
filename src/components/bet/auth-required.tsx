@@ -39,7 +39,7 @@ export function AuthRequired({
         </Link>
       </div>
       <p className="mt-4 text-[11px] text-muted-text">
-        Your SpotibetBet wallet is protected and tied to your account.
+        Your Predisha Bet wallet is protected and tied to your account.
       </p>
     </div>
   )

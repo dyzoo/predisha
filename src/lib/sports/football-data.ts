@@ -209,6 +209,14 @@ interface ApiScorePair {
   away?: number | null
 }
 
+export function parseStandingForm(value: string | null | undefined): string[] {
+  if (!value) return []
+  return value
+    .toUpperCase()
+    .split('')
+    .filter((result): result is 'W' | 'D' | 'L' => result === 'W' || result === 'D' || result === 'L')
+}
+
 export interface ApiMatch {
   id: number
   utcDate: string
@@ -381,6 +389,8 @@ export class FootballDataProvider implements SportsDataProvider {
     goalsAgainst: number
     goalDifference: number
     points: number
+    form: string[]
+    logoUrl: string | null
   }>> {
     try {
       const { standings } = await request<{ standings: ApiStanding[] }>(
@@ -402,6 +412,8 @@ export class FootballDataProvider implements SportsDataProvider {
         goalsAgainst: row.goalsAgainst,
         goalDifference: row.goalDifference,
         points: row.points,
+        form: parseStandingForm(row.form),
+        logoUrl: row.team.crest ?? null,
       }))
     } catch {
       return []

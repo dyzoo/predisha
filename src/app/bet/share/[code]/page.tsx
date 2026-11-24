@@ -5,7 +5,7 @@ type Params = Promise<{ code: string }>
 
 export const metadata: Metadata = {
   title: 'Shared slip',
-  description: 'Load a shared bet slip into your SpotibetBet bet slip.',
+  description: 'Load a shared bet slip into your Predisha Bet bet slip.',
 }
 
 export default async function BetSharePage({ params }: { params: Params }) {

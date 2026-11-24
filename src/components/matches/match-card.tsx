@@ -52,7 +52,7 @@ export function MatchCard({ match, isDemo }: { match: MatchView; isDemo: boolean
       <div className="flex items-center justify-between gap-3">
         <Link
           href={`/matches/${match.id}`}
-          className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-muted-text hover:text-accent"
+          className="min-w-0 break-words text-[11px] font-medium uppercase leading-snug tracking-[0.14em] text-muted-text hover:text-accent"
         >
           {match.competition}
         </Link>
@@ -84,7 +84,7 @@ export function MatchCard({ match, isDemo }: { match: MatchView; isDemo: boolean
             <div className="flex min-w-0 items-center gap-3">
               <TeamBadge team={side.team} size="md" />
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{side.team.name}</p>
+                <p className="break-words text-sm font-semibold leading-snug">{side.team.name}</p>
                 <FormPips form={side.form} />
               </div>
             </div>

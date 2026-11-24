@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Bookmark,
@@ -22,11 +22,12 @@ import { useViewer } from '@/components/ui/viewer-provider'
 import { BrandLogo } from '@/components/brand-logo'
 
 const links = [
-  { href: '/builder', label: 'Bet Builder' },
   { href: '/matches', label: 'Matches' },
+  { href: '/leagues', label: 'Competitions' },
+  { href: '/teams', label: 'Teams' },
   { href: '/predictions', label: 'Predictions' },
+  { href: '/builder', label: 'Builder' },
   { href: '/results', label: 'Results' },
-  { href: '/methodology', label: 'Methodology' },
 ]
 
 const accountLinks = [
@@ -46,9 +47,11 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
   const reduceMotion = useReducedMotion()
   const { lang, setLang } = useLanguage()
   const router = useRouter()
+  const pathname = usePathname()
   const { viewer, loading, refreshViewer } = useViewer()
   const signedIn = Boolean(viewer?.userId)
   const isAdmin = viewer?.role === 'ADMIN' || viewer?.role === 'SUPER_ADMIN'
@@ -80,6 +83,18 @@ export function SiteHeader() {
       document.removeEventListener('keydown', onKeyDown)
     }
   }, [accountOpen])
+
+  useEffect(() => {
+    if (!open) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false)
+        menuButtonRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
 
   async function handleSignOut() {
     await fetch('/api/auth/sign-out', { method: 'POST', credentials: 'include' })
@@ -188,7 +203,7 @@ export function SiteHeader() {
       }`}
     >
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:h-20 sm:px-6 lg:px-8">
-        <Link href="/" className="group flex items-center" aria-label="Spotibet home">
+        <Link href="/" className="group flex min-w-0 items-center" aria-label="Predisha home">
           <BrandLogo priority className="h-14 w-auto sm:h-16" />
         </Link>
 
@@ -197,6 +212,7 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
+              aria-current={pathname === link.href ? 'page' : undefined}
               className="whitespace-nowrap rounded-lg px-2.5 py-2 text-[13px] font-medium text-muted-text transition-colors hover:bg-white/5 hover:text-main-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent xl:px-3"
             >
               {link.label}
@@ -221,6 +237,7 @@ export function SiteHeader() {
         </div>
 
         <button
+          ref={menuButtonRef}
           type="button"
           onClick={() => setOpen(value => !value)}
           className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-main-text lg:hidden"
@@ -247,6 +264,7 @@ export function SiteHeader() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  aria-current={pathname === link.href ? 'page' : undefined}
                   onClick={() => setOpen(false)}
                   className="rounded-lg px-3 py-3 text-base font-medium text-main-text transition-colors hover:bg-white/5"
                 >

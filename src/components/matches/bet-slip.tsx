@@ -108,8 +108,8 @@ function layoutReceipt(
   const probabilityText =
     lang === 'sw' ? `${percent(outcome.probability)} wa uwezekano` : `${percent(outcome.probability)} probability`
   const disclaimerText = lang === 'sw'
-    ? 'Risiti hii inatumia matokeo ya modeli yaliyoonyeshwa kwenye ukurasa. Uwezekano ni makadirio, si uhakika au ushauri wa kamari. Spotibet haipokei, haihifadhi, wala kuweka bet. Tumia risiti kwa mtoa huduma yoyote unayemwamini.'
-    : 'Receipts use the same transparent model outputs shown on the page. Probabilities are estimates, not odds, guarantees, or betting advice. No bet is placed and no funds are held by Spotibet. Use the receipt with any provider you trust.'
+    ? 'Risiti hii inatumia matokeo ya modeli yaliyoonyeshwa kwenye ukurasa. Uwezekano ni makadirio, si uhakika au ushauri wa kamari. Predisha haipokei, haihifadhi, wala kuweka bet. Tumia risiti kwa mtoa huduma yoyote unayemwamini.'
+    : 'Receipts use the same transparent model outputs shown on the page. Probabilities are estimates, not odds, guarantees, or betting advice. No bet is placed and no funds are held by Predisha. Use the receipt with any provider you trust.'
 
   const maxWidth = 936
   let cursor = 56
@@ -147,7 +147,7 @@ function layoutReceipt(
     if (draw) ctx.drawImage(logo, 72, cursor, 92 * BRAND_LOGO_ASPECT, 92)
     cursor += 118
   } else {
-    cursor = drawText('SPOTIBET', { size: 92, weight: 700, color: ACCENT })
+    cursor = drawText('PREDISHA', { size: 92, weight: 700, color: ACCENT })
     cursor += 14
   }
   cursor = drawText(receiptSubtitle, { size: 24, weight: 600, color: INK })
@@ -225,8 +225,8 @@ export function BetSlip({ match, premium }: BetSlipProps) {
     recommended: sw ? 'Mapendekezo' : 'Recommended',
     probability: sw ? 'Uwezekano' : 'Probability',
     disclaimer: sw
-      ? 'Risiti zinatumia matokeo ya modeli yaliyoonyeshwa kwenye ukurasa. Uwezekano ni makadirio, si uhakika au ushauri wa kamari. Spotibet haipokei, haihifadhi, wala kuweka bet. Tumia risiti kwa mtoa huduma unayemwamini.'
-      : 'Receipts use the same transparent model outputs shown on the page. Probabilities are estimates, not odds, guarantees, or betting advice. No bet is placed and no funds are held by Spotibet. Use the receipt with any provider you trust.',
+      ? 'Risiti zinatumia matokeo ya modeli yaliyoonyeshwa kwenye ukurasa. Uwezekano ni makadirio, si uhakika au ushauri wa kamari. Predisha haipokei, haihifadhi, wala kuweka bet. Tumia risiti kwa mtoa huduma unayemwamini.'
+      : 'Receipts use the same transparent model outputs shown on the page. Probabilities are estimates, not odds, guarantees, or betting advice. No bet is placed and no funds are held by Predisha. Use the receipt with any provider you trust.',
     errorInvalid: sw
       ? 'Hakuna chaguo thabiti la modeli kwa mkutano huu.'
       : 'No reliable model pick is available for this fixture.',
@@ -252,7 +252,7 @@ export function BetSlip({ match, premium }: BetSlipProps) {
     if (!receipt) return
     const link = document.createElement('a')
     link.href = receipt
-    link.download = `spotibet-receipt-${match.id}.png`
+    link.download = `predisha-receipt-${match.id}.png`
     link.click()
   }
 

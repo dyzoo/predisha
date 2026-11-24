@@ -209,7 +209,7 @@ export function BetBuilder({
     if (!receipt || !result) return
     const link = document.createElement('a')
     link.href = receipt
-    link.download = `spotibet-bet-slip-${result.generatedAt.slice(0, 10)}.png`
+    link.download = `predisha-prediction-slip-${result.generatedAt.slice(0, 10)}.png`
     link.click()
   }
 
@@ -610,12 +610,12 @@ export function BetBuilder({
                       const blob = await (await fetch(receipt)).blob()
                       const file = new File(
                         [blob],
-                        `spotibet-bet-slip-${result.generatedAt.slice(0, 10)}.png`,
+                        `predisha-prediction-slip-${result.generatedAt.slice(0, 10)}.png`,
                         { type: 'image/png' },
                       )
                       if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare?.({ files: [file] })) {
                         await navigator.share({
-                          title: 'Spotibet AI prediction slip',
+                          title: 'Predisha prediction slip',
                           files: [file],
                         })
                       } else if (navigator.canShare?.({ files: [file] })) {

@@ -129,7 +129,7 @@ function drawBrand(
     if (draw) ctx.drawImage(logo, x, top, height * BRAND_LOGO_ASPECT, height)
     return top + height
   }
-  return writeText(ctx, 'SPOTIBET', x, top + height, { size: 92, weight: 700, color: ACCENT }, draw)
+  return writeText(ctx, 'PREDISHA', x, top + height, { size: 92, weight: 700, color: ACCENT }, draw)
 }
 
 function layoutSelection(

@@ -11,7 +11,7 @@ import { getWalletView } from '@/lib/bet/wallet'
 
 export const metadata: Metadata = {
   title: 'Account',
-  description: 'Your betting wallet and Spotibet account details.',
+  description: 'Your betting wallet and Predisha account details.',
 }
 
 export default async function BetAccountPage() {
@@ -21,7 +21,7 @@ export default async function BetAccountPage() {
     return (
       <AuthRequired
         title="Sign in to your wallet"
-        description="Your betting wallet, tickets and game history are tied to your Spotibet account."
+        description="Your betting wallet, tickets and game history are tied to your Predisha account."
         nextPath="/bet/account"
       />
     )
@@ -46,7 +46,7 @@ export default async function BetAccountPage() {
               <UserRound className="h-4 w-4" />
               Profile
             </div>
-            <p className="mt-3 text-sm font-semibold">{viewer.name ?? 'Spotibet player'}</p>
+            <p className="mt-3 text-sm font-semibold">{viewer.name ?? 'Predisha player'}</p>
             <p className="text-xs text-muted-text">{viewer.email}</p>
             <p className="mt-3 inline-block rounded-full bg-background/60 px-2 py-0.5 text-[10px] font-semibold text-muted-text">
               {viewer.entitlement} plan
@@ -62,7 +62,7 @@ export default async function BetAccountPage() {
               Safety
             </div>
             <p className="mt-2 text-accent/80">
-              SpotibetBet never asks for a mobile-money PIN, card number or payment approval. If a
+              Predisha Bet never asks for a mobile-money PIN, card number or payment approval. If a
               page claims otherwise, close it and report the link.
             </p>
           </section>

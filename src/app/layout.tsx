@@ -32,11 +32,11 @@ const slipFont = Roboto_Condensed({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Spotibet: AI-assisted football analysis',
-    template: '%s · Spotibet',
+    default: 'Predisha: Football intelligence',
+    template: '%s · Predisha',
   },
   description:
-    'Statistically grounded football predictions with transparent probabilities, data timestamps, and honest performance tracking. Not a bookmaker.',
+    'Explore fixtures, competitions, team form and transparent Predisha probability analysis. Model estimates, not bookmaker prices or guaranteed outcomes.',
 }
 
 export default function RootLayout({

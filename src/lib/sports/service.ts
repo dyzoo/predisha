@@ -27,8 +27,10 @@ const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
 const DAY_MS = 24 * HOUR_MS
 const MIN_STORED_FIXTURES = 20
+const DATASET_CACHE_MS = 90 * 1000
 
 let liveFixtureRefresh: { at: number; promise: Promise<Map<string, Fixture>> } | null = null
+let datasetCache: { at: number; dataset: SportsDataset } | null = null
 
 function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
   const merged = new Map(current.map(item => [item.id, item]))
@@ -127,8 +129,15 @@ async function resolveNow(now?: Date): Promise<Date> {
   return new Date()
 }
 
-export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
+export async function getSportsDataset(
+  now?: Date,
+  allowCache = now === undefined,
+): Promise<SportsDataset> {
   const at = await resolveNow(now)
+
+  if (allowCache && datasetCache && at.getTime() - datasetCache.at < DATASET_CACHE_MS) {
+    return datasetCache.dataset
+  }
 
   let sports: Array<{ id: string; name: string; slug: string }> = []
   let competitions: Array<{
@@ -418,7 +427,7 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
     logoUrl: team.logoUrl || fallbackLogoUrl(team),
   }))
 
-  return {
+  const dataset: SportsDataset = {
     sportList: sports,
     competitions,
     teams,
@@ -426,6 +435,12 @@ export async function getSportsDataset(now?: Date): Promise<SportsDataset> {
     health,
     isDemo: usedDemoData,
   }
+
+  if (allowCache) {
+    datasetCache = { at: at.getTime(), dataset }
+  }
+
+  return dataset
 }
 
 export function buildMatchAnalyses(dataset: SportsDataset, now: Date = new Date()): MatchAnalysis[] {
@@ -494,7 +509,7 @@ export async function getMatchAnalyses(now?: Date): Promise<{
   dataset: SportsDataset
 }> {
   const at = await resolveNow(now)
-  const dataset = await getSportsDataset(at)
+  const dataset = await getSportsDataset(at, now === undefined)
   const analysisAsOf = effectiveAnalysisAsOf(dataset, at)
   return { analyses: buildMatchAnalyses(dataset, analysisAsOf), dataset }
 }

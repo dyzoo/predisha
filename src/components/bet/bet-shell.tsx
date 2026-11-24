@@ -226,7 +226,7 @@ function ShellInner({ viewer, children }: { viewer: ClientViewer; children: Reac
           <Link
             href="/bet"
             className="flex shrink-0 items-center"
-            aria-label="SpotibetBet home"
+            aria-label="Predisha Bet home"
           >
             <BrandLogo priority className="h-14 w-auto sm:h-16" />
           </Link>

@@ -246,7 +246,7 @@ export async function startSlipPayment(input: {
     phone: normalized.phone,
     amountMinor: stakeMinor,
     currency: 'TZS',
-    description: `SpotibetBet slip ${record.code}`,
+    description: `Predisha Bet slip ${record.code}`,
     webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
     customerName: input.customerName,
     customerEmail: input.customerEmail,

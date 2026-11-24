@@ -1,11 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import { TabPanel, Tabs } from '@/components/intelligence/tabs'
 import type { TeamFeatures } from '@/lib/predictions/engine'
 import type { MatchStatsFixtureView, MatchStatsView } from '@/lib/sports/view-model'
 
-const TABS = ['Head to head', 'Form', 'Team Stats', 'Matches'] as const
-type Tab = (typeof TABS)[number]
+const TABS = [
+  { id: 'h2h', label: 'Head to head' },
+  { id: 'form', label: 'Form' },
+  { id: 'team', label: 'Team Stats' },
+  { id: 'matches', label: 'Matches' },
+] as const
+type Tab = (typeof TABS)[number]['id']
 
 function EmptyState() {
   return (
@@ -120,7 +126,7 @@ export function MatchStatsTabs({
   homeName: string
   awayName: string
 }) {
-  const [active, setActive] = useState<Tab>('Head to head')
+  const [active, setActive] = useState<Tab>('h2h')
 
   const infoRows: Array<{ label: string; value: string | null }> = [
     {
@@ -138,91 +144,77 @@ export function MatchStatsTabs({
   return (
     <section className="mt-6 rounded-2xl border border-border bg-surface/60 p-5 sm:p-6">
       <h2 className="font-display text-lg font-bold">Match insights</h2>
-      <div role="tablist" aria-label="Match insights" className="mt-4 flex flex-wrap gap-2">
-        {TABS.map(tab => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={active === tab}
-            onClick={() => setActive(tab)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-              active === tab
-                ? 'border-accent/40 bg-accent/15 text-accent'
-                : 'border-border bg-background/40 text-muted-text hover:text-main-text'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        idPrefix="match-stats"
+        tabs={TABS}
+        active={active}
+        onChange={setActive}
+        label="Match insights"
+        className="mt-4"
+      />
 
-      <div role="tabpanel" aria-label={active} className="mt-5">
-        {active === 'Head to head' ? (
+      <TabPanel idPrefix="match-stats" id="h2h" active={active}>
+        {stats.h2h.length === 0 ? (
+          <EmptyState />
+        ) : (
           <div>
-            {stats.h2h.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <>
-                <p className="mb-3 text-[11px] leading-relaxed text-muted-text">
-                  Finished fixtures between these teams in the current dataset.
-                </p>
-                <div className="space-y-2">
-                  {stats.h2h.map(item => <FixtureRow key={item.id} item={item} pair />)}
+            <p className="mb-3 text-[11px] leading-relaxed text-muted-text">
+              Finished fixtures between these teams in the current dataset.
+            </p>
+            <div className="space-y-2">
+              {stats.h2h.map(item => <FixtureRow key={item.id} item={item} pair />)}
+            </div>
+          </div>
+        )}
+      </TabPanel>
+
+      <TabPanel idPrefix="match-stats" id="form" active={active}>
+        <div className="space-y-4">
+          {[
+            { name: homeName, form: stats.form.home },
+            { name: awayName, form: stats.form.away },
+          ].map(team => (
+            <div key={team.name}>
+              <p className="mb-2 text-xs font-semibold">{team.name}</p>
+              {team.form.length === 0 ? <EmptyState /> : <FormPips form={team.form} />}
+            </div>
+          ))}
+        </div>
+      </TabPanel>
+
+      <TabPanel idPrefix="match-stats" id="team" active={active}>
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <TeamStatTable label={homeName} team={stats.team.home} />
+            <TeamStatTable label={awayName} team={stats.team.away} />
+          </div>
+          <div className="rounded-xl border border-border bg-background/40 p-3">
+            <dl className="space-y-2">
+              {infoRows.map(row => (
+                <div key={row.label} className="flex items-center justify-between gap-3 text-[11px]">
+                  <dt className="text-muted-text">{row.label}</dt>
+                  <dd className="font-semibold text-main-text">{row.value ?? 'Not available yet'}</dd>
                 </div>
-              </>
-            )}
+              ))}
+            </dl>
           </div>
-        ) : null}
+        </div>
+      </TabPanel>
 
-        {active === 'Form' ? (
-          <div className="space-y-4">
-            {[
-              { name: homeName, form: stats.form.home },
-              { name: awayName, form: stats.form.away },
-            ].map(team => (
-              <div key={team.name}>
-                <p className="mb-2 text-xs font-semibold">{team.name}</p>
-                {team.form.length === 0 ? <EmptyState /> : <FormPips form={team.form} />}
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {active === 'Team Stats' ? (
-          <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <TeamStatTable label={homeName} team={stats.team.home} />
-              <TeamStatTable label={awayName} team={stats.team.away} />
+      <TabPanel idPrefix="match-stats" id="matches" active={active}>
+        <div className="grid gap-6 sm:grid-cols-2">
+          {[
+            { name: homeName, recent: stats.recent.home, upcoming: stats.upcoming.home },
+            { name: awayName, recent: stats.recent.away, upcoming: stats.upcoming.away },
+          ].map(team => (
+            <div key={team.name} className="space-y-4">
+              <p className="text-xs font-semibold">{team.name}</p>
+              <FixtureList title="Recent" items={team.recent} />
+              <FixtureList title="Next" items={team.upcoming} />
             </div>
-            <div className="rounded-xl border border-border bg-background/40 p-3">
-              <dl className="space-y-2">
-                {infoRows.map(row => (
-                  <div key={row.label} className="flex items-center justify-between gap-3 text-[11px]">
-                    <dt className="text-muted-text">{row.label}</dt>
-                    <dd className="font-semibold text-main-text">{row.value ?? 'Not available yet'}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </div>
-        ) : null}
-
-        {active === 'Matches' ? (
-          <div className="grid gap-6 sm:grid-cols-2">
-            {[
-              { name: homeName, recent: stats.recent.home, upcoming: stats.upcoming.home },
-              { name: awayName, recent: stats.recent.away, upcoming: stats.upcoming.away },
-            ].map(team => (
-              <div key={team.name} className="space-y-4">
-                <p className="text-xs font-semibold">{team.name}</p>
-                <FixtureList title="Recent" items={team.recent} />
-                <FixtureList title="Next" items={team.upcoming} />
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
+          ))}
+        </div>
+      </TabPanel>
     </section>
   )
 }

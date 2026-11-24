@@ -7,7 +7,7 @@ import type { BetMode } from '@/lib/bet/mode'
 
 export const metadata: Metadata = {
   title: 'How it works',
-  description: 'How SpotibetBet settles tickets and games.',
+  description: 'How Predisha Bet settles tickets and games.',
 }
 
 export default async function BetHowItWorksPage() {
@@ -27,7 +27,7 @@ export default async function BetHowItWorksPage() {
     <div className="space-y-8">
       <SectionHeading
         eyebrow="Transparency"
-        title="How SpotibetBet works"
+        title="How Predisha Bet works"
         description={mode === 'SANDBOX' ? 'A play-money sportsbook built to avoid the payment and odds problems of the original flow.' : 'A transparent sportsbook built to avoid the payment and odds problems of the original flow.'}
       />
 

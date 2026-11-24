@@ -1,7 +1,7 @@
 import { BrandLogo } from '@/components/brand-logo'
 
 export function BrandLoading({
-  message = 'Loading SpotibetBet',
+  message = 'Loading Predisha',
   className = 'min-h-[60vh]',
 }: {
   message?: string

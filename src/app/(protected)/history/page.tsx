@@ -238,7 +238,7 @@ export default async function HistoryPage() {
 
           <p className="flex items-start gap-2 text-[11px] leading-relaxed text-muted-text">
             <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Selections are estimates, not guarantees. Spotibet does not place bets or hold funds, and
+            Selections are estimates, not guarantees. Predisha does not place bets or hold funds, and
             a lost slip is shown without being hidden.
           </p>
         </>

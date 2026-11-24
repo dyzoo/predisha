@@ -41,7 +41,7 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2070&auto=format&fit=crop)' }} />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0f1225]/60 via-[#1a0b36]/50 to-[#0a0510]/70" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#081014]/75 via-[#0B0F14]/65 to-[#05080B]/80" />
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-32 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-accent/10 blur-[130px]" />
         <div className="absolute -right-24 top-24 h-[360px] w-[360px] rounded-full bg-[#5B8CFF]/10 blur-[110px]" />
@@ -54,9 +54,9 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
             transition={{ duration: 0.55, delay: 0.06, ease: 'easeOut' }}
             className="max-w-2xl font-chivo text-4xl font-black leading-[1.05] tracking-tight text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] sm:text-5xl lg:text-6xl"
           >
-            AI Assisted
+            Football intelligence
             <br />
-            <span className="text-accent">Football Analytics</span>
+            <span className="text-accent">without the noise</span>
           </motion.h1>
 
           <motion.p
@@ -64,13 +64,13 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
             transition={{ duration: 0.55, delay: 0.12, ease: 'easeOut' }}
             className="mt-5 max-w-xl text-base leading-relaxed text-white/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] sm:text-lg"
           >
-            Spotibet is an AI-assisted football analytics platform.
+            Predisha turns fixtures, competitions and team form into clear football context.
             <br />
-            Explore match probabilities, compare markets, and build your own predictions.
+            Explore model probabilities and fair prices with the evidence shown beside them.
             <br />
             Every insight is grounded in timestamped data and transparent models.
             <br />
-            No hype, no guaranteed wins. Just clear analysis before kickoff.
+            No hype, no guaranteed wins. Just useful analysis before kickoff.
           </motion.p>
 
           <motion.div
@@ -80,7 +80,7 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
           >
             <Link
               href="/builder"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3.5 text-sm font-semibold text-background shadow-[0_10px_30px_-10px_rgba(228,24,39,0.7)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3.5 text-sm font-semibold text-background shadow-[0_10px_30px_-10px_rgba(200,249,76,0.5)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Build my prediction
               <ArrowRight className="h-4 w-4" />
@@ -90,6 +90,12 @@ export function Hero({ featured, isDemo = false }: HeroProps) {
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-6 py-3.5 text-sm font-semibold text-main-text transition-colors hover:border-white/20 hover:bg-elevated-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               Explore matches
+            </Link>
+            <Link
+              href="/leagues"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-6 py-3.5 text-sm font-semibold text-main-text transition-colors hover:border-white/20 hover:bg-elevated-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Competitions
             </Link>
           </motion.div>
 

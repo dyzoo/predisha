@@ -4,10 +4,11 @@ import { BrandLogo } from '@/components/brand-logo'
 
 const productLinks = [
   { href: '/matches', label: 'Matches' },
+  { href: '/leagues', label: 'Competitions' },
+  { href: '/teams', label: 'Teams' },
   { href: '/predictions', label: 'Predictions' },
-  { href: '/bet', label: 'Bet now' },
   { href: '/results', label: 'Results' },
-  { href: '/pricing', label: 'Pricing' },
+  { href: '/builder', label: 'Builder' },
   { href: '/methodology', label: 'Methodology' },
   { href: '/about', label: 'About' },
 ]
@@ -26,12 +27,13 @@ export function SiteFooter() {
       <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div className="max-w-sm">
-            <Link href="/" className="flex items-center" aria-label="Spotibet home">
+            <Link href="/" className="flex min-w-0 items-center" aria-label="Predisha home">
               <BrandLogo className="h-14 w-auto sm:h-16" />
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted-text">
               Statistically grounded football analysis with transparent probabilities and honest
-              performance tracking. Not a bookmaker. No bets, no wagering.
+              performance tracking. Betting features are a separate area; model prices are never
+              presented as bookmaker odds.
             </p>
           </div>
 
@@ -74,7 +76,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 text-xs text-muted-text sm:flex-row sm:items-center sm:justify-between">
-          <p>© Spotibet. Informational analysis only, not betting advice.</p>
+          <p>© Predisha. Informational analysis only, not betting advice.</p>
           <p>Predictions are probabilities, not certainties. 18+ where applicable.</p>
         </div>
       </div>
