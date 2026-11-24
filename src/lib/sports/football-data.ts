@@ -136,7 +136,14 @@ function teamFromApi(team: ApiMatch['homeTeam']): Team {
   }
 }
 
-async function request<T>(path: string): Promise<T> {
+function retryDelayMs(response: Response, detail: string): number {
+  const header = response.headers.get('retry-after')
+  const match = detail.match(/wait\s+(\d+)\s+seconds?/i)
+  const seconds = Number(header ?? match?.[1] ?? 0)
+  return Math.min(60_000, Math.max(1_000, Number.isFinite(seconds) ? seconds * 1000 + 1_000 : 1_000))
+}
+
+async function request<T>(path: string, attempt = 0): Promise<T> {
   if (!API_TOKEN) {
     throw new Error('FOOTBALL_DATA_API_TOKEN is not configured')
   }
@@ -145,14 +152,28 @@ async function request<T>(path: string): Promise<T> {
     cache: 'no-store',
   })
   if (!res.ok) {
+    let detail = ''
+    try {
+      const payload = (await res.json()) as { message?: unknown; error?: unknown }
+      const candidate = payload.message ?? payload.error
+      if (typeof candidate === 'string') detail = candidate.trim()
+    } catch {}
     if (res.status === 403) {
-      throw new Error('football-data.org API token is invalid or lacks access to this endpoint.')
+      throw new Error(
+        detail
+          ? `football-data.org API access denied: ${detail}`
+          : 'football-data.org API token is invalid or lacks access to this endpoint.',
+      )
+    }
+    if (res.status === 429 && attempt < 3) {
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs(res, detail)))
+      return request<T>(path, attempt + 1)
     }
     if (res.status === 429) {
-      throw new Error('football-data.org API rate limit exceeded. Try again later.')
+      throw new Error(detail ? `football-data.org API rate limit exceeded: ${detail}` : 'football-data.org API rate limit exceeded. Try again later.')
     }
     throw new Error(
-      `football-data.org API error: ${res.status} ${res.statusText}`,
+      `football-data.org API error: ${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`,
     )
   }
   return (await res.json()) as T

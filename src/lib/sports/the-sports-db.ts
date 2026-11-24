@@ -16,7 +16,7 @@ const LEAGUE_IDS = [
   '4481',
   '4490',
 ]
-const CACHE_MS = 10 * 60 * 1000
+const CACHE_MS = 30 * 60 * 1000
 const TEAM_COLORS = ['#5B8CFF', '#E41827', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#EC4899', '#84CC16']
 
 interface TheSportsDBEvent {
@@ -72,6 +72,31 @@ function badgeUrl(value: string | null | undefined, name: string, color: string)
   return trimmed || fallbackLogoUrl({ name, shortName: shortNameFor(name), color })
 }
 
+function seasonLabels(now: Date = new Date()): string[] {
+  const year = now.getUTCFullYear()
+  if (now.getUTCMonth() + 1 >= 7) {
+    return [`${year}-${year + 1}`, `${year - 1}-${year}`]
+  }
+  return [`${year - 1}-${year}`, `${year - 2}-${year - 1}`]
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let index = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (index < items.length) {
+      const current = index++
+      results[current] = await worker(items[current])
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
 function parseKickoff(event: TheSportsDBEvent): Date | null {
   const raw = (event.strTimestamp || [event.dateEvent, event.strTime || '00:00:00'].filter(Boolean).join('T')).trim()
   if (!raw) return null
@@ -93,8 +118,11 @@ function score(value: string | null | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-async function fetchEvents(leagueId: string): Promise<TheSportsDBEvent[]> {
-  const url = `https://www.thesportsdb.com/api/v1/json/${encodeURIComponent(API_KEY)}/eventsnextleague.php?id=${encodeURIComponent(leagueId)}`
+async function fetchEvents(leagueId: string, season?: string): Promise<TheSportsDBEvent[]> {
+  const endpoint = season
+    ? `eventsseason.php?id=${encodeURIComponent(leagueId)}&s=${encodeURIComponent(season)}`
+    : `eventsnextleague.php?id=${encodeURIComponent(leagueId)}`
+  const url = `https://www.thesportsdb.com/api/v1/json/${encodeURIComponent(API_KEY)}/${endpoint}`
   const response = await fetch(url, { signal: AbortSignal.timeout(12_000) })
   if (!response.ok) throw new Error(`TheSportsDB league ${leagueId} returned ${response.status}`)
   const payload = (await response.json()) as { events?: TheSportsDBEvent[] | null }
@@ -102,9 +130,24 @@ async function fetchEvents(leagueId: string): Promise<TheSportsDBEvent[]> {
 }
 
 async function buildDataset(): Promise<TheSportsDBDataset> {
-  const responses = await Promise.all(LEAGUE_IDS.map(id => fetchEvents(id).catch(() => [] as TheSportsDBEvent[])))
-  const events = responses
-    .flat()
+  const nextResponses = await mapWithConcurrency(LEAGUE_IDS, 8, id =>
+    fetchEvents(id).catch(() => [] as TheSportsDBEvent[]),
+  )
+  const nextEvents = nextResponses.flat()
+  const upcomingLeagueIds = Array.from(
+    new Set(nextEvents.map(event => event.idLeague).filter((id): id is string => Boolean(id))),
+  )
+  const seasons = seasonLabels()
+  const seasonRequests = upcomingLeagueIds.flatMap(id =>
+    seasons.map(season => () => fetchEvents(id, season).catch(() => [] as TheSportsDBEvent[])),
+  )
+  const seasonResponses = await mapWithConcurrency(seasonRequests, 6, worker => worker())
+  const eventsById = new Map<string, TheSportsDBEvent>()
+  for (const event of [...nextEvents, ...seasonResponses.flat()]) {
+    if (!event.idEvent) continue
+    if (!eventsById.has(event.idEvent)) eventsById.set(event.idEvent, event)
+  }
+  const events = Array.from(eventsById.values())
     .filter(event => Boolean(event.idEvent && event.idHomeTeam && event.idAwayTeam && event.strHomeTeam && event.strAwayTeam))
     .filter(event => parseKickoff(event) !== null)
     .filter(event => ['SCHEDULED', 'LIVE', 'FINISHED'].includes(statusFor(event)))

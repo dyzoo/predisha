@@ -63,7 +63,7 @@ export const BET_MODE_COPY: Record<BetMode, BetModeCopy> = {
     shareNote: 'Share codes expire after 24 hours.',
     paymentNote: 'Payments are collected securely through your mobile-money provider.',
     safetyNote:
-      'Never share your mobile-money PIN. SpotibetBet only sends a USSD approval prompt and never asks for your PIN.',
+      'Never share your mobile-money PIN. SpotibetBet only sends a mobile-money approval prompt and never asks for your PIN.',
     homeEyebrow: 'Live sportsbook',
     homeAccent: 'Betting stakes.',
     homeDescription:

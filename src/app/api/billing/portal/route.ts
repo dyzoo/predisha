@@ -1,6 +1,7 @@
 ﻿import { apiError, json } from '@/lib/api'
 import { isSameOrigin } from '@/lib/auth/origin'
 import { getBillingProvider } from '@/lib/billing/provider'
+import { SETTLO_PROVIDER_NAME } from '@/lib/billing/settlo'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 
 export async function POST(request: Request) {
@@ -15,8 +16,8 @@ export async function POST(request: Request) {
   const session = await provider.createPortalSession(viewer.userId)
   if (!session) {
     return apiError(
-      provider.name === 'noripesa'
-        ? 'The noripesa USSD flow does not expose a hosted billing portal.'
+      provider.name === SETTLO_PROVIDER_NAME
+        ? 'The SettloPay mobile-money flow does not expose a hosted billing portal.'
         : 'The billing portal is not configured. No payment provider integration is active on this deployment.',
       503,
     )

@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/prisma'
 import {
-  NORIPESA_PROVIDER_NAME,
-  createNoripesaOrder,
-  getNoripesaOrderStatus,
-  noripesaApiKeyConfigured,
-  type NoripesaWebhookEvent,
-} from '@/lib/billing/noripesa'
+  SETTLO_PROVIDER_NAME,
+  createSettloPayment,
+  getSettloPayment,
+  settloApiKeyConfigured,
+  type SettloWebhookEvent,
+} from '@/lib/billing/settlo'
 import { getDepositMinMinor } from './deposit-settings'
 import { BetError } from './errors'
 import { normalizeTzPhone } from './phone'
@@ -13,8 +13,8 @@ import { MAX_DEPOSIT_MINOR } from './types'
 import { creditWallet } from './wallet'
 import { sendBetTransactionSms } from '@/lib/billing/nextsms'
 
-const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed'])
-const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired'])
+const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed', 'chargeback_won'])
+const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired', 'blocked', 'chargeback_lost'])
 
 export interface DepositOrderView {
   orderId: string
@@ -71,7 +71,7 @@ export async function startWalletDeposit(input: {
       'BAD_AMOUNT',
     )
   }
-  if (!noripesaApiKeyConfigured()) {
+  if (!settloApiKeyConfigured()) {
     throw new BetError(
       'Mobile-money payments are not configured on this server yet. Add funds from the wallet page or try again later.',
       503,
@@ -84,14 +84,15 @@ export async function startWalletDeposit(input: {
     throw new BetError(normalized.error ?? 'Enter a valid mobile number.', 422, 'BAD_PHONE')
   }
 
-  const order = await createNoripesaOrder({
+  const order = await createSettloPayment({
     phone: normalized.phone,
     amountMinor: input.amountMinor,
     currency: 'TZS',
     description: 'SpotibetBet wallet deposit',
-    webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
     customerName: input.customerName,
     customerEmail: input.customerEmail,
+    returnUrl: `${appUrl()}/bet/wallet`,
+    cancelUrl: `${appUrl()}/bet/wallet`,
   })
 
   if (!order.success || !order.orderId) {
@@ -104,7 +105,7 @@ export async function startWalletDeposit(input: {
       kind: 'DEPOSIT',
       amountMinor: input.amountMinor,
       currency: 'TZS',
-      provider: NORIPESA_PROVIDER_NAME,
+      provider: SETTLO_PROVIDER_NAME,
       orderId: order.orderId,
       status: 'PENDING',
     },
@@ -122,9 +123,9 @@ async function completeDeposit(orderId: string): Promise<void> {
       userId: order.userId,
       amountMinor: order.amountMinor,
       type: 'DEPOSIT',
-      reference: `hpay:${order.orderId}`,
-      note: 'NORIPESA deposit',
-      metadata: { provider: NORIPESA_PROVIDER_NAME, orderId: order.orderId },
+      reference: `settlo:${order.orderId}`,
+      note: 'SettloPay deposit',
+      metadata: { provider: SETTLO_PROVIDER_NAME, orderId: order.orderId },
     })
 
     await tx.betPaymentOrder.update({
@@ -152,7 +153,7 @@ export async function refreshWalletDeposit(
   if (!order) throw new BetError('That deposit could not be found.', 404, 'ORDER_NOT_FOUND')
 
   if (order.status === 'PENDING') {
-    const result = await getNoripesaOrderStatus(orderId)
+    const result = await getSettloPayment(orderId)
     const status = (result.status ?? '').toLowerCase()
     if (SUCCESS_STATUSES.has(status)) {
       await completeDeposit(orderId)
@@ -169,11 +170,13 @@ export async function refreshWalletDeposit(
 }
 
 export async function applyDepositPaymentEvent(
-  event: NoripesaWebhookEvent,
+  event: SettloWebhookEvent,
 ): Promise<{ handled: boolean }> {
   if (!event.orderId) return { handled: false }
   const order = await prisma.betPaymentOrder.findUnique({ where: { orderId: event.orderId } })
   if (!order) return { handled: false }
+  if (event.amountMinor !== null && event.amountMinor !== order.amountMinor) return { handled: false }
+  if (event.currency && event.currency !== order.currency) return { handled: false }
 
   const status = (event.status ?? '').toLowerCase()
   if (SUCCESS_STATUSES.has(status)) {

@@ -166,7 +166,7 @@ export async function getSportsDataset(
       prisma.fixture.findMany({
         where: {
           kickoffUtc: {
-            gte: new Date(at.getTime() - 120 * DAY_MS),
+            gte: new Date(at.getTime() - 30 * DAY_MS),
             lte: new Date(at.getTime() + 30 * DAY_MS),
           },
         },
@@ -252,12 +252,13 @@ export async function getSportsDataset(
     fixtures.length > 0 &&
     (latestFinishedKickoff === null || at.getTime() - latestFinishedKickoff >= 21 * DAY_MS)
 
+  const needsFreshData = fixtures.length < MIN_STORED_FIXTURES || storedDataStale
   let usedDemoData = false
   let hasRealFixtures = fixtures.length > 0 && health.mode !== 'demo'
 
-  if (fixtures.length < MIN_STORED_FIXTURES || storedDataStale) {
+  if (needsFreshData && provider.name !== 'demo') {
     try {
-      const from = new Date(at.getTime() - 120 * DAY_MS)
+      const from = new Date(at.getTime() - 30 * DAY_MS)
       const to = new Date(at.getTime() + 30 * DAY_MS)
       const [providerSports, providerCompetitions, providerTeams, providerFixtures] =
         await Promise.all([
@@ -294,7 +295,7 @@ export async function getSportsDataset(
   }
 
   if (
-    (fixtures.length < MIN_STORED_FIXTURES || teams.some(team => !team.logoUrl)) &&
+    (needsFreshData || teams.some(team => !team.logoUrl)) &&
     process.env.DISABLE_REAL_FIXTURE_FALLBACK !== 'true'
   ) {
     try {
@@ -303,14 +304,15 @@ export async function getSportsDataset(
         realProvider.getSports(),
         realProvider.getCompetitions(),
         realProvider.getTeams(),
-        realProvider.getFixtures(
-          new Date(at.getTime() - 2 * DAY_MS),
-          new Date(at.getTime() + 30 * DAY_MS),
-        ),
+          realProvider.getFixtures(
+            new Date(at.getTime() - 30 * DAY_MS),
+            new Date(at.getTime() + 30 * DAY_MS),
+          ),
         realProvider.getHealth(),
       ])
       if (realFixtures.length > 0) {
         hasRealFixtures = true
+        usedDemoData = false
         sports = mergeById(
           sports,
           realSports.map(item => ({ id: item.id, name: item.name, slug: item.slug })),
@@ -356,13 +358,14 @@ export async function getSportsDataset(
     !hasRealFixtures &&
     fixtures.length < MIN_STORED_FIXTURES &&
     health.mode !== 'demo' &&
-    process.env.DISABLE_DEMO_FALLBACK !== 'true'
+    process.env.DISABLE_DEMO_FALLBACK !== 'true' &&
+    (process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEMO_FALLBACK === 'true')
   ) {
     try {
       const demoProvider = new DemoSportsProvider()
       const demoHealth = await demoProvider.getHealth()
       if (demoHealth.mode === 'demo') {
-        const from = new Date(at.getTime() - 120 * DAY_MS)
+        const from = new Date(at.getTime() - 30 * DAY_MS)
         const to = new Date(at.getTime() + 30 * DAY_MS)
         const [demoSports, demoCompetitions, demoTeams, demoFixtures] = await Promise.all([
           demoProvider.getSports(),

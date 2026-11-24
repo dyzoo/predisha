@@ -3,6 +3,7 @@ import { apiError, json } from '@/lib/api'
 import { isSameOrigin } from '@/lib/auth/origin'
 import { clientKey, rateLimit } from '@/lib/auth/rate-limit'
 import { getBillingProvider } from '@/lib/billing/provider'
+import { SETTLO_PROVIDER_NAME } from '@/lib/billing/settlo'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 
 const checkoutSchema = z.object({
@@ -45,8 +46,8 @@ export async function POST(request: Request) {
     )
   }
 
-  if (provider.name === 'noripesa' && !parsed.data.phone) {
-    return apiError('Enter a valid phone number to receive the USSD push.', 422, {
+  if (provider.name === SETTLO_PROVIDER_NAME && !parsed.data.phone) {
+    return apiError('Enter a valid phone number to receive the mobile-money prompt.', 422, {
       fields: { phone: 'Enter a valid phone number.' },
     })
   }

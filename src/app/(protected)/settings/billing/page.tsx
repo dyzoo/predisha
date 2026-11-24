@@ -110,8 +110,8 @@ export default async function BillingSettingsPage() {
             <div className="mt-3 flex items-start gap-3 rounded-xl border border-border bg-surface/40 p-3.5 text-xs leading-relaxed text-muted-text">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
               <p>
-                {provider === 'Noripesa'
-                  ? 'Noripesa collects premium subscriptions through a USSD push to the phone number you provide. Approve the payment on your handset; Spotibet does not store or handle card details.'
+                {provider === 'settlopay'
+                  ? 'SettloPay collects subscriptions through a secure mobile-money prompt on the phone number you provide. Approve the payment on your handset; Spotibet does not store card details.'
                   : 'Test billing is enabled on this deployment. Activating a plan grants premium immediately without taking a real payment.'}
               </p>
             </div>
@@ -122,7 +122,7 @@ export default async function BillingSettingsPage() {
                 No subscription plans are published yet. Check back once pricing is configured.
               </p>
             )}
-            {provider === 'Noripesa' ? (
+            {provider === 'settlopay' ? (
               <>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button
@@ -134,8 +134,7 @@ export default async function BillingSettingsPage() {
                   </button>
                 </div>
                 <p className="mt-3 text-[11px] leading-relaxed">
-                  The Noripesa USSD flow does not expose a hosted portal, so payment methods are
-                  managed in the Noripesa app.
+                  The SettloPay mobile-money flow does not expose a hosted portal.
                 </p>
               </>
             ) : null}
@@ -149,10 +148,9 @@ export default async function BillingSettingsPage() {
             </p>
           </div>
         )}
-        {billingEnabled && provider === 'Noripesa' ? (
+        {billingEnabled && provider === 'settlopay' ? (
           <p className="mt-3 text-[11px] leading-relaxed">
-            Live billing is enabled for the Noripesa provider. USSD payments settle directly with the
-            network and provider.
+            Live billing is enabled for the SettloPay provider. Mobile-money payments settle directly with the network and provider.
           </p>
         ) : null}
         <Link

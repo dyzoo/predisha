@@ -49,11 +49,11 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-vi.mock('@/lib/billing/noripesa', () => ({
-  NORIPESA_PROVIDER_NAME: 'noripesa',
-  createNoripesaOrder: state.createOrder,
-  getNoripesaOrderStatus: state.orderStatus,
-  noripesaApiKeyConfigured: state.key,
+vi.mock('@/lib/billing/settlo', () => ({
+  SETTLO_PROVIDER_NAME: 'settlopay',
+  createSettloPayment: state.createOrder,
+  getSettloPayment: state.orderStatus,
+  settloApiKeyConfigured: state.key,
 }))
 
 import { BetError } from './errors'
@@ -72,7 +72,7 @@ function baseEntry(overrides: Record<string, unknown> = {}) {
     phone: '255712345678',
     stakeMinor: 1000,
     status: 'PENDING',
-    provider: 'noripesa',
+    provider: 'settlopay',
     providerOrderId: 'HP1',
     ticketId: null,
     placementStartedAt: null,
@@ -116,7 +116,7 @@ function slipView(mode: 'LIVE' | 'SANDBOX' = 'LIVE') {
 
 function webhookEvent(overrides: Record<string, unknown> = {}) {
   return {
-    provider: 'noripesa',
+    provider: 'settlopay',
     providerEventId: 'evt-1',
     type: 'payment',
     status: 'completed',
@@ -225,7 +225,7 @@ describe('startSlipPayment', () => {
     expect(state.createEntry).not.toHaveBeenCalled()
   })
 
-  it('returns 503 when Noripesa is not configured in live mode', async () => {
+  it('returns 503 when SettloPay is not configured in live mode', async () => {
     state.keyConfigured = false
 
     await expect(
@@ -234,7 +234,7 @@ describe('startSlipPayment', () => {
     expect(state.createEntry).not.toHaveBeenCalled()
   })
 
-  it('creates a pending Noripesa entry in live mode', async () => {
+  it('creates a pending SettloPay entry in live mode', async () => {
     const result = await startSlipPayment({ code: 'ABC123', phone: '0712345678', userId: 'user-1' })
 
     expect(result.entry.status).toBe('PENDING')
@@ -244,7 +244,7 @@ describe('startSlipPayment', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: 'PENDING',
-          provider: 'noripesa',
+          provider: 'settlopay',
           providerOrderId: 'HP1',
         }),
       }),
@@ -409,7 +409,7 @@ describe('retrySlipEntry', () => {
     expect(state.orderStatus).not.toHaveBeenCalled()
   })
 
-  it('refuses to retry when the Noripesa payment was not confirmed', async () => {
+  it('refuses to retry when the SettloPay payment was not confirmed', async () => {
     state.entry = baseEntry({ status: 'FAILED', failureReason: 'BET_FAILED' })
     state.orderStatus.mockResolvedValue({ status: 'pending' })
 

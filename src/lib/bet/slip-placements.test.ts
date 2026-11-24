@@ -60,7 +60,7 @@ function baseEntry(overrides: Record<string, unknown> = {}) {
     phone: '255712345678',
     stakeMinor: 1000,
     status: 'PAID',
-    provider: 'noripesa',
+    provider: 'settlopay',
     providerOrderId: 'HP1',
     ticketId: null,
     placementStartedAt: null,

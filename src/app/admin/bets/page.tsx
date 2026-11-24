@@ -11,7 +11,7 @@ import { AdminSlipList, type AdminSlipListItemView } from '@/components/admin/ad
 import { AdminNav } from '@/components/admin/admin-nav'
 import { canViewAdmin } from '@/lib/auth/entitlements'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
-import { noripesaApiKeyConfigured } from '@/lib/billing/noripesa'
+import { settloApiKeyConfigured } from '@/lib/billing/settlo'
 import { getDepositMinMinor } from '@/lib/bet/deposit-settings'
 import { getBetMode } from '@/lib/bet/mode'
 import { buildAdminSlipRecommendation } from '@/lib/bet/recommendation'
@@ -112,10 +112,10 @@ export default async function AdminBetsPage() {
 
       <AdminDepositMinimum minDepositMinor={minDepositMinor} />
 
-      {!noripesaApiKeyConfigured() ? (
+      {!settloApiKeyConfigured() ? (
         <section className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-xs leading-relaxed text-amber-200">
-          Noripesa is not loaded on this server, so live mobile-money payments will
-          return a configuration error. Add <code className="font-mono">NORIPESA_API_KEY</code> to
+          SettloPay is not loaded on this server, so live mobile-money payments will
+          return a configuration error. Add <code className="font-mono">SETTLO_API_KEY</code> to
           <code className="font-mono"> .env.local</code> and restart the app, or keep the platform in
           Sandbox mode for test slips.
         </section>

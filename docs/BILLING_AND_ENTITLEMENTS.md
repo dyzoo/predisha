@@ -1,18 +1,21 @@
 ﻿# Billing and Entitlements
 
-- Live billing provider: Noripesa (USSD push) behind the `BillingProvider` abstraction
-- Live billing requires `BILLING_LIVE_ENABLED=true` and either `BILLING_PROVIDER=Noripesa` (real USSD payments) or `BILLING_PROVIDER=manual` with `BILLING_TEST_MODE=true` (test activation); checkout stays disabled while no provider is configured
-- USSD push checkout, webhook events confirmed against the provider status API
+- Live billing provider: SettloPay (mobile money) behind the `BillingProvider` abstraction
+- Live billing requires `BILLING_LIVE_ENABLED=true` and `BILLING_PROVIDER=settlopay` (real mobile-money payments) or `BILLING_PROVIDER=manual` with `BILLING_TEST_MODE=true` (test activation); checkout stays disabled while no provider is configured
+- Mobile-money checkout, webhook events confirmed against the provider status API
 - Entitlements enforced server-side
 - No card data stored
 
-## Noripesa integration
+## SettloPay integration
 
-- Checkout starts a USSD push through `POST https://Noripesa.net/api/v1/collect` with the customer phone, the amount in TZS and the `X-API-Key` header.
-- The returned Noripesa order id is recorded on the billing event ledger (`BillingEvent.providerEventId`) together with the buyer context captured at checkout.
-- `POST /api/webhooks/Noripesa` applies the reported status idempotently; completed payments grant the premium subscription and failed payments mark it unpaid. Noripesa does not sign its callbacks, so unsigned events are confirmed through `GET /api/v1/status/{order_id}` before being trusted. If a signature header is present and `Noripesa_WEBHOOK_SECRET` is set, the raw body HMAC-SHA256 signature is verified first.
-- `POST /api/billing/confirm` re-checks an in-flight Noripesa order through the status API and applies the event. The checkout UI polls this endpoint after sending the USSD push, so subscriptions still activate when a webhook cannot reach the app (for example when `APP_URL` is localhost).
-- The provider abstraction (`src/lib/billing/provider.ts`) maps Noripesa orders to the internal subscription model. The app never handles raw card data.
+- Configure `SETTLO_API_KEY`, `SETTLO_BASE_URL`, `SETTLO_API_VERSION`, `SETTLO_WEBHOOK_SECRET` and `SETTLO_WEBHOOK_URL` before enabling `BILLING_PROVIDER=settlopay`.
+- Checkout starts a mobile-money collection through the SettloPay API with the customer phone and the amount in TZS, authenticated with `SETTLO_API_KEY`.
+- The returned SettloPay payment id is recorded on the billing event ledger (`BillingEvent.providerEventId`) together with the buyer context captured at checkout.
+- `POST /api/webhooks/settlopay` applies the reported status idempotently; the public URL `https://spotionebet.co.tz/webhooks/settlo` is rewritten to this route. Confirmed payments grant the premium subscription and failed, blocked or lost-chargeback payments mark it unpaid. Each request must include a `Settlo-Signature` header containing an HMAC-SHA256 signature over `t.rawBody` using `SETTLO_WEBHOOK_SECRET`, accepted within a five-minute tolerance; `Settlo-Event-Id` is used for deduplication.
+- Payment state is confirmed with `GET /v1/payments/{id}` before fulfilment, so a forged or stale callback cannot activate a subscription.
+- `POST /api/billing/confirm` re-checks an in-flight SettloPay payment through the status API and applies the event. The checkout UI polls this endpoint after sending the mobile-money prompt, so subscriptions still activate when a webhook cannot reach the app (for example when `APP_URL` is localhost).
+- The provider abstraction (`src/lib/billing/provider.ts`) maps SettloPay payments to the internal subscription model. The app never handles raw card data.
+- SettloPay has no sandbox; test keys still move real money. Use `BILLING_PROVIDER=manual` with `BILLING_TEST_MODE=true` for non-charging test activations.
 
 ## Test activation
 
