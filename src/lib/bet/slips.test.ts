@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { computeTicketTotals, evaluateTicket } from './bets'
 import { matchClock } from './match-clock'
 import { maskTzPhone } from './phone'
-import { canDeleteAdminBetSlip, isSlipFrozen, maskPhone, toAdminSlipView } from './slips'
+import {
+  canDeleteAdminBetSlip,
+  isSlipFrozen,
+  maskPhone,
+  resolveForcedSlipStartAt,
+  resolveMatchClock,
+  toAdminSlipView,
+} from './slips'
 import { formatLiveMinute, slipStakeOptions, type TicketSelection } from './types'
 
 function selection(odds: number): TicketSelection {
@@ -139,6 +146,43 @@ describe('canDeleteAdminBetSlip', () => {
         entries: [{ status: 'FAILED', ticketId: null }],
       }),
     ).toBe(true)
+  })
+})
+
+describe('forced slip start', () => {
+  const slip = {
+    status: 'OPEN' as const,
+    autoFreezeAt: new Date('2026-01-01T13:00:00.000Z'),
+    code: 'SIM123',
+    timeMode: 'SIMULATED' as const,
+    manualKickoffAt: new Date('2026-01-01T10:00:00.000Z'),
+    simulatedDurationMinutes: 90,
+    selections: [
+      { ...selection(2), fixtureId: 'fixture-first', kickoffIso: '2026-01-01T11:00:00.000Z' },
+      { ...selection(3), fixtureId: 'fixture-second', kickoffIso: '2026-01-01T11:15:00.000Z' },
+    ] as never,
+  }
+
+  it('anchors a late forced start to the first admin-set kickoff', () => {
+    const now = new Date('2026-01-01T11:32:00.000Z')
+    const forcedStart = resolveForcedSlipStartAt(slip, now)
+    const clock = resolveMatchClock({ ...slip, liveStartedAt: forcedStart }, now)
+
+    expect(forcedStart.toISOString()).toBe('2026-01-01T11:00:00.000Z')
+    expect(clock).toMatchObject({
+      liveStartedAt: '2026-01-01T11:00:00.000Z',
+      kickoffIso: '2026-01-01T11:00:00.000Z',
+    })
+    expect(matchClock(clock!, now.getTime()).minute).toBe(33)
+  })
+
+  it('never starts before the first admin-set kickoff', () => {
+    const now = new Date('2026-01-01T10:45:00.000Z')
+    const forcedStart = resolveForcedSlipStartAt(slip, now)
+    const clock = resolveMatchClock({ ...slip, liveStartedAt: forcedStart }, now)
+
+    expect(forcedStart.toISOString()).toBe('2026-01-01T11:00:00.000Z')
+    expect(matchClock(clock!, now.getTime()).started).toBe(false)
   })
 })
 

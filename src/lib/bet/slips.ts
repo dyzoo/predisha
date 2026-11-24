@@ -204,6 +204,27 @@ function toIso(value: unknown): string | null {
   return null
 }
 
+function firstSelectionKickoffIso(slip: { selections?: Prisma.JsonValue | null }): string | null {
+  if (!slip.selections) return null
+  return (
+    parseSelections(slip.selections)
+      .map(selection => toIso(selection.kickoffIso))
+      .filter((value): value is string => Boolean(value))
+      .sort()[0] ?? null
+  )
+}
+
+function scheduledKickoffIso(slip: SlipClockSource): string | null {
+  return firstSelectionKickoffIso(slip) ?? toIso(slip.manualKickoffAt)
+}
+
+export function resolveForcedSlipStartAt(slip: SlipClockSource, now: Date = new Date()): Date {
+  const kickoffIso = scheduledKickoffIso(slip)
+  if (!kickoffIso) return now
+  const kickoff = new Date(kickoffIso)
+  return Number.isNaN(kickoff.getTime()) ? now : kickoff
+}
+
 export function resolveMatchClock(
   slip: SlipClockSource,
   now: Date = new Date(),
@@ -218,22 +239,18 @@ export function resolveMatchClock(
       liveStartedAt: startedIso,
       durationMinutes,
       seed,
-      kickoffIso: toIso(slip.manualKickoffAt) ?? startedIso,
+      kickoffIso: scheduledKickoffIso(slip) ?? startedIso,
     }
   }
 
   let kickoffIso: string | null = null
   if (slip.timeMode === 'MANUAL') {
-    kickoffIso = toIso(slip.manualKickoffAt)
+    kickoffIso = toIso(slip.manualKickoffAt) ?? firstSelectionKickoffIso(slip)
   } else if (
     (slip.timeMode === 'ORIGINAL' || slip.timeMode === 'SIMULATED') &&
     slip.selections
   ) {
-    const kickoffs = parseSelections(slip.selections)
-      .map(selection => toIso(selection.kickoffIso))
-      .filter((value): value is string => Boolean(value))
-      .sort()
-    kickoffIso = kickoffs[0] ?? null
+    kickoffIso = firstSelectionKickoffIso(slip)
   }
 
   if (!kickoffIso || new Date(kickoffIso).getTime() > now.getTime()) return null
@@ -773,17 +790,13 @@ export async function startAdminBetSlip(input: {
 
   const durationMinutes = slip.simulatedDurationMinutes || DEFAULT_SIMULATED_DURATION_MINUTES
   const existingSelections = parseSelections(slip.selections)
+  const forcedStart = resolveForcedSlipStartAt(slip, now)
+  const kickoffIso = scheduledKickoffIso(slip) ?? forcedStart.toISOString()
   const clock = {
-    liveStartedAt: now.toISOString(),
+    liveStartedAt: forcedStart.toISOString(),
     durationMinutes,
     seed: slip.code,
-    kickoffIso:
-      slip.manualKickoffAt?.toISOString() ??
-      existingSelections
-        .map(s => s.kickoffIso)
-        .filter(Boolean)
-        .sort()[0] ??
-      now.toISOString(),
+    kickoffIso,
   }
   const simulate = usesSimulationClock(slip, existingSelections)
   const slipSelections = simulate
@@ -797,7 +810,7 @@ export async function startAdminBetSlip(input: {
       data: {
         status: 'OPEN',
         freezeReason: 'Match has started. In-play stakes are available at reduced prices.',
-        liveStartedAt: now,
+        liveStartedAt: forcedStart,
         frozenAt: null,
         frozenBy: input.actorId,
         selections: slipSelections as unknown as Prisma.InputJsonValue,
@@ -824,7 +837,12 @@ export async function startAdminBetSlip(input: {
         actorId: input.actorId,
         action: 'admin.slip.start-match',
         target: slip.code,
-        metadata: { liveStartedAt: clock.liveStartedAt, durationMinutes: clock.durationMinutes },
+        metadata: {
+          liveStartedAt: clock.liveStartedAt,
+          scheduledKickoffIso: kickoffIso,
+          requestedAt: now.toISOString(),
+          durationMinutes: clock.durationMinutes,
+        },
       },
     })
     return tx.adminBetSlip.findUniqueOrThrow({ where: { id: slip.id } })
@@ -877,7 +895,7 @@ export async function setAdminSlipLiveScores(input: {
       data: {
         status: 'OPEN',
         frozenAt: null,
-        liveStartedAt: slip.liveStartedAt ?? now,
+        liveStartedAt: slip.liveStartedAt ?? resolveForcedSlipStartAt(slip, now),
         freezeReason: 'Live score updated by admin. In-play stakes are available.',
         selections: selections as unknown as Prisma.InputJsonValue,
       },
@@ -936,7 +954,7 @@ export async function finishAdminBetSlip(input: {
     liveStartedAt: finishedStartedAt.toISOString(),
     durationMinutes,
     seed: slip.code,
-    kickoffIso: slip.manualKickoffAt?.toISOString() ?? now.toISOString(),
+    kickoffIso: scheduledKickoffIso(slip) ?? now.toISOString(),
   }
   const simulate = usesSimulationClock(slip, selections)
   const finishedSelections = selections.map(selection => {
