@@ -69,11 +69,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       return json({ slip: updated })
     }
 
-    if (input.action === 'start-live' || input.action === 'start-match') {
+    if (
+      input.action === 'start-live' ||
+      input.action === 'start-match' ||
+      input.action === 'force-start-matches'
+    ) {
       const updated =
-        input.action === 'start-live'
-          ? await startAdminSlipSimulation({ id: slip.id, actorId, now: new Date() })
-          : await startAdminBetSlip({ id: slip.id, actorId, now: new Date() })
+        input.action === 'start-match'
+          ? await startAdminBetSlip({ id: slip.id, actorId, now: new Date(), mode: 'SCHEDULED' })
+          : await startAdminSlipSimulation({
+              id: slip.id,
+              actorId,
+              now: new Date(),
+              mode: 'FORCED',
+            })
       return json({ slip: updated })
     }
 

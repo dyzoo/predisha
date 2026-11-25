@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getBetCatalog, getFixtureResults, type FixtureResult } from './catalog'
 import { BetError, isUniqueConstraintError } from './errors'
 import { buildCashoutQuote, type CashoutOutcome } from './cashout'
-import { matchClockFromKickoff } from './match-clock'
+import { matchClock } from './match-clock'
 import { combineOdds, findSelection, settleMarket } from './odds'
 import { hashString, mulberry32, randomCode } from './random'
 import { simulatedCashoutOffer, simulatedResultsForTicket } from './simulation'
@@ -536,7 +536,10 @@ export function cashoutOffer(
       !selection.finalScore &&
       (selection.liveScore != null || selection.liveMinute != null)
     const durationMinutes = selection.simulation?.durationMinutes ?? 90
-    const clock = matchClockFromKickoff(selection.kickoffIso, durationMinutes, now.getTime())
+    const clock = matchClock(
+      selection.simulation ?? { liveStartedAt: selection.kickoffIso, durationMinutes },
+      now.getTime(),
+    )
     const selectionStarted =
       finishedResult !== null || Boolean(event?.live) || clock.started || liveOverride
     if (selectionStarted) {

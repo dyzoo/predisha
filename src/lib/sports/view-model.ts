@@ -1,4 +1,5 @@
 import { formatInTimeZone } from 'date-fns-tz'
+import { BET_TIME_ZONE, BET_TIME_ZONE_LABEL } from '@/lib/bet/format'
 import type {
   FormResult,
   MarketOption,
@@ -63,12 +64,16 @@ function shortLabel(shortName: string, name: string): string {
   return initials || '?'
 }
 
-export function formatMatchTime(date: Date, timeZone = 'UTC'): string {
-  return `${formatInTimeZone(date, timeZone, 'EEE d MMM yyyy, HH:mm')} ${timeZone === 'UTC' ? 'UTC' : ''}`.trim()
+function timeZoneLabel(timeZone: string): string {
+  return timeZone === 'UTC' ? 'UTC' : BET_TIME_ZONE_LABEL
 }
 
-export function formatDateTime(date: Date, timeZone = 'UTC'): string {
-  return `${formatInTimeZone(date, timeZone, 'd MMM yyyy, HH:mm')} ${timeZone === 'UTC' ? 'UTC' : ''}`.trim()
+export function formatMatchTime(date: Date, timeZone = BET_TIME_ZONE): string {
+  return `${formatInTimeZone(date, timeZone, 'EEE d MMM yyyy, HH:mm')} ${timeZoneLabel(timeZone)}`.trim()
+}
+
+export function formatDateTime(date: Date, timeZone = BET_TIME_ZONE): string {
+  return `${formatInTimeZone(date, timeZone, 'd MMM yyyy, HH:mm')} ${timeZoneLabel(timeZone)}`.trim()
 }
 
 function scorePair(
@@ -89,7 +94,7 @@ function deriveLiveMinute(fixture: Fixture, at: Date): number {
   return Math.min(120, Math.max(1, Math.floor(value)))
 }
 
-export function toMatchView(analysis: MatchAnalysis, timeZone = 'UTC', now?: Date): MatchView {
+export function toMatchView(analysis: MatchAnalysis, timeZone = BET_TIME_ZONE, now?: Date): MatchView {
   const { fixture, prediction, features } = analysis
   const at = now ?? new Date()
   const probability = prediction
@@ -184,7 +189,7 @@ export interface RecentResultView {
   referee: string | null
 }
 
-export function toRecentResultView(fixture: Fixture, timeZone = 'UTC'): RecentResultView | null {
+export function toRecentResultView(fixture: Fixture, timeZone = BET_TIME_ZONE): RecentResultView | null {
   const score = scorePair(fixture.homeScore, fixture.awayScore)
   if (!score) return null
   return {
@@ -245,7 +250,7 @@ export function buildMatchStatsView(
   fixtures: Fixture[],
   teams: Team[] = [],
   now: Date = new Date(),
-  timeZone = 'UTC',
+  timeZone = BET_TIME_ZONE,
 ): MatchStatsView {
   const { fixture, features, home, away } = analysis
   const names = new Map<string, string>()

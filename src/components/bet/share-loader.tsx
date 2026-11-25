@@ -23,11 +23,16 @@ import {
   UserPlus,
   WalletCards,
 } from 'lucide-react'
+import {
+  fromDateTimeInputValue,
+  toDateTimeInputValue,
+} from '@/lib/bet/admin-selection-options'
 import { formatDateTimeLabel, formatTzs } from '@/lib/bet/format'
 import { settleMarket } from '@/lib/bet/odds'
 import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
 import type { AviatorTrialView } from '@/lib/bet/aviator-trial'
 import type { MatchClockState } from '@/lib/bet/match-clock'
+import type { AdminSlipFixtureStateView } from '@/lib/bet/slips'
 import type {
   BetEvent,
   BetSlipItem,
@@ -75,6 +80,7 @@ interface AdminSlip {
     MatchClockState,
     'phase' | 'label' | 'minute' | 'progress' | 'live' | 'finished'
   > | null
+  matches?: AdminSlipFixtureStateView[]
   clock: TicketSimulationMeta | null
   quote: {
     factor: number
@@ -283,18 +289,11 @@ function dismissPromo(key: string): void {
 }
 
 function toDateTimeInput(value: string | null | undefined): string {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
+  return toDateTimeInputValue(value ?? '')
 }
 
 function fromDateTimeInput(value: string): string | null {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  return date.toISOString()
+  return fromDateTimeInputValue(value) || null
 }
 
 function markerForSelection(
@@ -1306,6 +1305,30 @@ export function ShareLoader({ code }: { code: string }) {
             {slip.selections.length} selections
           </span>
         </div>
+
+        {slip.matches && slip.matches.length > 0 ? (
+          <div className="mt-3 space-y-1.5">
+            {slip.matches.map(match => (
+              <div
+                key={`${match.fixtureId}-${match.kickoffIso}`}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background/40 px-2.5 py-1.5"
+              >
+                <span className="min-w-0 truncate text-[11px] font-semibold text-main-text">
+                  {match.fixtureLabel}
+                </span>
+                <span
+                  className={`shrink-0 text-[10px] font-semibold tabular-nums ${match.live ? 'text-emerald-300' : 'text-muted-text'}`}
+                >
+                  {match.live
+                    ? match.label || formatLiveMinute(match.minute) || 'LIVE'
+                    : match.finished
+                      ? 'Full time'
+                      : `Starts ${formatDateTimeLabel(match.kickoffIso)}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {hasOngoingGames ? (
           <p className="mt-2 text-center text-[10px] font-semibold text-emerald-300">

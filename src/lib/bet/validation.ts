@@ -178,6 +178,7 @@ export const adminSlipActionSchema = z.object({
     'close',
     'start-live',
     'start-match',
+    'force-start-matches',
     'set-live-score',
     'finish-match',
   ]),

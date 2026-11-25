@@ -7,6 +7,8 @@ import { computeTicketTotals } from '@/lib/bet/bets'
 import { BetError, handleBetError } from '@/lib/bet/errors'
 import { formatKickoffLabel } from '@/lib/bet/format'
 import { guardMutation, readJson } from '@/lib/bet/security'
+import { reconcileTicketSelections } from '@/lib/bet/slip-reconciliation'
+import { propagateAdminSlipChange } from '@/lib/bet/slip-propagation'
 import { assertBetStakeMinor, toAdminSlipView } from '@/lib/bet/slips'
 import { MAX_SELECTIONS, MAX_STAKE_MINOR, MIN_STAKE_MINOR, type TicketSelection } from '@/lib/bet/types'
 import { prisma } from '@/lib/prisma'
@@ -75,6 +77,7 @@ function buildSelections(
       selectionId: edit.selectionId,
       selectionLabel: edit.selectionLabel.trim(),
       odds: Math.round(edit.odds * 100) / 100,
+      baseOdds: Math.round(edit.odds * 100) / 100,
       probability: base?.probability ?? 0.5,
       result: 'PENDING',
       finalScore: null,
@@ -169,9 +172,10 @@ export async function PATCH(
         : republish
           ? resetSelectionResults(existing)
           : existing
+      const matchedSelections = await reconcileTicketSelections(editedSelections, now)
       const selections = republish
-        ? shiftPastKickoffs(editedSelections, reopenKickoffAt, now)
-        : editedSelections
+        ? shiftPastKickoffs(matchedSelections, reopenKickoffAt, now)
+        : matchedSelections
       if (selections.length === 0) {
         return apiError('A slip needs at least one selection.', 422)
       }
@@ -206,6 +210,11 @@ export async function PATCH(
 
       const updated = await prisma.$transaction(async tx => {
         const next = await tx.adminBetSlip.update({ where: { id: slip.id }, data })
+        await propagateAdminSlipChange(tx, {
+          slipId: slip.id,
+          selections,
+          stakeMinor,
+        })
         await tx.adminAuditLog.create({
           data: {
             actorId,

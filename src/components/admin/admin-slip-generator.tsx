@@ -22,8 +22,15 @@ import type {
 import {
   ADMIN_MARKET_OPTIONS,
   editableFixtureId,
+  fromDateTimeInputValue,
+  toDateTimeInputValue,
 } from '@/lib/bet/admin-selection-options'
-import { formatKickoffLabel, formatOdds, formatTzs } from '@/lib/bet/format'
+import {
+  formatDateTimeLabel,
+  formatKickoffLabel,
+  formatOdds,
+  formatTzs,
+} from '@/lib/bet/format'
 import {
   buildRandomSelections,
   RANDOM_TEAM_GROUPS,
@@ -31,6 +38,7 @@ import {
 } from '@/lib/bet/random-teams'
 import type { AdminSlipTimeMode } from '@/lib/bet/types'
 import { applyVat, VAT_PERCENT } from '@/lib/bet/vat'
+import { AdminFixtureSearch, type FixtureSearchPick } from './admin-fixture-search'
 import {
   AdminEditableSelectionFields,
   type AdminEditableSelectionValue,
@@ -111,21 +119,16 @@ function validOdds(odds: string): boolean {
 }
 
 function generatedLabel(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return 'just now'
-  return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`
+  const label = formatDateTimeLabel(iso)
+  return label === '-' ? 'just now' : label
 }
 
 function kickoffIsoFromInput(value: string, fallbackMinutes = 30): string {
-  const parsed = new Date(value)
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
-  return new Date(Date.now() + fallbackMinutes * 60_000).toISOString()
+  return fromDateTimeInputValue(value, fallbackMinutes)
 }
 
 function dateTimeInputValue(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return ''
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+  return toDateTimeInputValue(iso)
 }
 
 function randomPrefix(): string {
@@ -300,6 +303,22 @@ export function AdminSlipGenerator({
     setPicked(current => {
       if (current.some(item => item.fixtureId === pick.fixtureId)) return current
       return [...current, ...toPicked([pick])]
+    })
+  }
+
+  function addFixturePick(pick: FixtureSearchPick) {
+    clearFeedback()
+    setPicked(current => {
+      if (current.some(item => item.fixtureId === pick.fixtureId)) return current
+      return [
+        ...current,
+        {
+          ...pick,
+          odds: pick.odds.toFixed(2),
+          riskLevel: pick.riskLevel || 'balanced',
+          custom: pick.custom ?? true,
+        },
+      ].slice(0, 20)
     })
   }
 
@@ -749,6 +768,12 @@ export function AdminSlipGenerator({
             ))}
           </ul>
         )}
+
+        <AdminFixtureSearch
+          excludedFixtures={pickedFixtures}
+          onAdd={addFixturePick}
+          disabled={pending}
+        />
 
         {creationMode === 'RANDOM' ? null : (
           <AdminSelectionPicker

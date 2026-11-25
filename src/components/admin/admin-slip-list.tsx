@@ -22,7 +22,8 @@ import {
   Trash2,
   Trophy,
 } from 'lucide-react'
-import { formatOdds, formatTzs } from '@/lib/bet/format'
+import { formatDateTimeLabel, formatOdds, formatTzs } from '@/lib/bet/format'
+import type { AdminSlipFixtureStateView } from '@/lib/bet/slips'
 import { formatLiveMinute } from '@/lib/bet/types'
 
 
@@ -82,6 +83,7 @@ export interface AdminSlipListItemView {
   paidCount: number
   entries: AdminSlipEntryView[]
   selections: AdminSlipSelectionView[]
+  matches?: AdminSlipFixtureStateView[]
 }
 
 type ScoreDraft = { home: string; away: string }
@@ -95,9 +97,7 @@ function statusClass(status: AdminSlipListItemView['status']): string {
 }
 
 function freezeLabel(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '-'
-  return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`
+  return formatDateTimeLabel(iso)
 }
 
 function nextKickoffIso(slip: AdminSlipListItemView): string | null {
@@ -173,6 +173,7 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
       | 'close'
       | 'start-live'
       | 'start-match'
+      | 'force-start-matches'
       | 'set-live-score'
       | 'finish-match',
     results?: Array<{ fixtureId: string; homeScore: number; awayScore: number; minute?: number }>,
@@ -203,6 +204,8 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
             ? `Slip ${code} is open again.`
             : action === 'start-live' || action === 'start-match'
               ? `Slip ${code} is live.`
+              : action === 'force-start-matches'
+                ? `All matches on slip ${code} were forced live now.`
               : action === 'set-live-score'
                 ? `Live score updated for ${results?.length ?? 0} match(es).`
                 : action === 'finish-match'
@@ -584,16 +587,26 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
                   Edit / republish
                 </Link>
                 {slip.status !== 'CLOSED' && !slip.liveStartedAt ? (
-
-                  <button
-                    type="button"
-                    onClick={() => act(slip.code, 'start-match')}
-                    disabled={busy}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/30 bg-red-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-red-200 transition-colors hover:border-red-400/50 disabled:opacity-60"
-                  >
-                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                    Start match
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => act(slip.code, 'start-match')}
+                      disabled={busy}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/30 bg-red-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-red-200 transition-colors hover:border-red-400/50 disabled:opacity-60"
+                    >
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                      Start match
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => act(slip.code, 'force-start-matches')}
+                      disabled={busy}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200 transition-colors hover:border-amber-400/50 disabled:opacity-60"
+                    >
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                      Force all now
+                    </button>
+                  </>
                 ) : null}
                 {slip.status !== 'CLOSED' ? (
                   <button
@@ -902,26 +915,42 @@ export function AdminSlipList({ slips }: { slips: AdminSlipListItemView[] }) {
 
             <ul className="mt-3 space-y-1.5">
 
-              {slip.selections.map((selection, index) => (
-                <li
-                  key={`${slip.id}:${index}`}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-2.5 py-1.5"
-                >
-                  <span className="min-w-0 text-[11px] text-main-text">
-                    <span className="block truncate">
-                      {selection.fixtureLabel} · {selection.marketName} · {selection.selectionLabel}
-                    </span>
-                    {selection.kickoffLabel || selection.kickoffIso ? (
-                      <span className="block truncate text-[10px] text-muted-text">
-                        Starts: {selection.kickoffLabel ?? freezeLabel(selection.kickoffIso as string)}
+              {slip.selections.map((selection, index) => {
+                const matchState = slip.matches?.find(
+                  item => item.fixtureId === selection.fixtureId,
+                )
+                return (
+                  <li
+                    key={`${slip.id}:${index}`}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background/40 px-2.5 py-1.5"
+                  >
+                    <span className="min-w-0 text-[11px] text-main-text">
+                      <span className="block truncate">
+                        {selection.fixtureLabel} · {selection.marketName} · {selection.selectionLabel}
                       </span>
-                    ) : null}
-                  </span>
-                  <span className="shrink-0 text-[11px] font-semibold tabular-nums text-muted-text">
-                    {formatOdds(selection.odds)}
-                  </span>
-                </li>
-              ))}
+                      {selection.kickoffLabel || selection.kickoffIso ? (
+                        <span className="block truncate text-[10px] text-muted-text">
+                          Starts: {selection.kickoffLabel ?? freezeLabel(selection.kickoffIso as string)}
+                        </span>
+                      ) : null}
+                      {matchState ? (
+                        <span
+                          className={`block truncate text-[10px] font-semibold tabular-nums ${matchState.live ? 'text-emerald-300' : 'text-amber-200'}`}
+                        >
+                          {matchState.live
+                            ? matchState.label || formatLiveMinute(matchState.minute) || 'LIVE'
+                            : matchState.finished
+                              ? 'Full time'
+                              : `Starts ${formatDateTimeLabel(matchState.kickoffIso)}`}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="shrink-0 text-[11px] font-semibold tabular-nums text-muted-text">
+                      {formatOdds(selection.odds)}
+                    </span>
+                  </li>
+                )
+              })}
             </ul>
 
             <dl className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">

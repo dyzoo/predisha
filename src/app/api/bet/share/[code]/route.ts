@@ -3,6 +3,7 @@ import { getBetCatalog, getFixtureResults, type FixtureResult } from '@/lib/bet/
 import { handleBetError } from '@/lib/bet/errors'
 import { loadShareCode } from '@/lib/bet/share'
 import { liveMatchesForSelections } from '@/lib/bet/in-play'
+import { reconcileAdminSlipSelections } from '@/lib/bet/slip-reconciliation'
 import { toAdminSlipView } from '@/lib/bet/slips'
 import { prisma } from '@/lib/prisma'
 import { shareCodeSchema } from '@/lib/bet/validation'
@@ -111,7 +112,8 @@ export async function GET(
       .slice(0, 9)
     const slip = await prisma.adminBetSlip.findUnique({ where: { code: parsed.data } })
     if (slip) {
-      const view = toAdminSlipView(slip, now)
+      const reconciled = await reconcileAdminSlipSelections(slip, now)
+      const view = toAdminSlipView(reconciled, now)
       return json({
         share: { code: view.code, selections: view.selections, expiresAt: view.autoFreezeAt, stale: false },
         slip: { ...view, frozenReason: null },

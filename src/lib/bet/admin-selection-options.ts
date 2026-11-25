@@ -59,15 +59,29 @@ export function combineFixtureLabel(home: string, away: string): string {
   return `${home.trim()} vs ${away.trim()}`
 }
 
+const EAT_OFFSET_MINUTES = 3 * 60
+
 export function toDateTimeInputValue(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+  return new Date(date.getTime() + EAT_OFFSET_MINUTES * 60_000).toISOString().slice(0, 16)
 }
 
 export function fromDateTimeInputValue(value: string, fallbackMinutes = 30): string {
-  const parsed = new Date(value)
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value)
+  if (match) {
+    const [, year, month, day, hour, minute] = match
+    const epoch = Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+    )
+    if (!Number.isNaN(epoch)) {
+      return new Date(epoch - EAT_OFFSET_MINUTES * 60_000).toISOString()
+    }
+  }
   return new Date(Date.now() + fallbackMinutes * 60_000).toISOString()
 }
 

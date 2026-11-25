@@ -44,7 +44,7 @@ export async function buildAdminSlipRecommendation(
   )
 
   const result = buildPredictionSlip(
-    analyses.map(analysis => toMatchView(analysis, 'UTC', at)),
+    analyses.map(analysis => toMatchView(analysis, undefined, at)),
     {
       stake: 1000,
       risk: 'balanced',
