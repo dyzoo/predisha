@@ -791,6 +791,7 @@ model BetPaymentOrder {
   amountMinor Int
   currency    String    @default("TZS")
   provider    String
+  phone       String?
   orderId     String    @unique
   status      String    @default("PENDING")
   createdAt   DateTime  @default(now())

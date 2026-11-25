@@ -91,6 +91,7 @@ export class SettloBillingProvider implements BillingProvider {
           safeMetadata: {
             userId,
             planId,
+            phone: normalized.phone,
             amountMinor: plan.amountMinor,
             currency: plan.currency,
             status: order.status ?? 'PENDING_AUTH',

@@ -1,9 +1,18 @@
 import Link from 'next/link'
-import { LayoutDashboard, Plane, ReceiptText, Ticket, Trophy, Users } from 'lucide-react'
+import {
+  CreditCard,
+  LayoutDashboard,
+  Plane,
+  ReceiptText,
+  Ticket,
+  Trophy,
+  Users,
+} from 'lucide-react'
 
 const items = [
   { href: '/admin', label: 'Overview', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/bets', label: 'Bets', icon: Ticket },
   { href: '/admin/betslip', label: 'Bet slip studio', icon: ReceiptText },
   { href: '/admin/winners', label: 'Winners', icon: Trophy },

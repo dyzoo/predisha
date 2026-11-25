@@ -92,6 +92,7 @@ export async function startWalletDeposit(input: {
       amountMinor: input.amountMinor,
       currency: 'TZS',
       provider: SETTLO_PROVIDER_NAME,
+      phone: normalized.phone,
       orderId: order.orderId,
       status: 'PENDING',
     },

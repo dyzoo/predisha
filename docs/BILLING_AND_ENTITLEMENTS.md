@@ -13,6 +13,7 @@
 - `POST /api/webhooks/settlopay` verifies the `Settlo-Signature` HMAC over the raw body with `SETTLO_WEBHOOK_SECRET`, ignores stale timestamps, deduplicates on `Settlo-Event-Id`, re-reads the payment by its `pi_…` id, and then applies the status idempotently. Succeeded payments grant the premium subscription; failed payments mark it unpaid.
 - `POST /api/billing/confirm` re-reads an in-flight payment from the Settlo Pay status endpoint and applies the event. The checkout UI polls this endpoint after sending the mobile-money prompt, so subscriptions still activate when a webhook cannot reach the app.
 - The provider abstraction (`src/lib/billing/provider.ts`) maps Settlo Pay states to the internal subscription model. The app never handles raw card data.
+- Admins can review wallet deposits, shared-slip payments and subscription checkouts with full client phone numbers at `/admin/payments`.
 
 ## Test activation
 
