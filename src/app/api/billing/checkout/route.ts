@@ -2,6 +2,8 @@
 import { apiError, json } from '@/lib/api'
 import { isSameOrigin } from '@/lib/auth/origin'
 import { clientKey, rateLimit } from '@/lib/auth/rate-limit'
+import { normalizeTzPhone } from '@/lib/bet/phone'
+import { SETTLO_PROVIDER_NAME } from '@/lib/billing/settlopay'
 import { getBillingProvider } from '@/lib/billing/provider'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 
@@ -45,10 +47,13 @@ export async function POST(request: Request) {
     )
   }
 
-  if (provider.name === 'noripesa' && !parsed.data.phone) {
-    return apiError('Enter a valid phone number to receive the USSD push.', 422, {
-      fields: { phone: 'Enter a valid phone number.' },
-    })
+  if (provider.name === SETTLO_PROVIDER_NAME) {
+    const normalized = normalizeTzPhone(parsed.data.phone ?? '')
+    if (!normalized.ok) {
+      return apiError('Enter a valid Tanzanian mobile number to receive the payment prompt.', 422, {
+        fields: { phone: normalized.error ?? 'Enter a valid mobile number.' },
+      })
+    }
   }
 
   const checkout = await provider.createCheckoutSession(viewer.userId, parsed.data.planId, {

@@ -49,12 +49,17 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-vi.mock('@/lib/billing/noripesa', () => ({
-  NORIPESA_PROVIDER_NAME: 'noripesa',
-  createNoripesaOrder: state.createOrder,
-  getNoripesaOrderStatus: state.orderStatus,
-  noripesaApiKeyConfigured: state.key,
-}))
+vi.mock('@/lib/billing/settlopay', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/billing/settlopay')>(
+    '@/lib/billing/settlopay',
+  )
+  return {
+    ...actual,
+    createSettloOrder: state.createOrder,
+    getSettloPayment: state.orderStatus,
+    settloApiKeyConfigured: state.key,
+  }
+})
 
 import { BetError } from './errors'
 import {
@@ -72,8 +77,8 @@ function baseEntry(overrides: Record<string, unknown> = {}) {
     phone: '255712345678',
     stakeMinor: 1000,
     status: 'PENDING',
-    provider: 'noripesa',
-    providerOrderId: 'HP1',
+    provider: 'settlopay',
+    providerOrderId: 'pi_pay1',
     ticketId: null,
     placementStartedAt: null,
     failureReason: null,
@@ -116,11 +121,11 @@ function slipView(mode: 'LIVE' | 'SANDBOX' = 'LIVE') {
 
 function webhookEvent(overrides: Record<string, unknown> = {}) {
   return {
-    provider: 'noripesa',
+    provider: 'settlopay',
     providerEventId: 'evt-1',
     type: 'payment',
-    status: 'completed',
-    orderId: 'HP1',
+    status: 'SUCCEEDED',
+    orderId: 'pi_pay1',
     amountMinor: 1000,
     currency: 'TZS',
     verified: true,
@@ -185,9 +190,9 @@ beforeEach(() => {
   state.findWallet.mockImplementation(async () => ({ balanceMinor: 10_000 }))
 
   state.createOrder.mockReset()
-  state.createOrder.mockImplementation(async () => ({ success: true, orderId: 'HP1' }))
+  state.createOrder.mockImplementation(async () => ({ success: true, orderId: 'pi_pay1' }))
   state.orderStatus.mockReset()
-  state.orderStatus.mockImplementation(async () => ({ status: 'completed' }))
+  state.orderStatus.mockImplementation(async () => ({ success: true, status: 'SUCCEEDED' }))
   state.key.mockReset()
   state.key.mockImplementation(() => state.keyConfigured)
 })
@@ -225,7 +230,7 @@ describe('startSlipPayment', () => {
     expect(state.createEntry).not.toHaveBeenCalled()
   })
 
-  it('returns 503 when Noripesa is not configured in live mode', async () => {
+  it('returns 503 when Settlo Pay is not configured in live mode', async () => {
     state.keyConfigured = false
 
     await expect(
@@ -234,18 +239,18 @@ describe('startSlipPayment', () => {
     expect(state.createEntry).not.toHaveBeenCalled()
   })
 
-  it('creates a pending Noripesa entry in live mode', async () => {
+  it('creates a pending Settlo Pay entry in live mode', async () => {
     const result = await startSlipPayment({ code: 'ABC123', phone: '0712345678', userId: 'user-1' })
 
     expect(result.entry.status).toBe('PENDING')
-    expect(result.entry.providerOrderId).toBe('HP1')
+    expect(result.entry.providerOrderId).toBe('pi_pay1')
     expect(result.mode).toBe('LIVE')
     expect(state.createEntry).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           status: 'PENDING',
-          provider: 'noripesa',
-          providerOrderId: 'HP1',
+          provider: 'settlopay',
+          providerOrderId: 'pi_pay1',
         }),
       }),
     )
@@ -327,13 +332,13 @@ describe('refreshSlipPaymentEntry', () => {
     expect(entry.status).toBe('PAID')
     expect(entry.ticketId).toBe('ticket-1')
     expect(entry.ticketCode).toBe('TCK12345')
-    expect(state.orderStatus).toHaveBeenCalledWith('HP1')
+    expect(state.orderStatus).toHaveBeenCalledWith('pi_pay1')
     expect(state.place).toHaveBeenCalledTimes(1)
   })
 
   it('marks the entry failed when the provider reports a failure', async () => {
     state.entry = baseEntry()
-    state.orderStatus.mockResolvedValue({ status: 'failed' })
+    state.orderStatus.mockResolvedValue({ success: true, status: 'FAILED' })
 
     const entry = await refreshSlipPaymentEntry('entry-1')
 
@@ -365,7 +370,7 @@ describe('applySlipPaymentEvent', () => {
   it('places a ticket when the webhook confirms a pending entry', async () => {
     state.entry = baseEntry()
 
-    const result = await applySlipPaymentEvent(webhookEvent({ status: 'success' }))
+    const result = await applySlipPaymentEvent(webhookEvent({ status: 'SUCCEEDED' }))
 
     expect(result.handled).toBe(true)
     expect(state.place).toHaveBeenCalledTimes(1)
@@ -409,9 +414,9 @@ describe('retrySlipEntry', () => {
     expect(state.orderStatus).not.toHaveBeenCalled()
   })
 
-  it('refuses to retry when the Noripesa payment was not confirmed', async () => {
+  it('refuses to retry when the Settlo Pay payment was not confirmed', async () => {
     state.entry = baseEntry({ status: 'FAILED', failureReason: 'BET_FAILED' })
-    state.orderStatus.mockResolvedValue({ status: 'pending' })
+    state.orderStatus.mockResolvedValue({ success: true, status: 'PENDING_AUTH' })
 
     await expect(retrySlipEntry('entry-1')).rejects.toMatchObject({
       code: 'PAYMENT_NOT_CONFIRMED',

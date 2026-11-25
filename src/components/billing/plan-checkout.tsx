@@ -27,12 +27,12 @@ function intervalLabel(plan: PublicPlan): string {
   return '3 months'
 }
 
-const SUCCESS_STATUSES = ['completed', 'success', 'succeeded', 'paid', 'confirmed']
-const FAILURE_STATUSES = ['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired']
+const SUCCESS_STATUSES = ['SUCCEEDED', 'CHARGEBACK_WON', 'PARTIALLY_REFUNDED']
+const FAILURE_STATUSES = ['BLOCKED', 'FAILED', 'CHARGEBACK_LOST', 'EXPIRED', 'CANCELLED', 'REFUNDED']
 
 export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
   const router = useRouter()
-  const isNoripesa = provider.trim().toLowerCase() === 'noripesa'
+  const isSettloPay = provider.trim().toLowerCase() === 'settlopay'
   const [planId, setPlanId] = useState(plans[0]?.id ?? '')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -64,7 +64,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
       }
 
       if (response.ok) {
-        const eventStatus = (payload.data?.eventStatus ?? '').toLowerCase()
+        const eventStatus = (payload.data?.eventStatus ?? '').trim().toUpperCase()
         const subscriptionStatus = (payload.data?.status ?? '').toUpperCase()
 
         if (FAILURE_STATUSES.includes(eventStatus)) {
@@ -91,7 +91,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
 
     if (attemptsRef.current >= 60) {
       setConfirmation('idle')
-      setError('Payment is still pending. Refresh this page after approving the USSD prompt.')
+      setError('Payment is still pending. Refresh this page after approving the mobile-money prompt.')
       return
     }
 
@@ -106,7 +106,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
     setPending(true)
     setConfirmation('idle')
     try {
-      const body = isNoripesa ? { planId: plan.id, phone } : { planId: plan.id }
+      const body = isSettloPay ? { planId: plan.id, phone } : { planId: plan.id }
       const response = await fetch('/api/billing/checkout', {
         method: 'POST',
         credentials: 'include',
@@ -125,7 +125,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
       const data = payload.data ?? null
       setResult(data)
 
-      if (isNoripesa && data?.orderId) {
+      if (isSettloPay && data?.orderId) {
         const orderId = data.orderId
         setConfirmation('waiting')
         attemptsRef.current = 0
@@ -184,8 +184,8 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
             Waiting for payment confirmation
           </p>
           <p className="mt-2 text-xs leading-relaxed text-muted-text">
-            {result?.message} to the number ending in {phone.slice(-4)}. Approve the USSD prompt on your
-            handset. This page updates automatically once Noripesa confirms the payment.
+            {result?.message} to the number ending in {phone.slice(-4)}. Approve the prompt on your
+            handset. This page updates automatically once Settlo Pay confirms the payment.
           </p>
           {result?.orderId ? (
             <p className="mt-2 text-[11px] leading-relaxed text-muted-text">
@@ -195,11 +195,11 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
         </div>
       ) : null}
 
-      {isNoripesa && confirmation === 'idle' && result?.orderId ? (
+      {isSettloPay && confirmation === 'idle' && result?.orderId ? (
         <div className="rounded-xl border border-border bg-surface/40 p-4">
           <p className="flex items-center gap-2 text-xs font-semibold text-main-text">
             <Smartphone className="h-4 w-4" />
-            USSD push sent
+            Mobile-money prompt sent
           </p>
           <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
             <div className="rounded-lg border border-border bg-background/40 p-2.5">
@@ -222,17 +222,17 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
         </div>
       ) : null}
 
-      {!isNoripesa ? (
+      {!isSettloPay ? (
         <div className="mb-3 flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3.5 text-xs leading-relaxed text-amber-200">
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             Test billing is enabled. This activates premium immediately without taking a real payment.
-            Switch <code>BILLING_PROVIDER</code> to <code>Noripesa</code> to charge for real.
+            Switch <code>BILLING_PROVIDER</code> to <code>settlopay</code> to charge for real.
           </p>
         </div>
       ) : null}
 
-      <div className={`grid gap-3 ${isNoripesa ? 'sm:grid-cols-2' : ''}`}>
+      <div className={`grid gap-3 ${isSettloPay ? 'sm:grid-cols-2' : ''}`}>
         <div>
           <label
             htmlFor="billing-plan"
@@ -258,7 +258,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
             ))}
           </select>
         </div>
-        {isNoripesa ? (
+        {isSettloPay ? (
           <div>
             <label
               htmlFor="billing-phone"
@@ -283,7 +283,7 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
               }}
               disabled={pending}
               placeholder="0712345678"
-              aria-label="Mobile number for the USSD push"
+              aria-label="Mobile number for the payment prompt"
               className="w-full rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm text-main-text outline-none placeholder:text-muted-text/60 focus-within:border-accent/60 disabled:cursor-not-allowed"
             />
           </div>
@@ -299,14 +299,14 @@ export function PlanCheckout({ plans, provider }: PlanCheckoutProps) {
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {pending
           ? 'Starting checkout...'
-          : isNoripesa
-            ? 'Start Noripesa payment'
+          : isSettloPay
+            ? 'Start Settlo Pay payment'
             : 'Activate test subscription'}
       </button>
       {plan ? (
         <p className="mt-2 text-center text-[11px] leading-relaxed text-muted-text">
           {formatPlanAmount(plan.amountMinor, plan.currency)} per {intervalLabel(plan)}.
-          {isNoripesa ? ' The provider fee is applied by Noripesa.' : ''}
+          {isSettloPay ? ' The provider fee is applied by Settlo Pay.' : ''}
         </p>
       ) : null}
     </form>

@@ -3,6 +3,7 @@ import { apiError, json } from '@/lib/api'
 import { isSameOrigin } from '@/lib/auth/origin'
 import { clientKey, rateLimit } from '@/lib/auth/rate-limit'
 import { getBillingProvider } from '@/lib/billing/provider'
+import { SETTLO_PROVIDER_NAME } from '@/lib/billing/settlopay'
 import { applyBillingWebhookEvent } from '@/lib/billing/webhook'
 import { getViewer, isAuthConfigured } from '@/lib/auth/session'
 import { prisma } from '@/lib/prisma'
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError('Enter a valid order id.', 422)
 
   const provider = getBillingProvider()
-  if (provider.name !== 'noripesa') {
+  if (provider.name !== SETTLO_PROVIDER_NAME) {
     return apiError('Payment confirmation is not available for this provider.', 400)
   }
 

@@ -40,8 +40,6 @@ export async function POST(request: Request) {
         userId: viewer.userId,
         amountMinor: input.amountMinor,
         phone: input.phone,
-        customerName: viewer.name,
-        customerEmail: viewer.email,
       })
       return json(
         {

@@ -18,8 +18,6 @@ export async function POST(request: Request) {
       code: parsed.data.code,
       phone: parsed.data.phone ?? '',
       userId: viewer.userId,
-      customerName: viewer.name,
-      customerEmail: viewer.email,
       source: parsed.data.source,
       stakeMinor: parsed.data.stakeMinor,
       now: new Date(),

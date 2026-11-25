@@ -111,7 +111,7 @@ export async function PricingPreview() {
                     href={signedIn ? '/settings/billing' : '/sign-up?next=/settings/billing'}
                     className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-transform hover:-translate-y-0.5"
                   >
-                    {provider.trim().toLowerCase() === 'manual' ? 'Activate test plan' : 'Upgrade with Noripesa'}
+                    {provider.trim().toLowerCase() === 'manual' ? 'Activate test plan' : 'Upgrade with Settlo Pay'}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : (

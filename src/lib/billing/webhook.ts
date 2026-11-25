@@ -1,32 +1,27 @@
 import { prisma } from '@/lib/prisma'
-import type { NoripesaWebhookEvent } from '@/lib/billing/noripesa'
+import { mapSettloState, type SettloWebhookEvent } from '@/lib/billing/settlopay'
 import { planDurationMs } from './duration'
 
-const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed'])
-const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired'])
-
 export async function applyBillingWebhookEvent(
-  event: NoripesaWebhookEvent,
+  event: SettloWebhookEvent,
 ): Promise<{ handled: boolean }> {
   if (!event.orderId) return { handled: false }
-  const status = (event.status ?? '').toLowerCase()
 
   const existing = await prisma.billingEvent.findUnique({
     where: { providerEventId: event.orderId },
   })
   if (!existing) return { handled: false }
-  if (existing.processed && existing.type === event.type) return { handled: true }
 
-  const metadata = (existing.safeMetadata ?? {}) as Record<string, string>
-  const userId = metadata.userId ?? null
-  const planId = metadata.planId ?? null
-
-  const processedAt = new Date()
-  const nextMetadata = {
-    ...metadata,
-    status: event.status,
-    updatedAt: processedAt.toISOString(),
+  const metadata = (existing.safeMetadata ?? {}) as Record<string, unknown>
+  const previousState = typeof metadata.status === 'string' ? metadata.status : null
+  if (existing.processed && existing.type === event.type && previousState === event.status) {
+    return { handled: true }
   }
+
+  const userId = typeof metadata.userId === 'string' ? metadata.userId : null
+  const planId = typeof metadata.planId === 'string' ? metadata.planId : null
+  const outcome = mapSettloState(event.status)
+  const processedAt = new Date()
 
   await prisma.billingEvent.upsert({
     where: { providerEventId: event.orderId },
@@ -35,7 +30,7 @@ export async function applyBillingWebhookEvent(
       processed: true,
       processingState: 'SUCCEEDED',
       processedAt,
-      safeMetadata: nextMetadata,
+      safeMetadata: { ...metadata, status: event.status ?? 'UNKNOWN', updatedAt: processedAt.toISOString() },
     },
     create: {
       providerEventId: event.orderId,
@@ -43,15 +38,15 @@ export async function applyBillingWebhookEvent(
       processed: true,
       processingState: 'SUCCEEDED',
       processedAt,
-      safeMetadata: nextMetadata,
+      safeMetadata: { ...metadata, status: event.status ?? 'UNKNOWN', updatedAt: processedAt.toISOString() },
     },
   })
 
-  if (SUCCESS_STATUSES.has(status)) {
+  if (outcome === 'PAID' && mapSettloState(previousState) !== 'PAID') {
     const plan = planId
       ? await prisma.subscriptionPlan.findUnique({ where: { id: planId } })
       : null
-    if (userId && plan) {
+    if (userId && planId && plan) {
       await prisma.subscription.upsert({
         where: { userId },
         update: {
@@ -73,13 +68,11 @@ export async function applyBillingWebhookEvent(
     }
   }
 
-  if (FAILURE_STATUSES.has(status)) {
-    if (userId) {
-      await prisma.subscription.updateMany({
-        where: { userId },
-        data: { status: 'UNPAID' },
-      })
-    }
+  if (outcome === 'FAILED' && userId) {
+    await prisma.subscription.updateMany({
+      where: { userId, status: { not: 'ACTIVE' } },
+      data: { status: 'UNPAID' },
+    })
   }
 
   return { handled: true }

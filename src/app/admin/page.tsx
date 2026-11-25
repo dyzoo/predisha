@@ -97,7 +97,7 @@ export default async function AdminPage() {
           <p className="mt-3 flex items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[11px] leading-relaxed text-amber-200">
             <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             Demo provider active. These fixtures and probabilities are fictional and must not be
-            presented as real predictions.
+            presented as real predictions!
           </p>
         ) : null}
       </section>

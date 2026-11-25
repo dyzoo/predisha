@@ -4,10 +4,6 @@
   error?: string
 }
 
-/**
- * Normalize Tanzanian mobile numbers to the 255XXXXXXXXX form expected by
- * Noripesa. Accepts +255..., 255..., 0... and 9-digit local numbers.
- */
 export function normalizeTzPhone(input: string): NormalizedPhone {
   const raw = input.trim().replace(/[\s()-]/g, '')
   let digits = raw.replace(/\D/g, '')
@@ -17,7 +13,7 @@ export function normalizeTzPhone(input: string): NormalizedPhone {
   if (digits.startsWith('0') && digits.length === 10) digits = `255${digits.slice(1)}`
   if (!digits.startsWith('255') && digits.length === 9) digits = `255${digits}`
 
-  if (!/^255[67]\d{8}$/.test(digits)) {
+  if (!/^\+255[67]\d{8}$/.test(`+${digits}`)) {
     return {
       ok: false,
       phone: '',
@@ -25,7 +21,7 @@ export function normalizeTzPhone(input: string): NormalizedPhone {
     }
   }
 
-  return { ok: true, phone: digits }
+  return { ok: true, phone: `+${digits}` }
 }
 
 export function maskTzPhone(phone: string): string {

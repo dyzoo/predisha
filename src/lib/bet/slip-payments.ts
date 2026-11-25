@@ -1,12 +1,13 @@
 ﻿import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
-  NORIPESA_PROVIDER_NAME,
-  createNoripesaOrder,
-  getNoripesaOrderStatus,
-  noripesaApiKeyConfigured,
-  type NoripesaWebhookEvent,
-} from '@/lib/billing/noripesa'
+  SETTLO_PROVIDER_NAME,
+  createSettloOrder,
+  getSettloPayment,
+  mapSettloState,
+  settloApiKeyConfigured,
+  type SettloWebhookEvent,
+} from '@/lib/billing/settlopay'
 import { BetError } from './errors'
 import { normalizeTzPhone } from './phone'
 import { creditWallet } from './wallet'
@@ -19,9 +20,6 @@ import {
   placeAdminSlipBet,
   type AdminBetSlipView,
 } from './slips'
-
-const SUCCESS_STATUSES = new Set(['completed', 'success', 'succeeded', 'paid', 'confirmed'])
-const FAILURE_STATUSES = new Set(['failed', 'failure', 'cancelled', 'canceled', 'rejected', 'expired'])
 
 export interface SlipPaymentEntryView {
   id: string
@@ -40,12 +38,6 @@ export interface SlipPaymentResult {
   entry: SlipPaymentEntryView
   slip: AdminBetSlipView
   mode: 'LIVE' | 'SANDBOX'
-}
-
-function appUrl(): string {
-  return (process.env.APP_URL ?? process.env.AUTH_URL ?? 'http://localhost:3000')
-    .trim()
-    .replace(/\/+$/, '')
 }
 
 async function resolveEntryUserId(
@@ -138,8 +130,6 @@ export async function startSlipPayment(input: {
   code: string
   phone: string
   userId?: string | null
-  customerName?: string | null
-  customerEmail?: string | null
   source?: 'wallet' | 'phone'
   stakeMinor?: number | null
   now?: Date
@@ -234,7 +224,7 @@ export async function startSlipPayment(input: {
     return { entry: await loadEntryView(entry.id), slip, mode: slip.mode }
   }
 
-  if (!noripesaApiKeyConfigured()) {
+  if (!settloApiKeyConfigured()) {
     throw new BetError(
       'Mobile-money payments are not configured on this server yet. Add funds to your wallet or try again later.',
       503,
@@ -242,14 +232,11 @@ export async function startSlipPayment(input: {
     )
   }
 
-  const order = await createNoripesaOrder({
+  const order = await createSettloOrder({
     phone: normalized.phone,
     amountMinor: stakeMinor,
     currency: 'TZS',
     description: `SpotibetBet slip ${record.code}`,
-    webhookUrl: `${appUrl()}/api/webhooks/${NORIPESA_PROVIDER_NAME}`,
-    customerName: input.customerName,
-    customerEmail: input.customerEmail,
   })
 
   if (!order.success || !order.orderId) {
@@ -266,7 +253,7 @@ export async function startSlipPayment(input: {
       selections: slip.selections as unknown as Prisma.InputJsonValue,
       totalOdds: slip.totalOdds,
       status: 'PENDING',
-      provider: NORIPESA_PROVIDER_NAME,
+      provider: SETTLO_PROVIDER_NAME,
       providerOrderId: order.orderId,
     },
   })
@@ -280,18 +267,18 @@ export async function refreshSlipPaymentEntry(entryId: string): Promise<SlipPaym
     throw new BetError('That payment could not be found.', 404, 'ENTRY_NOT_FOUND')
   }
 
-  if (entry.status === 'PENDING' && entry.providerOrderId && entry.provider === NORIPESA_PROVIDER_NAME) {
-    const result = await getNoripesaOrderStatus(entry.providerOrderId)
-    const status = (result.status ?? '').toLowerCase()
-    if (SUCCESS_STATUSES.has(status)) {
+  if (entry.status === 'PENDING' && entry.providerOrderId && entry.provider === SETTLO_PROVIDER_NAME) {
+    const result = await getSettloPayment(entry.providerOrderId)
+    const outcome = mapSettloState(result.status)
+    if (result.success && outcome === 'PAID') {
       const updated = await markEntryPaid(entry.id)
       await placeEntryBet(updated.id)
       return loadEntryView(entry.id)
     }
-    if (FAILURE_STATUSES.has(status)) {
+    if (result.success && outcome === 'FAILED') {
       const updated = await prisma.adminBetEntry.update({
         where: { id: entry.id },
-        data: { status: 'FAILED', failureReason: result.error ?? status },
+        data: { status: 'FAILED', failureReason: result.status ?? 'FAILED' },
       })
       return entryView(updated)
     }
@@ -306,7 +293,7 @@ export async function refreshSlipPaymentEntry(entryId: string): Promise<SlipPaym
 }
 
 export async function applySlipPaymentEvent(
-  event: NoripesaWebhookEvent,
+  event: SettloWebhookEvent,
 ): Promise<{ handled: boolean }> {
   if (!event.orderId) return { handled: false }
 
@@ -315,18 +302,18 @@ export async function applySlipPaymentEvent(
   })
   if (!entry) return { handled: false }
 
-  const status = (event.status ?? '').toLowerCase()
-  if (SUCCESS_STATUSES.has(status)) {
+  const outcome = mapSettloState(event.status)
+  if (outcome === 'PAID') {
     if (entry.status !== 'PAID') {
       const updated = await markEntryPaid(entry.id)
       await placeEntryBet(updated.id)
     } else if (entry.userId && !entry.ticketId) {
       await placeEntryBet(entry.id)
     }
-  } else if (FAILURE_STATUSES.has(status) && entry.status === 'PENDING') {
+  } else if (outcome === 'FAILED' && entry.status === 'PENDING') {
     await prisma.adminBetEntry.update({
       where: { id: entry.id },
-      data: { status: 'FAILED', failureReason: status },
+      data: { status: 'FAILED', failureReason: event.status ?? 'FAILED' },
     })
   }
 
@@ -351,12 +338,11 @@ export async function retrySlipEntry(entryId: string): Promise<SlipPaymentEntryV
     await placeEntryBet(entry.id)
   } else if (entry.status === 'FAILED') {
     if (entry.provider !== 'sandbox' && entry.provider !== 'wallet') {
-      if (entry.provider !== NORIPESA_PROVIDER_NAME || !entry.providerOrderId) {
+      if (entry.provider !== SETTLO_PROVIDER_NAME || !entry.providerOrderId) {
         throw new BetError('This payment cannot be retried.', 409, 'NOT_RETRYABLE')
       }
-      const result = await getNoripesaOrderStatus(entry.providerOrderId)
-      const status = (result.status ?? '').toLowerCase()
-      if (!SUCCESS_STATUSES.has(status)) {
+      const result = await getSettloPayment(entry.providerOrderId)
+      if (!result.success || mapSettloState(result.status) !== 'PAID') {
         throw new BetError(
           'The payment was not confirmed, so the bet cannot be placed.',
           409,
