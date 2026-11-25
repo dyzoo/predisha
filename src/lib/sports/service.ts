@@ -325,13 +325,16 @@ export async function getSportsDataset(
           logoUrl: item.logoUrl ?? null,
           providerId: item.providerId ?? null,
         }))
-        fixtures = providerFixtures.filter(
+        const freshFixtures = providerFixtures.filter(
           fixture =>
             fixture.kickoffUtc.getTime() >= at.getTime() - 30 * DAY_MS &&
             fixture.kickoffUtc.getTime() <= at.getTime() + 30 * DAY_MS,
         )
-        usedDemoData = health.mode === 'demo'
-        hasRealFixtures = !usedDemoData
+        fixtures = [
+          ...new Map([...fixtures, ...freshFixtures].map(fixture => [fixture.id, fixture])).values(),
+        ].sort((left, right) => left.kickoffUtc.getTime() - right.kickoffUtc.getTime())
+        usedDemoData = false
+        hasRealFixtures = true
       }
     } catch {
       // Fall through to the public real-data provider below.

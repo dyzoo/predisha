@@ -12,6 +12,10 @@ const BASE_URL = process.env.FOOTBALL_DATA_BASE_URL ?? 'https://api.football-dat
 const API_TOKEN = process.env.FOOTBALL_DATA_API_TOKEN ?? ''
 const PROVIDER_NAME = 'football-data'
 const REQUEST_TIMEOUT_MS = 6_000
+const RESPONSE_CACHE_MS = 90 * 1000
+const COMPETITION_CACHE_MS = 30 * 60 * 1000
+const MAX_RATE_LIMIT_RETRIES = 2
+const MIN_REQUEST_INTERVAL_MS = 6_500
 
 const DEFAULT_TEAM_COLOR = '#9CA3AF'
 
@@ -20,10 +24,6 @@ const configuredCompetitionCodes = (process.env.FOOTBALL_DATA_COMPETITION_CODES 
   .split(',')
   .map(code => code.trim().toUpperCase())
   .filter(Boolean)
-const ALLOWED_COMPETITION_CODES = new Set(
-  configuredCompetitionCodes.length > 0 ? configuredCompetitionCodes : DEFAULT_COMPETITION_CODES,
-)
-
 const DAY_MS = 24 * 60 * 60 * 1000
 // football-data.org rejects `/matches` ranges longer than 10 days.
 const MAX_RANGE_DAYS = 10
@@ -33,7 +33,7 @@ function chunkDateRange(from: Date, to: Date): Array<{ from: Date; to: Date }> {
   let start = new Date(from)
   while (start.getTime() <= to.getTime()) {
     const end = new Date(
-      Math.min(start.getTime() + (MAX_RANGE_DAYS - 1) * DAY_MS, to.getTime()),
+      Math.min(start.getTime() + MAX_RANGE_DAYS * DAY_MS, to.getTime()),
     )
     chunks.push({ from: start, to: end })
     start = new Date(end.getTime() + DAY_MS)
@@ -137,40 +137,111 @@ function teamFromApi(team: ApiMatch['homeTeam']): Team {
   }
 }
 
-async function request<T>(path: string): Promise<T> {
+const responseCache = new Map<string, { at: number; value: unknown }>()
+const pendingRequests = new Map<string, Promise<unknown>>()
+let competitionCodes: { at: number; codes: Set<string> } | null = null
+let lastRequestAt = 0
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function waitForRequestSlot(): Promise<void> {
+  const delay = Math.max(0, lastRequestAt + MIN_REQUEST_INTERVAL_MS - Date.now())
+  if (delay > 0) await sleep(delay)
+  lastRequestAt = Date.now()
+}
+
+function retryAfterMs(response: Response): number {
+  const header =
+    response.headers.get('retry-after') ??
+    response.headers.get('x-requestcounter-reset') ??
+    response.headers.get('x-request_counter-reset')
+  const seconds = Number(header)
+  if (Number.isFinite(seconds) && seconds > 0) return Math.min(seconds * 1000, 60_000)
+  return 5_000
+}
+
+function request<T>(path: string): Promise<T> {
+  const cached = responseCache.get(path)
+  if (cached && Date.now() - cached.at < RESPONSE_CACHE_MS) {
+    return Promise.resolve(cached.value as T)
+  }
+  const pending = pendingRequests.get(path)
+  if (pending) return pending as Promise<T>
+  const promise = performRequest<T>(path).finally(() => pendingRequests.delete(path))
+  pendingRequests.set(path, promise)
+  return promise
+}
+
+async function performRequest<T>(path: string): Promise<T> {
   if (!API_TOKEN) {
     throw new Error('FOOTBALL_DATA_API_TOKEN is not configured')
   }
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'X-Auth-Token': API_TOKEN },
-    cache: 'no-store',
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  })
-  if (!res.ok) {
-    let detail = ''
-    try {
-      const payload = (await res.json()) as { message?: unknown; error?: unknown }
-      const candidate = payload.message ?? payload.error
-      if (typeof candidate === 'string') detail = candidate.trim()
-    } catch {}
-    if (res.status === 403) {
+
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+    await waitForRequestSlot()
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: { 'X-Auth-Token': API_TOKEN },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+    if (res.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+      await res.body?.cancel().catch(() => undefined)
+      await sleep(Math.max(60_000, retryAfterMs(res)))
+      continue
+    }
+    if (!res.ok) {
+      let detail = ''
+      try {
+        const payload = (await res.json()) as { message?: unknown; error?: unknown }
+        const candidate = payload.message ?? payload.error
+        if (typeof candidate === 'string') detail = candidate.trim()
+      } catch {}
+      if (res.status === 403) {
+        throw new Error(
+          detail
+            ? `football-data.org API access denied: ${detail}`
+            : 'football-data.org API token is invalid or lacks access to this endpoint.',
+        )
+      }
+      if (res.status === 429) {
+        throw new Error(detail ? `football-data.org API rate limit exceeded: ${detail}` : 'football-data.org API rate limit exceeded. Try again later.')
+      }
       throw new Error(
-        detail
-          ? `football-data.org API access denied: ${detail}`
-          : 'football-data.org API token is invalid or lacks access to this endpoint.',
+        `football-data.org API error: ${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`,
       )
     }
-    if (res.status === 429) {
-      throw new Error(detail ? `football-data.org API rate limit exceeded: ${detail}` : 'football-data.org API rate limit exceeded. Try again later.')
-    }
-    throw new Error(
-      `football-data.org API error: ${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`,
-    )
+    const value = (await res.json()) as T
+    if (responseCache.size > 120) responseCache.clear()
+    responseCache.set(path, { at: Date.now(), value })
+    return value
   }
-  return (await res.json()) as T
+
+  throw new Error('football-data.org API rate limit exceeded. Try again later.')
+}
+
+async function allowedCompetitionCodes(): Promise<Set<string>> {
+  if (competitionCodes && Date.now() - competitionCodes.at < COMPETITION_CACHE_MS) {
+    return competitionCodes.codes
+  }
+  try {
+    const { competitions } = await request<{ competitions: ApiCompetition[] }>('/competitions')
+    const codes = competitions
+      .map(item => item.code?.trim().toUpperCase())
+      .filter((code): code is string => Boolean(code))
+    if (codes.length > 0) {
+      competitionCodes = { at: Date.now(), codes: new Set(codes) }
+      return competitionCodes.codes
+    }
+  } catch {}
+  return new Set(
+    configuredCompetitionCodes.length > 0 ? configuredCompetitionCodes : DEFAULT_COMPETITION_CODES,
+  )
 }
 
 async function fetchMatches(from: Date, to: Date, allowedOnly = true): Promise<ApiMatch[]> {
+  const allowedCodes = allowedOnly ? await allowedCompetitionCodes() : null
   const matches: ApiMatch[] = []
   for (const chunk of chunkDateRange(from, to)) {
     const dateFrom = chunk.from.toISOString().slice(0, 10)
@@ -182,7 +253,7 @@ async function fetchMatches(from: Date, to: Date, allowedOnly = true): Promise<A
       ...chunkMatches.filter(
         match =>
           match.competition &&
-          (!allowedOnly || ALLOWED_COMPETITION_CODES.has(match.competition.code.toUpperCase())),
+          (!allowedCodes || allowedCodes.has(match.competition.code.toUpperCase())),
       ),
     )
   }
@@ -259,11 +330,12 @@ export class FootballDataProvider implements SportsDataProvider {
 
   async getCompetitions(): Promise<Competition[]> {
     try {
+      const allowedCodes = await allowedCompetitionCodes()
       const { competitions } = await request<{ competitions: ApiCompetition[] }>(
         '/competitions',
       )
       return competitions
-        .filter(item => ALLOWED_COMPETITION_CODES.has(item.code?.toUpperCase() ?? ''))
+        .filter(item => allowedCodes.has(item.code?.toUpperCase() ?? ''))
         .map(item => ({
           id: String(item.id),
           name: item.name,
