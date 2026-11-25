@@ -1,4 +1,8 @@
-import { getMatchAnalyses, type MatchAnalysis } from '@/lib/sports/service'
+import {
+  getMatchAnalyses,
+  type MatchAnalysis,
+  type SportsDataset,
+} from '@/lib/sports/service'
 import type { FixtureStatus } from '@/lib/sports/provider'
 import { buildFallbackMarkets, buildMarkets } from './odds'
 import { formatKickoffLabel } from './format'
@@ -114,8 +118,9 @@ function sortEvents(events: BetEvent[]): BetEvent[] {
   })
 }
 
-export async function getBetCatalog(now: Date = new Date()): Promise<BetCatalog> {
-  const { analyses, dataset } = await getMatchAnalyses(now)
+type MatchAnalysesResult = Awaited<ReturnType<typeof getMatchAnalyses>>
+
+function buildBetCatalogFrom({ analyses, dataset }: MatchAnalysesResult, now: Date): BetCatalog {
   const events = analyses
     .filter(analysis => {
       const kickoff = analysis.fixture.kickoffUtc.getTime()
@@ -136,14 +141,26 @@ export async function getBetCatalog(now: Date = new Date()): Promise<BetCatalog>
   }
 }
 
+export async function getBetCatalog(now: Date = new Date()): Promise<BetCatalog> {
+  return buildBetCatalogFrom(await getMatchAnalyses(now), now)
+}
+
 export async function getBetEvent(
   fixtureId: string,
   now: Date = new Date(),
-): Promise<{ event: BetEvent | null; catalog: BetCatalog }> {
-  const catalog = await getBetCatalog(now)
+): Promise<{
+  event: BetEvent | null
+  catalog: BetCatalog
+  analysis: MatchAnalysis | null
+  dataset: SportsDataset
+}> {
+  const matchData = await getMatchAnalyses(now)
+  const catalog = buildBetCatalogFrom(matchData, now)
   return {
     event: catalog.events.find(event => event.id === fixtureId) ?? null,
     catalog,
+    analysis: matchData.analyses.find(item => item.fixture.id === fixtureId) ?? null,
+    dataset: matchData.dataset,
   }
 }
 

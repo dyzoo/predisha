@@ -43,11 +43,13 @@ export default async function BetSportsPage({ searchParams }: { searchParams: Se
       />
 
       <SportsbookBrowser
+        key={filters.q}
         basePath="/bet/sports"
         events={catalog.events}
         filters={filters}
         page={page}
         providerMessage={catalog.providerMessage}
+        now={Date.parse(catalog.generatedAt)}
       />
     </div>
   )

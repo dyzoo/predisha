@@ -70,12 +70,12 @@ export default async function BuilderPage() {
     <div className="flex min-h-screen flex-col bg-background text-main-text">
       <SiteHeader />
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
           <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
             <ShieldCheck className="h-3.5 w-3.5" />
             AI Bet Builder
           </p>
-          <h1 className="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          <h1 className="mt-3 break-words font-display text-2xl font-bold tracking-tight sm:text-4xl">
             Build your prediction
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-text sm:text-base">

@@ -105,7 +105,7 @@ export function BetBuilder({
 
   if (loading) {
     return (
-      <div className="min-h-[400px] flex items-center justify-center">
+      <div className="flex min-h-[240px] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-accent" />
       </div>
     )
@@ -113,7 +113,7 @@ export function BetBuilder({
 
   if (!signedIn) {
     return (
-      <div className="min-h-[400px] flex flex-col items-center justify-center rounded-2xl border border-border bg-surface/50 p-8 text-center sm:p-12">
+      <div className="flex min-h-0 flex-col items-center justify-center rounded-2xl border border-border bg-surface/50 p-5 text-center sm:p-12">
         <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-accent/15 text-accent mb-4">
           <UserPlus className="h-8 w-8" />
         </div>
@@ -214,11 +214,11 @@ export function BetBuilder({
   }
 
   return (
-    <div className="space-y-8">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
         <form
           onSubmit={handleBuild}
-          className="h-fit rounded-2xl border border-border bg-surface/60 p-5 sm:p-6"
+          className="h-fit min-w-0 rounded-2xl border border-border bg-surface/60 p-4 sm:p-6"
         >
           <h2 className="flex items-center gap-2 font-display text-base font-bold">
             <Layers className="h-4 w-4 text-accent" />
@@ -238,7 +238,7 @@ export function BetBuilder({
                     type="button"
                     onClick={() => setRisk(option)}
                     aria-pressed={active}
-                    className={`rounded-xl border px-2 py-2.5 text-xs font-semibold transition-colors ${
+                    className={`rounded-xl border px-1 py-2 text-[10px] leading-tight transition-colors sm:px-2 sm:text-xs ${
                       active
                         ? 'border-accent bg-accent/10 text-accent'
                         : 'border-border bg-background/40 text-muted-text hover:text-main-text'
@@ -271,7 +271,7 @@ export function BetBuilder({
                     type="button"
                     onClick={() => setTimeRange(option.key)}
                     aria-pressed={active}
-                    className={`rounded-xl border px-2 py-2.5 text-xs font-semibold transition-colors ${
+                    className={`rounded-xl border px-1 py-2 text-[10px] leading-tight transition-colors sm:px-2 sm:text-xs ${
                       active
                         ? 'border-accent bg-accent/10 text-accent'
                         : 'border-border bg-background/40 text-muted-text hover:text-main-text'
@@ -325,9 +325,9 @@ export function BetBuilder({
           ) : null}
         </form>
 
-        <div>
+        <div className="min-w-0">
           {status === 'loading' ? (
-            <div className="min-h-[420px] rounded-2xl border border-accent/20 bg-surface/60 p-5 sm:p-6">
+            <div className="min-h-0 rounded-2xl border border-accent/20 bg-surface/60 p-4 sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 text-accent">
@@ -397,7 +397,7 @@ export function BetBuilder({
               </p>
             </div>
           ) : status === 'error' ? (
-            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-red-400/25 bg-red-400/10 p-8 text-center">
+            <div className="flex min-h-0 flex-col items-center justify-center rounded-2xl border border-red-400/25 bg-red-400/10 p-5 text-center sm:p-8">
               <CircleAlert className="h-7 w-7 text-red-300" />
               <p className="mt-4 text-sm font-semibold text-red-200">{error}</p>
               <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-red-200/80">
@@ -407,7 +407,7 @@ export function BetBuilder({
               </p>
             </div>
           ) : result ? (
-            <div className="rounded-2xl border border-border bg-surface/60 p-5 sm:p-6">
+            <div className="rounded-2xl border border-border bg-surface/60 p-4 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
@@ -521,7 +521,7 @@ export function BetBuilder({
                       </div>
                     </div>
 
-                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pl-10 text-[10px]">
+                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pl-0 text-[10px] sm:pl-10">
                       <span className="rounded-full border border-border bg-white/5 px-2 py-0.5 font-semibold text-muted-text">
                         {selection.market}
                       </span>
@@ -537,25 +537,25 @@ export function BetBuilder({
                         {selection.riskLevel} risk
                       </span>
                     </div>
-                    <p className="mt-2 pl-10 text-[11px] leading-relaxed text-muted-text">
+                    <p className="mt-2 break-words pl-0 text-[11px] leading-relaxed text-muted-text sm:pl-10">
                       {selection.reason}
                     </p>
                     {selection.alternatives.length > 0 ? (
-                      <p className="mt-1.5 pl-10 text-[10px] leading-relaxed text-muted-text/80">
+                      <p className="mt-1.5 break-words pl-0 text-[10px] leading-relaxed text-muted-text/80 sm:pl-10">
                         Also considered:{' '}
                         {selection.alternatives
                           .map(option => `${option.label} ${percent(option.probability)}`)
                           .join(' · ')}
                       </p>
                     ) : null}
-                    <div className="mt-2 ml-10 h-1 overflow-hidden rounded-full bg-elevated-surface">
+                    <div className="mt-2 ml-0 h-1 overflow-hidden rounded-full bg-elevated-surface sm:ml-10">
                       <span
                         className="block h-full rounded-full bg-accent"
                         style={{ width: percent(selection.probability) }}
                       />
                     </div>
                     {expandedSelectionId === selection.fixtureId && (
-                      <div className="mt-3 pl-10 rounded-xl border border-border bg-background/40 p-3">
+                      <div className="mt-3 rounded-xl border border-border bg-background/40 p-3 sm:ml-0 sm:pl-10">
                         <div className="grid gap-2 sm:grid-cols-2 text-[10px]">
                           <div className="rounded-lg border border-border bg-surface p-2">
                             <p className="font-semibold uppercase tracking-wide text-muted-text">
@@ -673,7 +673,7 @@ export function BetBuilder({
               ) : null}
             </div>
           ) : (
-            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 p-8 text-center">
+            <div className="flex min-h-0 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 p-5 text-center sm:p-8">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent">
                 <Layers className="h-6 w-6" />
               </span>
@@ -699,7 +699,7 @@ export function BetBuilder({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((step, index) => (
-          <div key={step.title} className="rounded-2xl border border-border bg-surface/50 p-4">
+          <div key={step.title} className="min-w-0 rounded-2xl border border-border bg-surface/50 p-4">
             <div className="flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
                 <step.icon className="h-4 w-4" />

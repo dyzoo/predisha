@@ -37,6 +37,7 @@ export default async function BetHomePage({ searchParams }: { searchParams: Sear
   }
   const page = Math.max(1, Math.floor(Number(params.page) || 1))
   const [catalog, mode] = await Promise.all([getBetCatalog(), getBetMode()])
+  const now = Date.parse(catalog.generatedAt)
   const live = catalog.events.filter(event => event.live)
   const upcoming = catalog.events.filter(event => event.effectiveStatus === 'SCHEDULED')
 
@@ -90,11 +91,13 @@ export default async function BetHomePage({ searchParams }: { searchParams: Sear
       ) : null}
 
       <SportsbookBrowser
+        key={filters.q}
         basePath="/bet"
         events={catalog.events}
         filters={filters}
         page={page}
         providerMessage={catalog.providerOk ? catalog.providerMessage : undefined}
+        now={now}
       />
 
       <section>

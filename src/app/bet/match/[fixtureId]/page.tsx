@@ -4,9 +4,11 @@ import { connection } from 'next/server'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Radio } from 'lucide-react'
 import { TeamBadge } from '@/components/teams/team-badge'
+import { MatchStatsTabs } from '@/components/matches/match-stats-tabs'
 import { MarketPanel } from '@/components/bet/market-panel'
 import { statusLabel } from '@/lib/bet/format'
 import { getBetEvent } from '@/lib/bet/catalog'
+import { buildMatchStatsView } from '@/lib/sports/view-model'
 
 type Params = Promise<{ fixtureId: string }>
 
@@ -24,8 +26,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function BetMatchPage({ params }: { params: Params }) {
   await connection()
   const { fixtureId } = await params
-  const { event } = await getBetEvent(fixtureId)
-  if (!event) notFound()
+  const { event, analysis, dataset } = await getBetEvent(fixtureId)
+  if (!event || !analysis) notFound()
 
   return (
     <div className="space-y-6">
@@ -90,9 +92,34 @@ export default async function BetMatchPage({ params }: { params: Params }) {
         ) : null}
 
         <p className="mt-4 text-[11px] text-muted-text">{event.sourceLabel}</p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a
+            href="#markets"
+            className="rounded-full border border-border bg-background/40 px-3 py-1.5 text-[11px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:text-accent"
+          >
+            Markets
+          </a>
+          <a
+            href="#stats"
+            className="rounded-full border border-border bg-background/40 px-3 py-1.5 text-[11px] font-semibold text-muted-text transition-colors hover:border-accent/40 hover:text-accent"
+          >
+            STATS
+          </a>
+        </div>
       </section>
 
-      <MarketPanel event={event} />
+      <div id="markets" className="scroll-mt-6">
+        <MarketPanel event={event} />
+      </div>
+
+      <div id="stats" className="scroll-mt-6">
+        <MatchStatsTabs
+          stats={buildMatchStatsView(analysis, dataset.fixtures, dataset.teams)}
+          homeName={event.home.name}
+          awayName={event.away.name}
+        />
+      </div>
 
       <p className="text-[11px] leading-relaxed text-muted-text">
         Prices include a 6% book margin. A selection is frozen at the price shown when you place the
