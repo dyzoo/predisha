@@ -9,9 +9,10 @@ import { prisma } from '@/lib/prisma'
 
 const HOUR_MS = 60 * 60 * 1000
 const DAY_MS = 24 * HOUR_MS
-const LOOKBACK_DAYS = 7
-const LOOKAHEAD_DAYS = 30
-const CACHE_MS = 5 * 60 * 1000
+const LOOKBACK_DAYS = 2
+const LOOKAHEAD_DAYS = 8
+const SNAPSHOT_TTL_MS = 5 * 60 * 1000
+const SEARCH_TIMEOUT_MS = 1800
 const MATCH_THRESHOLD = 0.6
 const CLUB_WORDS = new Set(['fc', 'afc', 'club'])
 
@@ -34,7 +35,20 @@ interface ProviderFixtureSnapshot {
   competitionNames: Map<string, string>
 }
 
-let snapshotCache: { at: number; promise: Promise<ProviderFixtureSnapshot> } | null = null
+interface SnapshotWindow {
+  from: Date
+  to: Date
+  key: string
+}
+
+interface SnapshotCacheEntry {
+  at: number
+  promise: Promise<ProviderFixtureSnapshot>
+  value: ProviderFixtureSnapshot | null
+}
+
+const EMPTY_SNAPSHOT: ProviderFixtureSnapshot = { fixtures: [], competitionNames: new Map() }
+const snapshotCache = new Map<string, SnapshotCacheEntry>()
 
 function tokensFor(value: string): string[] {
   return value
@@ -65,23 +79,70 @@ function scorePair(fixture: Fixture): { home: number; away: number } | null {
   return { home: fixture.homeScore, away: fixture.awayScore }
 }
 
-async function loadProviderSnapshot(now: Date): Promise<ProviderFixtureSnapshot> {
-  if (snapshotCache && Date.now() - snapshotCache.at < CACHE_MS) return snapshotCache.promise
+function windowFor(anchorMs: number): SnapshotWindow {
+  const from = new Date(anchorMs - LOOKBACK_DAYS * DAY_MS)
+  const to = new Date(from.getTime() + (LOOKBACK_DAYS + LOOKAHEAD_DAYS) * DAY_MS)
+  return { from, to, key: `${from.toISOString().slice(0, 10)}:${to.toISOString().slice(0, 10)}` }
+}
+
+function selectionWindow(selections: TicketSelection[], now: Date): SnapshotWindow {
+  const kickoffs = selections
+    .map(selection => new Date(selection.kickoffIso).getTime())
+    .filter(value => Number.isFinite(value))
+  return windowFor(kickoffs.length > 0 ? Math.min(...kickoffs) : now.getTime())
+}
+
+function loadProviderSnapshot(window: SnapshotWindow): Promise<ProviderFixtureSnapshot> {
+  const cached = snapshotCache.get(window.key)
+  if (cached && Date.now() - cached.at < SNAPSHOT_TTL_MS) return cached.promise
+
   const promise = (async () => {
     const provider = new FootballDataProvider()
-    const from = new Date(now.getTime() - LOOKBACK_DAYS * DAY_MS)
-    const to = new Date(now.getTime() + LOOKAHEAD_DAYS * DAY_MS)
     const [fixtures, competitions] = await Promise.all([
-      provider.getFixtures(from, to),
+      provider.getFixtures(window.from, window.to),
       provider.getCompetitions(),
     ])
     return {
       fixtures,
       competitionNames: new Map(competitions.map(item => [item.id, item.name])),
     }
-  })().catch(() => ({ fixtures: [] as Fixture[], competitionNames: new Map<string, string>() }))
-  snapshotCache = { at: Date.now(), promise }
+  })().catch(() => EMPTY_SNAPSHOT)
+
+  if (snapshotCache.size > 12) snapshotCache.clear()
+  const entry: SnapshotCacheEntry = { at: Date.now(), promise, value: null }
+  snapshotCache.set(window.key, entry)
+  void promise.then(value => {
+    entry.value = value
+    entry.at = Date.now()
+  })
   return promise
+}
+
+function cachedProviderSnapshot(window: SnapshotWindow): ProviderFixtureSnapshot | null {
+  const entry = snapshotCache.get(window.key)
+  if (!entry || Date.now() - entry.at > SNAPSHOT_TTL_MS) return null
+  return entry.value && entry.value.fixtures.length > 0 ? entry.value : null
+}
+
+function ensureProviderSnapshot(window: SnapshotWindow): void {
+  const entry = snapshotCache.get(window.key)
+  if (entry && Date.now() - entry.at < SNAPSHOT_TTL_MS) return
+  void loadProviderSnapshot(window)
+}
+
+async function withTimeout(
+  promise: Promise<ProviderFixtureSnapshot>,
+  ms: number,
+): Promise<ProviderFixtureSnapshot> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<ProviderFixtureSnapshot>(resolve => {
+    timer = setTimeout(() => resolve(EMPTY_SNAPSHOT), ms)
+  })
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
 }
 
 export function toFixtureSuggestion(
@@ -119,7 +180,10 @@ export async function searchAdminFixtureSuggestions(
 ): Promise<FixtureSuggestion[]> {
   const tokens = tokensFor(query)
   if (tokens.length === 0) return []
-  const { fixtures, competitionNames } = await loadProviderSnapshot(now)
+  const { fixtures, competitionNames } = await withTimeout(
+    loadProviderSnapshot(windowFor(now.getTime())),
+    SEARCH_TIMEOUT_MS,
+  )
   const matches = fixtures.filter(fixture => {
     const haystack = tokensFor(
       [
@@ -187,12 +251,11 @@ function applyFixture(selection: TicketSelection, fixture: Fixture, competitionN
   }
 }
 
-export async function reconcileTicketSelections(
+function reconcileWithSnapshot(
   selections: TicketSelection[],
-  now: Date = new Date(),
-): Promise<TicketSelection[]> {
-  const { fixtures, competitionNames } = await loadProviderSnapshot(now)
-  if (fixtures.length === 0) return selections
+  snapshot: ProviderFixtureSnapshot,
+): TicketSelection[] {
+  const { fixtures, competitionNames } = snapshot
   const byId = new Map(fixtures.map(fixture => [fixture.id, fixture]))
   const used = new Set<string>()
 
@@ -218,6 +281,17 @@ export async function reconcileTicketSelections(
   })
 }
 
+export function reconcileTicketSelections(
+  selections: TicketSelection[],
+  now: Date = new Date(),
+): TicketSelection[] {
+  const window = selectionWindow(selections, now)
+  const snapshot = cachedProviderSnapshot(window)
+  ensureProviderSnapshot(window)
+  if (!snapshot) return selections
+  return reconcileWithSnapshot(selections, snapshot)
+}
+
 function parseSelections(value: Prisma.JsonValue): TicketSelection[] {
   if (!Array.isArray(value)) return []
   return value as unknown as TicketSelection[]
@@ -228,7 +302,7 @@ export async function reconcileAdminSlipSelections(
   now: Date = new Date(),
 ): Promise<AdminBetSlip> {
   const selections = parseSelections(slip.selections)
-  const reconciled = await reconcileTicketSelections(selections, now)
+  const reconciled = reconcileTicketSelections(selections, now)
   if (JSON.stringify(reconciled) === JSON.stringify(selections)) return slip
 
   const totals = computeTicketTotals(slip.stakeMinor, reconciled)
