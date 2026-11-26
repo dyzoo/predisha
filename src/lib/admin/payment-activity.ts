@@ -40,6 +40,9 @@ const KIND_LABELS: Record<PaymentActivityKind, string> = {
 
 const PAID_STATES = new Set([
   'PAID',
+  'COMPLETED',
+  'SUCCESS',
+  'SUCCESSFUL',
   'SUCCEEDED',
   'CHARGEBACK_WON',
   'PARTIALLY_REFUNDED',

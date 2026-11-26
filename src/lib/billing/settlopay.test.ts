@@ -4,6 +4,7 @@ import {
   createSettloOrder,
   getSettloPayment,
   mapSettloState,
+  parseSettloWebhookEvent,
   verifySettloWebhook,
   verifySettloWebhookSignature,
 } from './settlopay'
@@ -31,6 +32,24 @@ describe('settlopay helpers', () => {
     vi.stubEnv('SETTLO_WEBHOOK_SECRET', 'whsec_test')
     expect(verifySettloWebhookSignature('payload', null)).toBe(false)
     expect(verifySettloWebhookSignature('payload', 'bad')).toBe(false)
+  })
+
+  it('parses webhook payloads without a provider call', () => {
+    const rawBody = JSON.stringify({
+      id: 'evt-3',
+      type: 'payment_intent.succeeded',
+      status: 'SUCCEEDED',
+      data: { id: 'pi_pay4', amount: { value: 4200 }, currency: 'TZS' },
+    })
+
+    expect(parseSettloWebhookEvent(rawBody, 'evt-3')).toMatchObject({
+      provider: 'settlopay',
+      providerEventId: 'evt-3',
+      orderId: 'pi_pay4',
+      status: 'SUCCEEDED',
+      amountMinor: 4200,
+      verified: true,
+    })
   })
 
   it('maps Settlo states to local outcomes', () => {

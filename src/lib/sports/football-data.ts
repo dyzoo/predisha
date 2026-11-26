@@ -14,7 +14,6 @@ const PROVIDER_NAME = 'football-data'
 const REQUEST_TIMEOUT_MS = 6_000
 const RESPONSE_CACHE_MS = 90 * 1000
 const COMPETITION_CACHE_MS = 30 * 60 * 1000
-const MAX_RATE_LIMIT_RETRIES = 2
 const MIN_REQUEST_INTERVAL_MS = 6_500
 
 const DEFAULT_TEAM_COLOR = '#9CA3AF'
@@ -152,16 +151,6 @@ async function waitForRequestSlot(): Promise<void> {
   lastRequestAt = Date.now()
 }
 
-function retryAfterMs(response: Response): number {
-  const header =
-    response.headers.get('retry-after') ??
-    response.headers.get('x-requestcounter-reset') ??
-    response.headers.get('x-request_counter-reset')
-  const seconds = Number(header)
-  if (Number.isFinite(seconds) && seconds > 0) return Math.min(seconds * 1000, 60_000)
-  return 5_000
-}
-
 function request<T>(path: string): Promise<T> {
   const cached = responseCache.get(path)
   if (cached && Date.now() - cached.at < RESPONSE_CACHE_MS) {
@@ -179,46 +168,37 @@ async function performRequest<T>(path: string): Promise<T> {
     throw new Error('FOOTBALL_DATA_API_TOKEN is not configured')
   }
 
-  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
-    await waitForRequestSlot()
-    const res = await fetch(`${BASE_URL}${path}`, {
-      headers: { 'X-Auth-Token': API_TOKEN },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-    if (res.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
-      await res.body?.cancel().catch(() => undefined)
-      await sleep(Math.max(60_000, retryAfterMs(res)))
-      continue
-    }
-    if (!res.ok) {
-      let detail = ''
-      try {
-        const payload = (await res.json()) as { message?: unknown; error?: unknown }
-        const candidate = payload.message ?? payload.error
-        if (typeof candidate === 'string') detail = candidate.trim()
-      } catch {}
-      if (res.status === 403) {
-        throw new Error(
-          detail
-            ? `football-data.org API access denied: ${detail}`
-            : 'football-data.org API token is invalid or lacks access to this endpoint.',
-        )
-      }
-      if (res.status === 429) {
-        throw new Error(detail ? `football-data.org API rate limit exceeded: ${detail}` : 'football-data.org API rate limit exceeded. Try again later.')
-      }
+  await waitForRequestSlot()
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: { 'X-Auth-Token': API_TOKEN },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const payload = (await res.json()) as { message?: unknown; error?: unknown }
+      const candidate = payload.message ?? payload.error
+      if (typeof candidate === 'string') detail = candidate.trim()
+    } catch {}
+    if (res.status === 403) {
       throw new Error(
-        `football-data.org API error: ${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`,
+        detail
+          ? `football-data.org API access denied: ${detail}`
+          : 'football-data.org API token is invalid or lacks access to this endpoint.',
       )
     }
-    const value = (await res.json()) as T
-    if (responseCache.size > 120) responseCache.clear()
-    responseCache.set(path, { at: Date.now(), value })
-    return value
+    if (res.status === 429) {
+      throw new Error(detail ? `football-data.org API rate limit exceeded: ${detail}` : 'football-data.org API rate limit exceeded. Try again later.')
+    }
+    throw new Error(
+      `football-data.org API error: ${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`,
+    )
   }
-
-  throw new Error('football-data.org API rate limit exceeded. Try again later.')
+  const value = (await res.json()) as T
+  if (responseCache.size > 120) responseCache.clear()
+  responseCache.set(path, { at: Date.now(), value })
+  return value
 }
 
 async function allowedCompetitionCodes(): Promise<Set<string>> {

@@ -47,7 +47,7 @@ export async function applyBillingWebhookEvent(
       ? await prisma.subscriptionPlan.findUnique({ where: { id: planId } })
       : null
     if (userId && planId && plan) {
-      await prisma.subscription.upsert({
+      const subscription = await prisma.subscription.upsert({
         where: { userId },
         update: {
           planId,
@@ -65,6 +65,10 @@ export async function applyBillingWebhookEvent(
           cancelAtPeriodEnd: false,
         },
       })
+      await prisma.billingEvent.update({
+        where: { providerEventId: event.orderId },
+        data: { subscriptionId: subscription.id },
+      }).catch(() => undefined)
     }
   }
 

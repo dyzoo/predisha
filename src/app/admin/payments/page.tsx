@@ -86,7 +86,7 @@ export default async function AdminPaymentsPage({
       ? filters.status
       : 'all'
 
-  const [orders, slips, billingEvents] = await Promise.all([
+  const [orders, transactions, slips, billingEvents] = await Promise.all([
     prisma.betPaymentOrder.findMany({
       where: {
         OR: query
@@ -94,13 +94,14 @@ export default async function AdminPaymentsPage({
               { user: { is: { phone: { contains: query, mode: 'insensitive' } } } },
               { user: { is: { name: { contains: query, mode: 'insensitive' } } } },
               { user: { is: { email: { contains: query, mode: 'insensitive' } } } },
+              { phone: { contains: query, mode: 'insensitive' } },
               { orderId: { contains: query, mode: 'insensitive' } },
               { provider: { contains: query, mode: 'insensitive' } },
             ]
           : undefined,
       },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: 200,
       select: {
         id: true,
         kind: true,
@@ -110,6 +111,31 @@ export default async function AdminPaymentsPage({
         phone: true,
         orderId: true,
         status: true,
+        createdAt: true,
+        user: { select: { name: true, email: true, phone: true } },
+      },
+    }),
+    prisma.betTransaction.findMany({
+      where: {
+        type: 'DEPOSIT',
+        OR: query
+          ? [
+              { user: { is: { phone: { contains: query, mode: 'insensitive' } } } },
+              { user: { is: { name: { contains: query, mode: 'insensitive' } } } },
+              { user: { is: { email: { contains: query, mode: 'insensitive' } } } },
+              { reference: { contains: query, mode: 'insensitive' } },
+              { note: { contains: query, mode: 'insensitive' } },
+            ]
+          : undefined,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        amountMinor: true,
+        reference: true,
+        note: true,
+        metadata: true,
         createdAt: true,
         user: { select: { name: true, email: true, phone: true } },
       },
@@ -128,7 +154,7 @@ export default async function AdminPaymentsPage({
           : undefined,
       },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: 200,
       select: {
         id: true,
         phone: true,
@@ -147,32 +173,11 @@ export default async function AdminPaymentsPage({
           ? [
               { providerEventId: { contains: query, mode: 'insensitive' } },
               { processingState: { contains: query, mode: 'insensitive' } },
-              {
-                subscription: {
-                  is: {
-                    user: { is: { phone: { contains: query, mode: 'insensitive' } } },
-                  },
-                },
-              },
-              {
-                subscription: {
-                  is: {
-                    user: { is: { name: { contains: query, mode: 'insensitive' } } },
-                  },
-                },
-              },
-              {
-                subscription: {
-                  is: {
-                    user: { is: { email: { contains: query, mode: 'insensitive' } } },
-                  },
-                },
-              },
             ]
           : undefined,
       },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: 200,
       select: {
         id: true,
         providerEventId: true,
@@ -220,6 +225,26 @@ export default async function AdminPaymentsPage({
     }
   }
 
+  if (kind === 'all' || kind === 'deposit') {
+    for (const transaction of transactions) {
+      const metadata = readJsonRecord(transaction.metadata)
+      if (metadata.provider === SETTLO_PROVIDER_NAME) continue
+      if (transaction.reference?.startsWith('settlopay:')) continue
+      rows.push({
+        id: transaction.id,
+        kind: 'DEPOSIT',
+        client: clientLabel(transaction.user),
+        phone: transaction.user.phone ?? readJsonString(metadata.phone),
+        amountMinor: transaction.amountMinor,
+        currency: 'TZS',
+        provider: readJsonString(metadata.provider) ?? 'manual',
+        reference: transaction.reference ?? transaction.note ?? transaction.id,
+        status: readJsonString(metadata.status) ?? 'PAID',
+        createdAt: transaction.createdAt,
+      })
+    }
+  }
+
   if (kind === 'all' || kind === 'slip') {
     for (const entry of slips) {
       rows.push({
@@ -251,7 +276,7 @@ export default async function AdminPaymentsPage({
         phone: readJsonString(metadata.phone) ?? user?.phone ?? null,
         amountMinor: readJsonNumber(metadata.amountMinor),
         currency: readJsonString(metadata.currency) ?? 'TZS',
-        provider: SETTLO_PROVIDER_NAME,
+        provider: readJsonString(metadata.provider) ?? SETTLO_PROVIDER_NAME,
         reference: event.providerEventId,
         status: readJsonString(metadata.status) ?? event.processingState,
         createdAt: event.createdAt,
@@ -271,7 +296,7 @@ export default async function AdminPaymentsPage({
       ),
     )
   }
-  activity = activity.slice(0, 120)
+  activity = activity.slice(0, 200)
 
   const paidCount = activity.filter(item => item.status === 'PAID').length
   const pendingCount = activity.filter(item => item.status === 'PENDING').length
@@ -369,7 +394,7 @@ export default async function AdminPaymentsPage({
             <Receipt className="h-4 w-4 text-accent" />
             Recent activity
           </h2>
-          <p className="text-[11px] text-muted-text">Showing up to 120 newest items.</p>
+          <p className="text-[11px] text-muted-text">Showing up to 200 newest items.</p>
         </div>
 
         {activity.length === 0 ? (

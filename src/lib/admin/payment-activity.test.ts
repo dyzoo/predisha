@@ -12,6 +12,7 @@ describe('admin payment activity', () => {
   it('normalizes provider and admin statuses', () => {
     expect(normalizePaymentStatus('SUCCEEDED')).toBe('PAID')
     expect(normalizePaymentStatus('PAID')).toBe('PAID')
+    expect(normalizePaymentStatus('completed')).toBe('PAID')
     expect(normalizePaymentStatus('PENDING_AUTH')).toBe('PENDING')
     expect(normalizePaymentStatus('CANCELLED')).toBe('FAILED')
     expect(normalizePaymentStatus(null)).toBe('UNKNOWN')

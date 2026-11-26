@@ -124,12 +124,6 @@ function cachedProviderSnapshot(window: SnapshotWindow): ProviderFixtureSnapshot
   return entry.value && entry.value.fixtures.length > 0 ? entry.value : null
 }
 
-function ensureProviderSnapshot(window: SnapshotWindow): void {
-  const entry = snapshotCache.get(window.key)
-  if (entry && Date.now() - entry.at < SNAPSHOT_TTL_MS) return
-  void loadProviderSnapshot(window)
-}
-
 async function withTimeout(
   promise: Promise<ProviderFixtureSnapshot>,
   ms: number,
@@ -287,7 +281,6 @@ export function reconcileTicketSelections(
 ): TicketSelection[] {
   const window = selectionWindow(selections, now)
   const snapshot = cachedProviderSnapshot(window)
-  ensureProviderSnapshot(window)
   if (!snapshot) return selections
   return reconcileWithSnapshot(selections, snapshot)
 }

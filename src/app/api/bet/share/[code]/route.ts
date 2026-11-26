@@ -10,7 +10,6 @@ import { shareCodeSchema } from '@/lib/bet/validation'
 import { getBetMode } from '@/lib/bet/mode'
 import { getMinStakeMinor } from '@/lib/bet/stake-settings'
 import { isProviderFixtureId, type TicketSelection } from '@/lib/bet/types'
-import { refreshFootballDataFixtures } from '@/lib/sports/sync'
 
 interface SharedResolvedResult extends FixtureResult {
   source: 'admin' | 'provider'
@@ -44,18 +43,6 @@ async function resolveSharedResults(
   catalog: Awaited<ReturnType<typeof getBetCatalog>>,
   now: Date,
 ): Promise<Record<string, SharedResolvedResult>> {
-  const providerIds = [
-    ...new Set(
-      selections
-        .filter(selection => !selection.finalScore && isProviderFixtureId(selection.fixtureId))
-        .map(selection => selection.fixtureId),
-    ),
-  ].slice(0, 10)
-
-  const refreshed = providerIds.length > 0
-    ? await refreshFootballDataFixtures(providerIds).catch(() => [])
-    : []
-  const refreshedById = new Map(refreshed.map(fixture => [fixture.id, fixture]))
   const storedResults = await getFixtureResults(now)
   const eventsById = new Map(catalog.events.map(event => [event.id, event]))
   const results: Record<string, SharedResolvedResult> = {}
@@ -77,9 +64,6 @@ async function resolveSharedResults(
     if (!isProviderFixtureId(selection.fixtureId)) continue
 
     const event = eventsById.get(selection.fixtureId)
-    const refreshedResult = finishedResult(refreshedById.get(selection.fixtureId) ?? {
-      status: 'SCHEDULED' as const,
-    })
     const storedResult = finishedResult(
       storedResults.get(selection.fixtureId) ?? { status: 'SCHEDULED' as const },
     )
@@ -88,7 +72,7 @@ async function resolveSharedResults(
       homeScore: event?.score?.home ?? null,
       awayScore: event?.score?.away ?? null,
     })
-    const resolved = refreshedResult ?? storedResult ?? catalogResult
+    const resolved = storedResult ?? catalogResult
     if (resolved) {
       results[selection.fixtureId] = { ...resolved, source: 'provider' }
     }

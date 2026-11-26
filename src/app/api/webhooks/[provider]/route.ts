@@ -1,8 +1,14 @@
-﻿import { connection } from 'next/server'
+﻿import { after } from 'next/server'
 import { apiError, json } from '@/lib/api'
 import { applyDepositPaymentEvent } from '@/lib/bet/deposits'
 import { applySlipPaymentEvent } from '@/lib/bet/slip-payments'
-import { SETTLO_PROVIDER_NAME, verifySettloWebhook } from '@/lib/billing/settlopay'
+import {
+  parseSettloWebhookEvent,
+  SETTLO_PROVIDER_NAME,
+  verifySettloWebhook,
+  verifySettloWebhookSignature,
+  type SettloWebhookEvent,
+} from '@/lib/billing/settlopay'
 import { applyBillingWebhookEvent } from '@/lib/billing/webhook'
 
 const handledEventIds = new Set<string>()
@@ -16,41 +22,53 @@ function rememberEvent(eventId: string): void {
   }
 }
 
+async function processEvent(
+  rawBody: string,
+  signature: string | null,
+  eventId: string | null,
+  parsed: SettloWebhookEvent,
+): Promise<void> {
+  const event = (await verifySettloWebhook(rawBody, signature, eventId).catch(() => null)) ?? parsed
+  const slipPayment = await applySlipPaymentEvent(event)
+  if (slipPayment.handled) return
+
+  const deposit = await applyDepositPaymentEvent(event)
+  if (deposit.handled) return
+
+  await applyBillingWebhookEvent(event)
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ provider: string }> },
 ) {
-  await connection()
-
   const { provider: providerId } = await params
   if (providerId !== SETTLO_PROVIDER_NAME) {
     return apiError('Unknown billing provider.', 404)
   }
 
   const eventId = request.headers.get('settlo-event-id')
+  const signature = request.headers.get('settlo-signature')
   const rawBody = await request.text()
-  const event = await verifySettloWebhook(rawBody, request.headers.get('settlo-signature'), eventId)
-  if (!event) {
-    return apiError('Invalid Settlo Pay webhook signature.', 401)
+  if (!verifySettloWebhookSignature(rawBody, signature)) {
+    return apiError('Invalid Settlo Pay webhook signature.', 400)
   }
 
-  if (event.providerEventId && handledEventIds.has(event.providerEventId)) {
-    return json({ data: { received: true, handled: true, duplicate: true } })
-  }
+  const parsed = parseSettloWebhookEvent(rawBody, eventId)
+  if (!parsed) return json({ received: true })
 
-  const slipPayment = await applySlipPaymentEvent(event)
-  if (slipPayment.handled) {
-    if (event.providerEventId) rememberEvent(event.providerEventId)
-    return json({ data: { received: true, handled: true, kind: 'bet-slip' } })
+  if (parsed.providerEventId && handledEventIds.has(parsed.providerEventId)) {
+    return json({ received: true, duplicate: true })
   }
+  if (parsed.providerEventId) rememberEvent(parsed.providerEventId)
 
-  const deposit = await applyDepositPaymentEvent(event)
-  if (deposit.handled) {
-    if (event.providerEventId) rememberEvent(event.providerEventId)
-    return json({ data: { received: true, handled: true, kind: 'wallet-deposit' } })
-  }
+  after(async () => {
+    try {
+      await processEvent(rawBody, signature, eventId, parsed)
+    } catch (error) {
+      console.error('[webhook] processing failed', error instanceof Error ? error.message : String(error))
+    }
+  })
 
-  const result = await applyBillingWebhookEvent(event)
-  if (result.handled && event.providerEventId) rememberEvent(event.providerEventId)
-  return json({ data: { received: true, handled: result.handled } })
+  return json({ received: true })
 }

@@ -230,6 +230,61 @@ export async function confirmSettloPayment(orderId: string): Promise<SettloOrder
   return getSettloPayment(orderId)
 }
 
+function webhookAmount(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value)
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return Math.round(parsed)
+  }
+  if (value && typeof value === 'object') {
+    const inner = (value as { value?: unknown }).value
+    if (typeof inner === 'number' && Number.isFinite(inner)) return Math.round(inner)
+    if (typeof inner === 'string' && inner.trim()) {
+      const parsed = Number(inner)
+      if (Number.isFinite(parsed)) return Math.round(parsed)
+    }
+  }
+  return null
+}
+
+export function parseSettloWebhookEvent(
+  rawBody: string,
+  eventIdHeader?: string | null,
+): SettloWebhookEvent | null {
+  try {
+    const payload = JSON.parse(rawBody) as Record<string, unknown> | null
+    if (!payload || typeof payload !== 'object') return null
+    const data =
+      payload.data && typeof payload.data === 'object'
+        ? (payload.data as Record<string, unknown>)
+        : {}
+    const type = typeof payload.type === 'string' ? payload.type : 'payment.unknown'
+    const baseEvent: Omit<
+      SettloWebhookEvent,
+      'status' | 'orderId' | 'amountMinor' | 'currency'
+    > = {
+      provider: SETTLO_PROVIDER_NAME,
+      providerEventId: firstString(eventIdHeader, payload.id) ?? '',
+      type,
+      verified: true,
+    }
+    if (!type.startsWith('payment_intent.')) {
+      return { ...baseEvent, status: null, orderId: null, amountMinor: null, currency: null }
+    }
+    const orderId = firstString(data.id, data.external_id, data.merchant_reference)
+    if (!isPaymentId(orderId)) return null
+    return {
+      ...baseEvent,
+      status: firstString(payload.status, data.status, data.state),
+      orderId,
+      amountMinor: webhookAmount(data.amount ?? payload.amount),
+      currency: firstString(data.currency, payload.currency) ?? 'TZS',
+    }
+  } catch {
+    return null
+  }
+}
+
 export function verifySettloWebhookSignature(
   rawBody: string,
   signature: string | null | undefined,
@@ -268,44 +323,18 @@ export async function verifySettloWebhook(
   eventIdHeader?: string | null,
 ): Promise<SettloWebhookEvent | null> {
   if (!verifySettloWebhookSignature(rawBody, signature)) return null
+  const event = parseSettloWebhookEvent(rawBody, eventIdHeader)
+  if (!event) return null
+  if (!event.type.startsWith('payment_intent.') || !event.orderId) return event
 
-  try {
-    const payload = JSON.parse(rawBody) as Record<string, unknown> | null
-    if (!payload || typeof payload !== 'object') return null
-    const data =
-      payload.data && typeof payload.data === 'object'
-        ? (payload.data as Record<string, unknown>)
-        : {}
-    const type = typeof payload.type === 'string' ? payload.type : 'payment.unknown'
-    const providerEventId = firstString(eventIdHeader, payload.id) ?? ''
-    const baseEvent: Omit<
-      SettloWebhookEvent,
-      'status' | 'orderId' | 'amountMinor' | 'currency'
-    > = {
-      provider: SETTLO_PROVIDER_NAME,
-      providerEventId,
-      type,
-      verified: true,
-    }
-
-    if (!type.startsWith('payment_intent.')) {
-      return { ...baseEvent, status: null, orderId: null, amountMinor: null, currency: null }
-    }
-
-    const candidate = firstString(data.id, data.external_id, data.merchant_reference)
-    if (!isPaymentId(candidate)) return null
-    const confirmed = await confirmSettloPayment(candidate)
-    if (!confirmed.success || !confirmed.orderId) return null
-
-    return {
-      ...baseEvent,
-      providerEventId: providerEventId || confirmed.orderId,
-      status: confirmed.status,
-      orderId: confirmed.orderId,
-      amountMinor: confirmed.amount,
-      currency: 'TZS',
-    }
-  } catch {
-    return null
+  const confirmed = await confirmSettloPayment(event.orderId)
+  if (!confirmed.success || !confirmed.orderId) return null
+  return {
+    ...event,
+    providerEventId: event.providerEventId || confirmed.orderId,
+    status: confirmed.status,
+    orderId: confirmed.orderId,
+    amountMinor: confirmed.amount,
+    currency: 'TZS',
   }
 }

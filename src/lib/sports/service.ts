@@ -74,7 +74,7 @@ async function refreshLiveFixtureScores(
         (delta > 0 && delta <= 15 * MINUTE_MS)
       )
     })
-    .slice(0, 10)
+    .slice(0, 3)
 
   if (candidates.length === 0) return new Map()
   const now = at.getTime()
@@ -152,7 +152,7 @@ async function resolveNow(now?: Date): Promise<Date> {
 
 export async function getSportsDataset(
   now?: Date,
-  allowCache = now === undefined,
+  allowCache = true,
 ): Promise<SportsDataset> {
   const at = await resolveNow(now)
 
@@ -586,7 +586,7 @@ export async function getMatchAnalyses(now?: Date): Promise<{
   dataset: SportsDataset
 }> {
   const at = await resolveNow(now)
-  const dataset = await getSportsDataset(at, now === undefined)
+  const dataset = await getSportsDataset(at)
   const analysisAsOf = effectiveAnalysisAsOf(dataset, at)
   return { analyses: buildMatchAnalyses(dataset, analysisAsOf), dataset }
 }
