@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -22,50 +22,7 @@ import { normalizeTzPhone } from '@/lib/bet/phone'
 import type { PublicWinnerSlipView } from '@/lib/bet/winners'
 import { VAT_PERCENT } from '@/lib/bet/vat'
 import { WinnerConfetti } from './winner-confetti'
-
-function buildSms(amountMinor: number): { text: string; balanceText: string } {
-  const code = `DKJ${Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 9).padEnd(9, '0')}`
-  const balance = amountMinor + 1_000_000 + Math.floor(Math.random() * 4_000_000)
-  const stamp = new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(new Date())
-  return {
-    text: `${code} Imethibitishwa. Umepokea Tsh ${amountMinor.toLocaleString('en-US')} kutoka SPOTIONEBET. ${stamp}. Salio lako jipya ni Tsh ${balance.toLocaleString('en-US')}`,
-    balanceText: `Tsh ${balance.toLocaleString('en-US')}`,
-  }
-}
-
-function playMessageTone() {
-  try {
-    const Ctx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-    if (!Ctx) return
-    const ctx = new Ctx()
-    const now = ctx.currentTime
-    const notes = [1174.66, 1396.91, 1760] // D6, F6, A6 - tri-tone notification
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      const start = now + i * 0.1
-      gain.gain.setValueAtTime(0.0001, start)
-      gain.gain.exponentialRampToValueAtTime(0.1, start + 0.015)
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28)
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.start(start)
-      osc.stop(start + 0.3)
-    })
-    window.setTimeout(() => { void ctx.close() }, 1200)
-  } catch {
-    // Ignore audio failures; the visual message still appears.
-  }
-}
+import { buildWithdrawalMessage, WithdrawalNotification } from './withdrawal-notification'
 
 export function WinnerReceipt({
   winner,
@@ -84,21 +41,6 @@ export function WinnerReceipt({
   const [phase, setPhase] = useState<'idle' | 'loading' | 'success'>('idle')
   const [successPhone, setSuccessPhone] = useState('')
   const [sms, setSms] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (phase !== 'success') return
-    const showTimer = window.setTimeout(() => {
-      setSms(buildSms(Number(amount) || winner.netPayoutMinor).text)
-      playMessageTone()
-    }, 1200)
-    return () => window.clearTimeout(showTimer)
-  }, [phase, amount, winner.netPayoutMinor])
-
-  useEffect(() => {
-    if (!sms) return
-    const hideTimer = window.setTimeout(() => setSms(null), 3500)
-    return () => window.clearTimeout(hideTimer)
-  }, [sms])
 
   async function downloadSlip() {
     if (!receiptRef.current || downloading) return
@@ -152,7 +94,10 @@ export function WinnerReceipt({
     setWithdrawError(null)
     setSuccessPhone(normalized.phone)
     setPhase('loading')
-    window.setTimeout(() => setPhase('success'), 2200)
+    window.setTimeout(() => {
+      setSms(buildWithdrawalMessage(value))
+      setPhase('success')
+    }, 2200)
   }
 
   return (
@@ -444,7 +389,7 @@ export function WinnerReceipt({
                 <p className="mt-1 text-sm text-muted-text">Sent to {successPhone}</p>
                 <button
                   type="button"
-                  onClick={() => { setWithdrawOpen(false); setPhase('idle'); setSms(null) }}
+                  onClick={() => { setWithdrawOpen(false); setPhase('idle') }}
                   className="mt-6 rounded-xl bg-accent px-8 py-2.5 text-sm font-bold text-background hover:opacity-90"
                 >
                   Done
@@ -455,19 +400,7 @@ export function WinnerReceipt({
         </div>
       ) : null}
 
-      {sms ? (
-        <div className="fixed left-1/2 top-2 z-[60] w-[min(94vw,460px)] -translate-x-1/2" style={{ animation: 'pop-in .28s ease-out' }}>
-          <div className="rounded-2xl border border-black/10 bg-white/90 p-3 shadow-2xl backdrop-blur">
-            <div className="flex gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700 ring-1 ring-black/5">M</div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-gray-900">M-PESA</p>
-                <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-600">{sms}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <WithdrawalNotification message={sms} onDismiss={() => setSms(null)} />
     </div>
   )
 }

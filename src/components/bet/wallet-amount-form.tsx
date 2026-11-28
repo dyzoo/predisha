@@ -9,6 +9,7 @@ import { betModeCopy } from '@/lib/bet/mode-copy'
 import { MAX_DEPOSIT_MINOR, type BetWalletView } from '@/lib/bet/types'
 import { useBetSlip } from './bet-slip-provider'
 import { useBetMode } from './bet-mode-context'
+import { buildWithdrawalMessage, WithdrawalNotification } from './withdrawal-notification'
 
 const WITHDRAWAL_QUICK_AMOUNTS = [1_000, 5_000, 10_000, 50_000]
 const DEPOSIT_AMOUNT_MULTIPLIERS = [1, 2, 5, 10]
@@ -37,6 +38,7 @@ export function WalletAmountForm({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [orderId, setOrderId] = useState<string | null>(null)
+  const [withdrawalMessage, setWithdrawalMessage] = useState<string | null>(null)
 
   const isDeposit = mode === 'deposit'
   const isLive = platformMode === 'LIVE'
@@ -51,6 +53,7 @@ export function WalletAmountForm({
     setError(null)
     setSuccess(null)
     setOrderId(null)
+    setWithdrawalMessage(null)
     if (needsPhone && phone.trim().length < 7) {
       setError(
         isDeposit
@@ -112,6 +115,9 @@ export function WalletAmountForm({
                 payload.transfer?.phoneMasked ?? phone
               }.`,
       )
+      if (!isDeposit) {
+        setWithdrawalMessage(buildWithdrawalMessage(payload.transfer?.amountMinor ?? amountMinor))
+      }
       await refreshWallet()
       router.refresh()
     } catch {
@@ -268,6 +274,11 @@ export function WalletAmountForm({
           Wallet
         </Link>
       </div>
+
+      <WithdrawalNotification
+        message={withdrawalMessage}
+        onDismiss={() => setWithdrawalMessage(null)}
+      />
     </form>
   )
 }

@@ -87,6 +87,10 @@ export function canUseSpecialBetTools(viewer: Viewer): boolean {
   )
 }
 
+export function canClaimWinnerSlip(viewer: Viewer): boolean {
+  return canUseSpecialBetTools(viewer) || canViewPremium(viewer)
+}
+
 /**
  * Demo mode is explicitly labelled and only available outside production. It
  * unlocks the full board so reviewers can inspect the product; the live free

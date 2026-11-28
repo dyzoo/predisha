@@ -370,6 +370,10 @@ export function ShareLoader({ code }: { code: string }) {
     slipViewer?.userId &&
       (slipViewer.isSpecial || slipViewer.role === 'ADMIN' || slipViewer.role === 'SUPER_ADMIN'),
   )
+  const canClaimWinner = Boolean(
+    slipViewer?.userId &&
+      (canUseSpecial || slipViewer.premium),
+  )
   const canForceCashout = Boolean(
     slipViewer?.role === 'ADMIN' || slipViewer?.role === 'SUPER_ADMIN',
   )
@@ -1535,7 +1539,7 @@ export function ShareLoader({ code }: { code: string }) {
               </div>
             ) : null}
 
-            {canUseSpecial ? (
+            {canClaimWinner ? (
               <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
                 <button
                   type="button"

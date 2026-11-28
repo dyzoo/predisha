@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canClaimWinnerSlip,
   canUseFreePreview,
   canUseSpecialBetTools,
   canViewAdmin,
@@ -56,6 +57,14 @@ describe('entitlements', () => {
     expect(canUseSpecialBetTools(viewer('FREE', 'USER'))).toBe(false)
     expect(canUseSpecialBetTools(viewer('ADMIN', 'ADMIN'))).toBe(true)
     expect(canUseSpecialBetTools({ ...viewer('FREE', 'USER'), isSpecial: true })).toBe(true)
+  })
+
+  it('allows premium users, special users and admins to claim winner slips', () => {
+    expect(canClaimWinnerSlip(viewer('FREE', 'USER'))).toBe(false)
+    expect(canClaimWinnerSlip(viewer('PREMIUM', 'USER'))).toBe(true)
+    expect(canClaimWinnerSlip(viewer('ADMIN', 'ADMIN'))).toBe(true)
+    expect(canClaimWinnerSlip(viewer('ADMIN', 'SUPER_ADMIN'))).toBe(true)
+    expect(canClaimWinnerSlip({ ...viewer('FREE', 'USER'), isSpecial: true })).toBe(true)
   })
 
   it('limits free previews but unlocks demo and premium', () => {

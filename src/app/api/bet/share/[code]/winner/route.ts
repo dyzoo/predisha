@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { apiError, json } from '@/lib/api'
-import { canUseSpecialBetTools } from '@/lib/auth/entitlements'
+import { canClaimWinnerSlip } from '@/lib/auth/entitlements'
 import { handleBetError } from '@/lib/bet/errors'
 import { guardMutation, requireViewer } from '@/lib/bet/security'
 import { assignAdminSlipEntryWin } from '@/lib/bet/winners'
@@ -17,7 +17,7 @@ export async function POST(
   try {
     guardMutation(request, 'share-winner')
     const viewer = await requireViewer()
-    if (!canUseSpecialBetTools(viewer)) {
+    if (!canClaimWinnerSlip(viewer)) {
       return apiError('Special bet tools are not enabled for this account.', 403)
     }
 
